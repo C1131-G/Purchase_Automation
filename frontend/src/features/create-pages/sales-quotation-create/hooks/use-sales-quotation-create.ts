@@ -9,6 +9,7 @@ import {
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { sapLotFieldsFromRow } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import { sapCommentsField } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import {
@@ -239,7 +240,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         Address: lookups.billToAddress.trim() || undefined,
         Address2: lookups.shipToAddress.trim() || undefined,
         CardCode: (header.vendorCode || lookups.codeInput).trim(),
-        Comments: header.comments.trim() || undefined,
+        ...sapCommentsField(header.comments),
         NumAtCard: header.referenceNo.trim() || undefined,
         DocDate: header.docDate,
         DocDueDate: header.docDueDate || header.docDate,
@@ -804,8 +805,9 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         LineNum: row.lineNum,
         DiscountPercent: row.discountPercent,
         ItemCode: row.productCode,
-        Price: row.price,
         Quantity: row.quantity,
+        UnitPrice: row.price,
+        UoMCode: row.uomCode || undefined,
         UoMEntry: row.uomEntry ?? undefined,
         VatGroup: row.vatGroup || undefined,
         ...sapLotFieldsFromRow(row),
@@ -813,39 +815,29 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       }));
 
     const branchFields = documentBranchPayload(header.branchId ?? branchField.effectiveBranchId);
+    const headerFields = {
+      Address: lookups.billToAddress.trim() || undefined,
+      Address2: lookups.shipToAddress.trim() || undefined,
+      ...sapCommentsField(header.comments),
+      DocDate: header.docDate || undefined,
+      DocDueDate: header.docDueDate || undefined,
+      NumAtCard: header.referenceNo.trim() || undefined,
+      DocumentLines: buildLines(),
+      SalesPersonCode: resolvedSalesEmployeeCode,
+      attachments: attachments.map((att) => ({
+        sourcePath: att.sourcePath || "",
+        fileName: att.fileName,
+        fileExtension: att.fileExtension || "",
+        freeText: att.freeText || "",
+        attachmentDate: att.attachmentDate || "",
+      })),
+      ...branchFields,
+    };
     const payload = isUpdating
-      ? {
-          Comments: header.comments.trim() || undefined,
-          DocDueDate: header.docDueDate || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          SalesPersonCode: resolvedSalesEmployeeCode,
-          attachments: attachments.map((att) => ({
-            sourcePath: att.sourcePath || "",
-            fileName: att.fileName,
-            fileExtension: att.fileExtension || "",
-            freeText: att.freeText || "",
-            attachmentDate: att.attachmentDate || "",
-          })),
-          ...branchFields,
-        }
+      ? headerFields
       : {
-          Address: lookups.billToAddress.trim() || undefined,
-          Address2: lookups.shipToAddress.trim() || undefined,
+          ...headerFields,
           CardCode: lookups.codeInput.trim(),
-          Comments: header.comments.trim() || undefined,
-          DocDate: header.docDate || undefined,
-          DocDueDate: header.docDueDate || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          DocumentLines: buildLines(),
-          SalesPersonCode: resolvedSalesEmployeeCode,
-          attachments: attachments.map((att) => ({
-            sourcePath: att.sourcePath || "",
-            fileName: att.fileName,
-            fileExtension: att.fileExtension || "",
-            freeText: att.freeText || "",
-            attachmentDate: att.attachmentDate || "",
-          })),
-          ...branchFields,
         };
 
     const trackingAction = isDraftAction

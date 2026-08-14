@@ -8,6 +8,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPqSaved } from "@/modules/intercompany";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 const normalizeSapDateValue = (value: unknown) => {
@@ -56,7 +57,7 @@ export const createPurchaseQuotation = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments,
+      Comments: toSapCommentsField(payload.Comments),
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,

@@ -24,6 +24,11 @@ import type {
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+  sapCommentsField,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import type {
   ActiveDatePicker,
   PopupMode,
@@ -1060,7 +1065,7 @@ export function useAPInvoiceCreate({
         docDueDate,
         referenceAutoFilled: referenceWasAutoFilled,
         referenceNo: sourceNumAtCard,
-        remarks: remarksParts,
+        remarks: clipSapText(remarksParts, SAP_FIELD_MAX.comments),
       });
       setLines(mappedLines);
       setProductRowDrafts({});
@@ -1537,6 +1542,7 @@ export function useAPInvoiceCreate({
               Quantity: row.quantity,
               UnitPrice: row.price,
               UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
               ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
@@ -1557,6 +1563,7 @@ export function useAPInvoiceCreate({
               Quantity: linkedQty,
               UnitPrice: row.price,
               UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
               ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
@@ -1571,6 +1578,7 @@ export function useAPInvoiceCreate({
               Quantity: excessQty,
               UnitPrice: row.price,
               UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
               ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
@@ -1582,7 +1590,7 @@ export function useAPInvoiceCreate({
 
       const payload = isEditMode
         ? {
-            Comments: header.remarks.trim() || undefined,
+            ...sapCommentsField(header.remarks),
             DocDueDate: header.docDueDate || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             SalesPersonCode: resolvedBuyerCode,
@@ -1600,7 +1608,7 @@ export function useAPInvoiceCreate({
             CardCode: vendorCodeInput.trim(),
             ...(header.docDate ? { DocDate: header.docDate } : {}),
             ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
-            ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+            ...sapCommentsField(header.remarks),
             ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
             DocumentLines: buildDocumentLines(),
             SalesPersonCode: resolvedBuyerCode,
@@ -1744,6 +1752,7 @@ export function useAPInvoiceCreate({
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
             ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
@@ -1766,6 +1775,7 @@ export function useAPInvoiceCreate({
             Quantity: linkedQty,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
             ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
@@ -1781,6 +1791,7 @@ export function useAPInvoiceCreate({
             Quantity: excessQty,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
             ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
@@ -1811,7 +1822,7 @@ export function useAPInvoiceCreate({
                 Address: billToAddress.trim() || undefined,
                 Address2: shipToAddress.trim() || undefined,
                 CardCode: vendorCodeInput.trim(),
-                Comments: header.remarks.trim() || undefined,
+                ...sapCommentsField(header.remarks),
                 DocDate: header.docDate,
                 DocDueDate: header.docDueDate || header.docDate,
                 NumAtCard: header.referenceNo.trim() || undefined,
@@ -1828,7 +1839,7 @@ export function useAPInvoiceCreate({
                 draftDocEntry: Number(loadedDraftDocEntry),
               }
             : {
-                Comments: header.remarks.trim() || undefined,
+                ...sapCommentsField(header.remarks),
                 DocDueDate: header.docDueDate || undefined,
                 NumAtCard: header.referenceNo.trim() || undefined,
                 SalesPersonCode: resolvedBuyerCode,
@@ -1901,7 +1912,7 @@ export function useAPInvoiceCreate({
           CardCode: vendorCodeInput.trim(),
           ...(header.docDate ? { DocDate: header.docDate } : {}),
           ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
-          ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+          ...sapCommentsField(header.remarks),
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           DocumentLines: buildDocumentLines(),
           SalesPersonCode: resolvedBuyerCode,

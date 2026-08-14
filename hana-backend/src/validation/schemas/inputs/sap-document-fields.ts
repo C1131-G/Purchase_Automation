@@ -32,6 +32,21 @@ export const SAP_FIELD_MAX = {
 
 export const sapOptionalText = (max: number) => z.string().max(max).optional();
 
+/** UI `documentBranchPayload` — keep both keys so Zod does not strip/reject branch. */
+export const sapDocumentBranchFields = {
+  BPL_IDAssignedToInvoice: z.coerce.number().int().positive().optional(),
+  branchId: z.coerce.number().int().positive().optional(),
+};
+
+/** SAP Document.Comments / VendorPayments.Remarks — clip to 254 so SL does not reject. */
+export const toSapCommentsField = (value: unknown): string | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+  const clipped = String(value).trim().slice(0, SAP_FIELD_MAX.comments);
+  return clipped || undefined;
+};
+
 export const sapRequiredText = (max: number) => z.string().min(1).max(max);
 
 export const sapOptionalCode = (max: number) => z.string().max(max).optional();

@@ -7,6 +7,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
@@ -56,7 +57,7 @@ export const createCreditNote = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments ?? draftComments,
+      Comments: toSapCommentsField(payload.Comments ?? draftComments),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,

@@ -39,6 +39,28 @@ export const SAP_CHECK_NUMBER_PATTERN = /^\d+$/;
 export const clipSapText = (value: string, max: number): string =>
   value.length <= max ? value : value.slice(0, max);
 
+/** Header Remarks → SAP Document.Comments / VendorPayments.Remarks (omit empty). */
+export const toSapCommentsPayload = (value: string | null | undefined): string | undefined => {
+  const clipped = clipSapText((value ?? "").trim(), SAP_FIELD_MAX.comments);
+  return clipped || undefined;
+};
+
+/** Spread into a marketing-doc payload so empty remarks omit the key (EOPT). */
+export const sapCommentsField = (
+  value: string | null | undefined,
+): { Comments: string } | Record<string, never> => {
+  const comments = toSapCommentsPayload(value);
+  return comments === undefined ? {} : { Comments: comments };
+};
+
+/** Spread into a VendorPayments payload so empty remarks omit the key (EOPT). */
+export const sapRemarksField = (
+  value: string | null | undefined,
+): { Remarks: string } | Record<string, never> => {
+  const remarks = toSapCommentsPayload(value);
+  return remarks === undefined ? {} : { Remarks: remarks };
+};
+
 export const sapTextOverflowError = (label: string, max: number): string =>
   `${label} cannot exceed ${max} characters (SAP limit).`;
 

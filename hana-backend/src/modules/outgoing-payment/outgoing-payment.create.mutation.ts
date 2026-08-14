@@ -2,6 +2,7 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { serviceLayerClient } from "@/services/service-layer.service";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of Outgoing Payments from HANA.
 
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
@@ -62,7 +63,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
             };
           }) || [],
       Reference: payload.Reference,
-      Remarks: payload.Remarks,
+      Remarks: toSapCommentsField(payload.Remarks),
       TransferSum: payload.TransferSum || payload.TrsfrSum || 0,
     };
 

@@ -8,6 +8,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPqSaved, assertIcPqEditable } from "@/modules/intercompany";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import type { IcHookResult } from "@/modules/intercompany";
 const normalizeSapDateValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -103,7 +104,7 @@ export const updatePurchaseQuotation = async (
     }
 
     if (payload.Comments !== undefined) {
-      sapPayload.Comments = payload.Comments;
+      sapPayload.Comments = toSapCommentsField(payload.Comments);
     }
     if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;

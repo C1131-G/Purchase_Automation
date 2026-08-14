@@ -8,6 +8,7 @@ import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
@@ -60,7 +61,7 @@ export const createGRPO = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments ?? draftComments,
+      Comments: toSapCommentsField(payload.Comments ?? draftComments),
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       AttachmentEntry: absoluteEntry ?? undefined,
@@ -98,6 +99,7 @@ export const createGRPO = async (
         return line;
       }),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
+      SalesPersonCode: payload.SalesPersonCode,
     };
 
     if (isDraft) {

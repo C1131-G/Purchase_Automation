@@ -7,6 +7,7 @@ import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
@@ -97,7 +98,7 @@ export const updateCreditNote = async (
     }
 
     if (payload.Comments !== undefined) {
-      sapPayload.Comments = payload.Comments;
+      sapPayload.Comments = toSapCommentsField(payload.Comments);
     }
     if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;

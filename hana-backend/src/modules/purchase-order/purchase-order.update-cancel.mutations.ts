@@ -10,6 +10,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPoUpdated, assertIcPoEditable } from "@/modules/intercompany";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const updatePurchaseOrder = async (
@@ -91,7 +92,7 @@ export const updatePurchaseOrder = async (
     }
 
     if (payload.Comments !== undefined) {
-      sapPayload.Comments = payload.Comments;
+      sapPayload.Comments = toSapCommentsField(payload.Comments);
     }
     if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;

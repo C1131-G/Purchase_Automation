@@ -2,6 +2,7 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { serviceLayerClient } from "@/services/service-layer.service";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of Outgoing Payments from HANA.
 
 export const updatePayment = async (
@@ -11,8 +12,8 @@ export const updatePayment = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    if (payload.Remarks) {
-      sapPayload.Remarks = payload.Remarks;
+    if (payload.Remarks !== undefined) {
+      sapPayload.Remarks = toSapCommentsField(payload.Remarks);
     }
     if (payload.Reference) {
       sapPayload.Reference = payload.Reference;

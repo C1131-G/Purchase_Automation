@@ -18,6 +18,11 @@ import {
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { sapLotFieldsFromRow } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+  sapCommentsField,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
@@ -662,7 +667,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         });
 
         setHeader({
-          comments: remarksParts,
+          comments: clipSapText(remarksParts, SAP_FIELD_MAX.comments),
           docDate: header.docDate,
           docDueDate,
           referenceNo: sourceNumAtCard,
@@ -1035,7 +1040,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         ? {
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
-            Comments: header.comments.trim() || undefined,
+            ...sapCommentsField(header.comments),
             DocDate: header.docDate,
             DocDueDate: header.docDueDate || header.docDate,
             NumAtCard: header.referenceNo.trim() || undefined,
@@ -1061,7 +1066,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
             CardCode: (header.vendorCode || lookups.codeInput).trim(),
-            Comments: header.comments.trim() || undefined,
+            ...sapCommentsField(header.comments),
             DocDate: header.docDate,
             DocDueDate: header.docDueDate || header.docDate,
             NumAtCard: header.referenceNo.trim() || undefined,
@@ -1194,7 +1199,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
           CardCode: draftCardCode,
-          Comments: header.comments.trim() || undefined,
+          ...sapCommentsField(header.comments),
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           NumAtCard: header.referenceNo.trim() || undefined,
@@ -1224,7 +1229,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         ? {
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
-            Comments: header.comments.trim() || undefined,
+            ...sapCommentsField(header.comments),
             DocDate: header.docDate,
             DocDueDate: header.docDueDate || header.docDate,
             NumAtCard: header.referenceNo.trim() || undefined,
@@ -1257,7 +1262,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
             CardCode: (header.vendorCode || lookups.codeInput).trim(),
-            Comments: header.comments.trim() || undefined,
+            ...sapCommentsField(header.comments),
             DocDate: header.docDate,
             DocDueDate: header.docDueDate || header.docDate,
             NumAtCard: header.referenceNo.trim() || undefined,

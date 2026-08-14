@@ -29,6 +29,11 @@ import {
 import type { APCreditMemoFieldErrors } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+  sapCommentsField,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import type {
   LookupItem,
   ProductLookupItem,
@@ -1077,7 +1082,7 @@ export function useAPCreditMemoCreate({
           docDueDate,
           referenceAutoFilled: true,
           referenceNo: sourceNumAtCard,
-          remarks: remarksParts,
+          remarks: clipSapText(remarksParts, SAP_FIELD_MAX.comments),
           warehouseCode, // ← required so the reactive useEffect can resolve the display name
         });
         setLines(mappedLines);
@@ -1498,7 +1503,7 @@ export function useAPCreditMemoCreate({
 
       if (isEditMode || draftDocNum) {
         const updatePayload: UpdateAPCreditMemoInput = {
-          Comments: header.remarks.trim() || undefined,
+          ...sapCommentsField(header.remarks),
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: resolvedBuyerCode,
@@ -1517,7 +1522,7 @@ export function useAPCreditMemoCreate({
         CardCode: vendorCodeInput.trim(),
         ...(header.docDate ? { DocDate: header.docDate } : {}),
         ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
-        ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+        ...sapCommentsField(header.remarks),
         ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
         Address: billToAddress.trim() || undefined,
         Address2: shipToAddress.trim() || undefined,
@@ -1782,7 +1787,7 @@ export function useAPCreditMemoCreate({
         const id =
           editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry ?? draftDocEntry;
         const updatePayload: UpdateAPCreditMemoInput = {
-          Comments: header.remarks.trim() || undefined,
+          ...sapCommentsField(header.remarks),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
@@ -1870,7 +1875,7 @@ export function useAPCreditMemoCreate({
           CardCode: vendorCodeInput.trim(),
           ...(header.docDate ? { DocDate: header.docDate } : {}),
           ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
-          ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+          ...sapCommentsField(header.remarks),
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,

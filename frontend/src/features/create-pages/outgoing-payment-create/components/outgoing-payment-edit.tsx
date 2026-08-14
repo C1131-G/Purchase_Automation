@@ -11,6 +11,11 @@ import {
   notifyActionSuccess,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import {
+  clipSapText,
+  SAP_FIELD_MAX,
+  sapRemarksField,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
+import {
   outgoingPaymentKeys,
   outgoingPaymentQueries,
 } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
@@ -37,7 +42,10 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   }, [paymentDetail?.Remarks]);
 
   const updateMutation = useMutation({
-    mutationFn: () => outgoingPaymentAPI.updatePayment(paymentDetail!.id, { Remarks: remarks }),
+    mutationFn: () =>
+      outgoingPaymentAPI.updatePayment(paymentDetail!.id, {
+        ...sapRemarksField(remarks),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.detailByDocNum(docNum) });
       queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.all });
@@ -159,7 +167,8 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                 <textarea
                   id="remarks"
                   value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  onChange={(e) => setRemarks(clipSapText(e.target.value, SAP_FIELD_MAX.comments))}
+                  maxLength={SAP_FIELD_MAX.comments}
                   rows={2}
                   className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900 focus:border-teal-500 focus:bg-surface focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
                 />

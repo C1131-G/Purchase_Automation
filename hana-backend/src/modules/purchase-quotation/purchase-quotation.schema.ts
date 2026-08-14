@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 import {
   SAP_FIELD_MAX,
+  sapDocumentBranchFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -149,6 +150,7 @@ export const CreatePurchaseQuotationInputSchema = z.object({
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().optional(),
+  ...sapDocumentBranchFields,
 });
 
 // UpdatePurchaseQuotationInputSchema: Edit flow blocks vendor updates (CardCode/CardName).
@@ -179,6 +181,7 @@ export const UpdatePurchaseQuotationInputSchema = z.object({
   CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
   CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
   draftDocEntry: z.coerce.number().optional(),
+  ...sapDocumentBranchFields,
 });
 
 export type PurchaseQuotationQuery = z.infer<typeof PurchaseQuotationQuerySchema>;

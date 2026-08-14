@@ -8,6 +8,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { assertIcSqEditable } from "@/modules/intercompany";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
@@ -106,7 +107,7 @@ export const updateSalesQuotation = async (
     }
 
     if (payload.Comments !== undefined) {
-      sapPayload.Comments = payload.Comments;
+      sapPayload.Comments = toSapCommentsField(payload.Comments);
     }
     if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;

@@ -6,6 +6,7 @@ import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
@@ -19,7 +20,7 @@ export const updateGRPO = async (
     const sapPayload: Record<string, unknown> = {};
 
     if (payload.Comments !== undefined) {
-      sapPayload.Comments = payload.Comments;
+      sapPayload.Comments = toSapCommentsField(payload.Comments);
     }
     if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;

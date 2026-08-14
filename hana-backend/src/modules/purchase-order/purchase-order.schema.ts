@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 import {
   SAP_FIELD_MAX,
+  sapDocumentBranchFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -189,6 +190,7 @@ export const CreatePurchaseOrderInputSchema = z.object({
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().optional(),
+  ...sapDocumentBranchFields,
 });
 
 // UpdatePurchaseOrderInputSchema: Edit flow blocks vendor updates (CardCode).
@@ -215,6 +217,7 @@ export const UpdatePurchaseOrderInputSchema = z
     CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
     CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
+    ...sapDocumentBranchFields,
   })
   .strict();
 

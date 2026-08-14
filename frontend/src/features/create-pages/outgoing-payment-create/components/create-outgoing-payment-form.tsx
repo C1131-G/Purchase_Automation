@@ -20,6 +20,7 @@ import {
   notifyActionError,
   notifyActionSuccess,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import { sapRemarksField } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import {
   parseISODate,
   toDisplayDate,
@@ -376,7 +377,7 @@ export function CreateOutgoingPaymentForm() {
       CheckSum: checkSum,
       DocDate: docDate || "",
       PaymentInvoices: paymentInvoices,
-      Remarks: remarks,
+      ...sapRemarksField(remarks),
       TrsfrSum: transferSum,
       ...(transferSum > 0 && paymentDetails.TransferDate
         ? { TransferDate: paymentDetails.TransferDate }

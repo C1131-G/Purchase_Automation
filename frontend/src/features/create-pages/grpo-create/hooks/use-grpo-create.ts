@@ -10,6 +10,11 @@ import type {
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+  sapCommentsField,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import type {
   ActiveDatePicker,
   PopupMode,
@@ -1176,7 +1181,7 @@ export function useGRPOCreate({
           docDueDate,
           referenceAutoFilled: referenceWasAutoFilled,
           referenceNo: sourceNumAtCard,
-          remarks: remarksParts,
+          remarks: clipSapText(remarksParts, SAP_FIELD_MAX.comments),
         });
         setLines(
           mappedLines.map((row) => {
@@ -1966,7 +1971,7 @@ export function useGRPOCreate({
       ? {
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
-          Comments: header.remarks.trim() || undefined,
+          ...sapCommentsField(header.remarks),
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           attachments: attachments.map((att) => ({
@@ -1981,7 +1986,7 @@ export function useGRPOCreate({
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
           CardCode: vendorCodeInput.trim(),
-          Comments: header.remarks.trim() || undefined,
+          ...sapCommentsField(header.remarks),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
@@ -2135,7 +2140,7 @@ export function useGRPOCreate({
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
           CardCode: draftCardCode,
-          Comments: header.remarks.trim() || undefined,
+          ...sapCommentsField(header.remarks),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,

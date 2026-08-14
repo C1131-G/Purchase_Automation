@@ -7,6 +7,7 @@ import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
 
@@ -54,7 +55,7 @@ export const createInvoice = async (
     Address: payload.Address,
     Address2: payload.Address2,
     CardCode: payload.CardCode,
-    Comments: payload.Comments ?? draftComments,
+    Comments: toSapCommentsField(payload.Comments ?? draftComments),
     DocDate: payload.DocDate,
     DocDueDate: payload.DocDueDate || payload.DocDate,
     AttachmentEntry: absoluteEntry ?? undefined,

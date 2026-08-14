@@ -14,6 +14,7 @@ import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const createPurchaseOrder = async (
@@ -128,7 +129,7 @@ export const createPurchaseOrder = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments ?? draftComments,
+      Comments: toSapCommentsField(payload.Comments ?? draftComments),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,

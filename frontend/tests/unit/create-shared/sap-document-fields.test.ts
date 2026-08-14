@@ -4,7 +4,10 @@ import {
   clipSapText,
   SAP_CHECK_NUMBER_PATTERN,
   SAP_FIELD_MAX,
+  sapCommentsField,
   sapDocumentTextErrors,
+  sapRemarksField,
+  toSapCommentsPayload,
 } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 
 describe("SAP document field limits", () => {
@@ -43,6 +46,17 @@ describe("SAP document field limits", () => {
     expect(errors.cardCode).toMatch(/15/);
     expect(errors.comments).toMatch(/254/);
     expect(errors.numAtCard).toMatch(/100/);
+  });
+
+  it("sends trimmed remarks clipped to SAP Comments length", () => {
+    expect(toSapCommentsPayload("  keep me  ")).toBe("keep me");
+    expect(toSapCommentsPayload("   ")).toBeUndefined();
+    expect(toSapCommentsPayload(null)).toBeUndefined();
+    expect(toSapCommentsPayload("c".repeat(300))).toHaveLength(254);
+    expect(sapCommentsField("  keep me  ")).toEqual({ Comments: "keep me" });
+    expect(sapCommentsField("   ")).toEqual({});
+    expect(sapRemarksField("pay now")).toEqual({ Remarks: "pay now" });
+    expect(sapRemarksField("")).toEqual({});
   });
 
   it("allows digit-only cheque numbers", () => {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 import {
   SAP_FIELD_MAX,
+  sapDocumentBranchFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -128,8 +129,7 @@ export const CreateSalesQuotationInputSchema = z.object({
   SalesPersonCode: z.coerce.number().int().optional(),
   /** Explicit numbering series (NNM1.Series). When omitted, backend resolves SAP next series for branch. */
   Series: z.coerce.number().int().positive().optional(),
-  /** Multi-branch document BPL. When omitted, backend maps from line warehouse OWHS.BPLid. */
-  BPL_IDAssignedToInvoice: z.coerce.number().int().positive().optional(),
+  ...sapDocumentBranchFields,
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
@@ -160,6 +160,7 @@ export const UpdateSalesQuotationInputSchema = z
     attachments: z.array(AttachmentInputSchema).optional(),
     isDraft: z.boolean().optional(),
     draftDocEntry: z.coerce.number().optional(),
+    ...sapDocumentBranchFields,
   })
   .strict();
 

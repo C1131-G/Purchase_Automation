@@ -43,7 +43,9 @@ export function ShellLayoutBrandHeader() {
   };
 
   const companyLabel = user?.companyName ?? "Purchase Automation";
+  const databaseName = user?.dbName?.trim() ?? "";
   const companyInitial = companyLabel.trim().charAt(0).toUpperCase() || "P";
+  const brandTooltip = databaseName ? `${companyLabel} · ${databaseName}` : companyLabel;
 
   const toggleButton = (
     <button
@@ -52,8 +54,8 @@ export function ShellLayoutBrandHeader() {
         setSidebarOpen(!isOpen);
       }}
       className="size-9 flex items-center justify-center rounded-lg bg-ink-900 text-surface shadow-sm ring-1 ring-ink-900/10 transition-colors hover:bg-ink-800 cursor-pointer shrink-0 border-none outline-none"
-      aria-label={companyLabel}
-      title={companyLabel}
+      aria-label={brandTooltip}
+      title={brandTooltip}
     >
       {isOpen ? (
         <Building2 className="size-5 shrink-0" />
@@ -81,7 +83,7 @@ export function ShellLayoutBrandHeader() {
         {isOpen ? (
           toggleButton
         ) : (
-          <Tooltip content={companyLabel} className="w-auto max-w-xs">
+          <Tooltip content={brandTooltip} className="w-auto max-w-xs">
             {toggleButton}
           </Tooltip>
         )}
@@ -93,8 +95,11 @@ export function ShellLayoutBrandHeader() {
             >
               {companyLabel}
             </span>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
-              Purchase Automation
+            <span
+              className="text-[11px] font-medium uppercase tracking-widest text-neutral-400 truncate"
+              title={databaseName || "Purchase Automation"}
+            >
+              {databaseName || "Purchase Automation"}
             </span>
           </div>
         ) : null}

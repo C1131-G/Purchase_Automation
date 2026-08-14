@@ -1,10 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
 import { SectionErrorState } from "@/components/section-error-state";
 import { IcDashboardStatusActions } from "@/features/intercompany/components/ic-dashboard-status-actions";
 import { cn } from "@/shared/utils/cn";
+import { useAuthStore } from "@/store/auth/auth.store";
 
 import { useOverviewRelationships, useOverviewWork } from "../../queries/queries";
 import { dashboardKeys } from "../../queries/queryKeys";
@@ -32,6 +34,12 @@ export function OverviewDashboard() {
   const relationshipsQuery = useOverviewRelationships();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const isFetching = workQuery.isFetching || relationshipsQuery.isFetching;
+  const { companyName, dbName } = useAuthStore(
+    useShallow((state) => ({
+      companyName: state.user?.companyName?.trim() ?? "",
+      dbName: state.user?.dbName?.trim() ?? "",
+    })),
+  );
 
   const refreshOverview = (): void => {
     void Promise.all([
@@ -107,6 +115,33 @@ export function OverviewDashboard() {
             <h1 className="text-2xl font-semibold tracking-tight text-balance text-ink-900">
               Dashboard
             </h1>
+            {companyName || dbName ? (
+              <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-500">
+                {companyName ? (
+                  <span className="min-w-0 truncate font-medium text-ink-800" title={companyName}>
+                    {companyName}
+                  </span>
+                ) : null}
+                {companyName && dbName ? (
+                  <span aria-hidden="true" className="text-linen-300">
+                    ·
+                  </span>
+                ) : null}
+                {dbName ? (
+                  <span
+                    className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-0.5 text-teal-800 ring-1 ring-teal-100"
+                    title={`Database ${dbName}`}
+                  >
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-teal-600">
+                      Database
+                    </span>
+                    <span className="truncate font-mono text-[13px] font-semibold tracking-tight">
+                      {dbName}
+                    </span>
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
           </div>
           <div className="flex w-full items-center justify-between gap-2.5 text-xs text-neutral-500 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-1">
             {isFetching ? (

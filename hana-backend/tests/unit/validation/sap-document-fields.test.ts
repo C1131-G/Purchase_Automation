@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { CreatePurchaseOrderInputSchema } from "@/modules/purchase-order/purchase-order.schema";
-import { SAP_FIELD_MAX } from "@/validation/schemas/inputs/sap-document-fields";
+import {
+  CreatePurchaseOrderInputSchema,
+  UpdatePurchaseOrderInputSchema,
+} from "@/modules/purchase-order/purchase-order.schema";
+import { UpdateSalesQuotationInputSchema } from "@/modules/sales-quotation/sales-quotation.schema";
+import { SAP_FIELD_MAX, toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import { SapBatchNumberInputSchema } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 
 describe("SAP document field limits", () => {
@@ -34,6 +38,42 @@ describe("SAP document field limits", () => {
       DocumentLines: [{ ItemCode: "SKU1", Quantity: 1 }],
     });
     expect(result.success).toBe(true);
+  });
+
+  it("keeps frontend branch ids on create so SAP BPL is assigned", () => {
+    const result = CreatePurchaseOrderInputSchema.safeParse({
+      CardCode: "V1005",
+      DocumentLines: [{ ItemCode: "SKU1", Quantity: 1 }],
+      BPL_IDAssignedToInvoice: 3,
+      branchId: 3,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.BPL_IDAssignedToInvoice).toBe(3);
+      expect(result.data.branchId).toBe(3);
+    }
+  });
+
+  it("accepts branch ids on strict document updates", () => {
+    const po = UpdatePurchaseOrderInputSchema.safeParse({
+      Comments: "updated",
+      BPL_IDAssignedToInvoice: 2,
+      branchId: 2,
+    });
+    const sq = UpdateSalesQuotationInputSchema.safeParse({
+      Comments: "updated",
+      BPL_IDAssignedToInvoice: 2,
+      branchId: 2,
+    });
+    expect(po.success).toBe(true);
+    expect(sq.success).toBe(true);
+  });
+
+  it("clips remarks to SAP Comments length for Service Layer", () => {
+    expect(toSapCommentsField("  keep me  ")).toBe("keep me");
+    expect(toSapCommentsField("   ")).toBeUndefined();
+    expect(toSapCommentsField(null)).toBeUndefined();
+    expect(toSapCommentsField("c".repeat(300))).toHaveLength(254);
   });
 
   it("rejects batch numbers longer than DistNumber (36)", () => {

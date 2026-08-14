@@ -17,6 +17,7 @@ import {
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { sapLotFieldsFromRow } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import { sapCommentsField } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
@@ -939,7 +940,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         Address: lookups.billToAddress.trim() || undefined,
         Address2: lookups.shipToAddress.trim() || undefined,
         CardCode: (header.vendorCode || lookups.codeInput).trim(),
-        Comments: header.comments.trim() || undefined,
+        ...sapCommentsField(header.comments),
         NumAtCard: header.referenceNo.trim() || undefined,
         DocDate: header.docDate,
         DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
@@ -1029,7 +1030,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             summaryCurrencyLabel,
             lookups.vendors.find((v) => String(v.code) === String(draftCardCode).trim())?.currency,
           ),
-          Comments: header.comments.trim() || undefined,
+          ...sapCommentsField(header.comments),
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: effectiveDocDueDate,
@@ -1052,7 +1053,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ? {
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
-            Comments: header.comments.trim() || undefined,
+            ...sapCommentsField(header.comments),
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,
             DocDueDate: effectiveDocDueDate,
@@ -1090,7 +1091,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
                 (v) => String(v.code) === String(header.vendorCode || lookups.codeInput).trim(),
               )?.currency,
             ),
-            Comments: header.comments.trim() || undefined,
+            ...sapCommentsField(header.comments),
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,
             DocDueDate: effectiveDocDueDate,
