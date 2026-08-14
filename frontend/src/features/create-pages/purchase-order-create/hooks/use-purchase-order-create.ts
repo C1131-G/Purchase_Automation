@@ -40,7 +40,13 @@ import {
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
 import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -185,6 +191,22 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     branchId: header.branchId,
     setBranchId,
     disabled: false,
+  });
+
+  const setSeries = useCallback(
+    (series: number | null) => {
+      setHeader({ series });
+    },
+    [setHeader],
+  );
+
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.purchaseOrder,
+    branchId: header.branchId ?? branchField.effectiveBranchId,
+    series: header.series,
+    setSeries,
+    disabled: isEditMode,
+    lockSuggestion: isEditMode,
   });
 
   const productsHook = usePoProducts({
@@ -391,6 +413,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           docDate: docDate || header.docDate,
           docDueDate,
           referenceNo,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
           vendorCode,
           vendorName,
           warehouseCode,
@@ -746,7 +769,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           ? lookups.warehouses
           : modals.modalMode === "branch"
             ? branchField.branches
-            : lookups.salesEmployees
+            : modals.modalMode === "series"
+              ? seriesField.seriesList
+              : lookups.salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -780,6 +805,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     lookups.warehouses,
     lookups.salesEmployees,
     branchField.branches,
+    seriesField.seriesList,
     modals.modalSearch,
     modals.modalMode,
   ]);
@@ -790,6 +816,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       codeInput: lookups.codeInput,
       nameInput: lookups.nameInput,
       salesEmployeeInput: lookups.salesEmployeeInput,
+      seriesInput: seriesField.seriesInput,
       warehouseInput: lookups.warehouseInput,
     });
   };
@@ -801,6 +828,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
       branch: branchField.branchInput,
       salesEmployee: lookups.salesEmployeeInput,
+      series: seriesField.seriesInput,
       vendorCode: lookups.codeInput,
       vendorName: lookups.nameInput,
       warehouse: lookups.warehouseInput,
@@ -810,6 +838,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     }
   }, [
     branchField.branchInput,
+    seriesField.seriesInput,
     lookups.codeInput,
     lookups.nameInput,
     lookups.salesEmployeeInput,
@@ -821,6 +850,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     syncLookupSearchByMode(mode, value, {
       onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
+      onSeries: seriesField.handleSeriesChange,
       onVendorCode: lookups.handleVendorCodeChange,
       onVendorName: lookups.handleVendorNameChange,
       onWarehouse: lookups.handleWarehouseChange,
@@ -1035,6 +1065,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         (row) => row.productCode.trim() && row.quantity > 0,
       );
       const branchFields = documentBranchPayload(header.branchId ?? branchField.effectiveBranchId);
+      const seriesFields = documentSeriesPayload(header.series ?? seriesField.effectiveSeries);
       const payload = isEditMode
         ? {
             Address: lookups.billToAddress.trim() || undefined,
@@ -1127,6 +1158,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             })(),
             SalesPersonCode: resolvedSalesEmployeeCode,
             ...branchFields,
+            ...seriesFields,
           };
       return JSON.stringify(payload);
     },
@@ -1188,6 +1220,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id;
 
     const branchFields = documentBranchPayload(header.branchId ?? branchField.effectiveBranchId);
+    const seriesFields = documentSeriesPayload(header.series ?? seriesField.effectiveSeries);
 
     const payload = isDraftAction
       ? {
@@ -1250,6 +1283,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
               attachmentDate: att.attachmentDate || "",
             })),
             ...branchFields,
+            ...seriesFields,
           }
         : {
             Address: lookups.billToAddress.trim() || undefined,
@@ -1326,6 +1360,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             })),
             draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
             ...branchFields,
+            ...seriesFields,
           };
 
     const isDraftUpdate = isDraftAction && loadedDraftDocEntry !== undefined;
@@ -1568,12 +1603,26 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     [branchField, modals],
   );
 
+  const selectSeries = useCallback(
+    (item: { code: string; name: string; nextNumber?: number | null | undefined }) => {
+      if (isEditMode) {
+        notifyRestricted("Series");
+        return;
+      }
+      seriesField.selectSeries(item);
+      modals.setModalOpen(false);
+    },
+    [isEditMode, seriesField, modals],
+  );
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
     ...branchField,
+    ...seriesField,
     selectBranch,
+    selectSeries,
     activeDatePicker,
     activeRowProductCode,
     applyProductToRow: (product: ProductLookupItem) =>

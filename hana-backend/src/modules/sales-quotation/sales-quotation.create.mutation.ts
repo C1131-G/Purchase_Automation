@@ -3,12 +3,10 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import {
-  resolveDocumentSeries,
-  resolveItemSalesUom,
-} from "@/modules/master-data/master-data.service";
+import { resolveItemSalesUom } from "@/modules/master-data/master-data.service";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
-import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -58,7 +56,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: toSapCommentsField(payload.Comments ?? draftComments),
+      Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
@@ -131,23 +129,13 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       logLabel: "Sales quotation branch assignment",
     });
 
-    // Number series: align DocNum with SAP NNM1.NextNumber for this object + branch.
-    const seriesResolve = await resolveDocumentSeries(resolvedDbName, "23", {
+    await assignDocumentSeries({
       branchId: branchResolve.branchId,
-      payloadSeries: payload.Series ?? payload.series,
-    });
-    if (seriesResolve) {
-      sapPayload.Series = seriesResolve.series;
-    }
-
-    logger.info({
-      branchId: branchResolve.branchId,
-      companyDB: resolvedDbName,
-      msg: "Sales quotation series assignment",
-      series: seriesResolve?.series ?? null,
-      seriesNextNumber: seriesResolve?.nextNumber ?? null,
-      seriesSource: seriesResolve?.source ?? null,
-      warehouseCode: firstWh,
+      clientPayload: payload,
+      dbName: resolvedDbName,
+      logLabel: "Sales quotation series assignment",
+      objectCode: SAP_SERIES_OBJECT.salesQuotation,
+      sapPayload,
     });
 
     // Standardize date into ISO format (YYYY-MM-DD) for Service Layer ingestion.

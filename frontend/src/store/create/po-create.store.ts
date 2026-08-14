@@ -13,6 +13,8 @@ export interface POHeaderState {
   warehouseCode: string;
   /** SAP business place (BPLId). Auto from warehouse; required on multi-branch companies. */
   branchId: number | null;
+  /** NNM1.Series. Suggested from document type; user can switch on create. */
+  series: number | null;
   referenceNo: string;
   comments: string;
 }
@@ -23,6 +25,7 @@ export interface POHeaderState {
  */
 const getDefaultHeader = (): POHeaderState => ({
   branchId: null,
+  series: null,
   comments: "",
   docDate: getTodayISO(),
   docDueDate: getAutoDocDueDate(getTodayISO()),

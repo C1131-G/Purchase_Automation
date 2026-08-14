@@ -52,6 +52,17 @@ export const mapLookup = (item: unknown): LookupItem => {
   };
 };
 
+export const mapSeriesLookup = (item: unknown): LookupItem => {
+  const record = asRecord(item) ?? {};
+  const mapped = mapLookup(item);
+  const nextRaw = Number(record.nextNumber ?? record.NextNumber);
+  const nextNumber = Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null;
+  return {
+    ...mapped,
+    nextNumber,
+  };
+};
+
 export const mapVendorLookup = (item: unknown): LookupItem => {
   const record = asRecord(item) ?? {};
   const billTo = String(

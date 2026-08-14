@@ -13,6 +13,8 @@ export interface APCreditMemoHeaderState {
   warehouseCode: string;
   /** SAP business place (BPLId). Auto from warehouse on multi-branch companies. */
   branchId: number | null;
+  /** NNM1.Series. Suggested from document type; user can switch on create. */
+  series: number | null;
   referenceNo: string;
   remarks: string;
   referenceAutoFilled: boolean;
@@ -20,6 +22,7 @@ export interface APCreditMemoHeaderState {
 
 const getDefaultHeader = (): APCreditMemoHeaderState => ({
   branchId: null,
+  series: null,
   docDate: getTodayISO(),
   docDueDate: getTodayISO(),
   referenceAutoFilled: false,

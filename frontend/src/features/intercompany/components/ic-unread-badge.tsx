@@ -5,6 +5,7 @@ import {
   useIcUnreadCount,
 } from "@/features/intercompany/api/intercompany.queries";
 import { cn } from "@/shared/utils/cn";
+import { useAuthStore } from "@/store/auth/auth.store";
 
 /** Cap badge digits for dense chrome; API still returns the raw count. */
 function formatCountBadge(count: number): string {
@@ -20,7 +21,8 @@ function formatCountBadge(count: number): string {
  * Renders nothing when count is 0.
  */
 export function IcUnreadCountPill({ className }: { className?: string }) {
-  const unreadQuery = useIcUnreadCount(true);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const unreadQuery = useIcUnreadCount(isAuthenticated);
   const count = unreadQuery.data?.data.count ?? 0;
   if (count <= 0) {
     return null;
@@ -44,7 +46,8 @@ export function IcUnreadCountPill({ className }: { className?: string }) {
  * Renders nothing when count is 0.
  */
 export function IcRetryCountPill({ className }: { className?: string }) {
-  const retryQuery = useIcPendingRetryCount(true);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const retryQuery = useIcPendingRetryCount(isAuthenticated);
   const count = retryQuery.data ?? 0;
   if (count <= 0) {
     return null;

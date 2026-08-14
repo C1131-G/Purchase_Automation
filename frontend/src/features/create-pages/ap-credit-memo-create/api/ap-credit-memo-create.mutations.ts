@@ -27,6 +27,7 @@ export interface CreateAPCreditMemoInput {
     U_ReturnReason?: string;
   }[];
   SalesPersonCode?: number | undefined;
+  Series?: number | undefined;
   attachments?: any[];
   isDraft?: boolean;
   draftDocEntry?: number;

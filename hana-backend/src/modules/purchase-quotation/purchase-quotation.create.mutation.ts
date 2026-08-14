@@ -3,11 +3,12 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
+import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
 import { getDisplayCurrency, isUnresolvedCurrency } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPqSaved } from "@/modules/intercompany";
-import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 const normalizeSapDateValue = (value: unknown) => {
@@ -56,7 +57,7 @@ export const createPurchaseQuotation = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: toSapCommentsField(payload.Comments),
+      Comments: toSapCreateCommentsField(payload.Comments),
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
@@ -137,11 +138,19 @@ export const createPurchaseQuotation = async (
     }
 
     // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
-    await assignDocumentBranch({
+    const branchResolve = await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
       logLabel: "PQ branch assignment",
+    });
+    await assignDocumentSeries({
+      branchId: branchResolve.branchId,
+      clientPayload: payload,
+      dbName: resolvedDbName,
+      logLabel: "PQ series assignment",
+      objectCode: SAP_SERIES_OBJECT.purchaseQuotation,
+      sapPayload,
     });
 
     const docDate = sapPayload.DocDate as string;

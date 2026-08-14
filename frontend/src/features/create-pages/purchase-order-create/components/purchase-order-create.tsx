@@ -218,6 +218,14 @@ export function PurchaseOrderCreate({
               vendorCodeErrorText={state.productSearchFieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              {...state.seriesGridProps}
+              seriesDisabled={state.isEditMode || state.seriesDisabled}
+              {...(state.isEditMode
+                ? {}
+                : {
+                    onOpenSeriesPopup: () => state.openPopup("series"),
+                    onSelectSeries: state.selectSeries,
+                  })}
               uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
@@ -437,9 +445,10 @@ export function PurchaseOrderCreate({
         submitLabel={state.isEditMode ? "Update" : "Add"}
         submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
         secondaryActions={
-          state.isEditMode && !state.isClosed ? (
+          !state.isClosed &&
+          (state.isEditMode ? docNum : state.isSaved ? state.savedDocNum : null) ? (
             <CopyToDropdown
-              docNum={docNum!}
+              docNum={String(state.isEditMode ? docNum : state.savedDocNum)}
               sourceDocType="PurchaseOrder"
               targets={["GRPO", "AP Invoice"]}
             />

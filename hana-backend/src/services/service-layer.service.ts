@@ -314,6 +314,51 @@ class ServiceLayerClient implements ServiceLayerHost {
   isSessionValid(sessionId: string): boolean {
     return this.sessions.has(sessionId);
   }
+
+  /**
+   * Restore an in-memory SL session after a process restart.
+   * Uses the B1SESSION cookie saved on the Express session — does not log in again
+   * and does not persist the service-account password.
+   */
+  rehydrateFromPortalSession(params: {
+    sessionId: string;
+    companyDB: string;
+    username: string;
+    cookieString: string;
+  }): boolean {
+    const sessionId = params.sessionId.trim();
+    const cookieString = params.cookieString.trim();
+    const companyDB = params.companyDB.trim();
+    const username = params.username.trim();
+    if (!sessionId || !cookieString || !companyDB || !username) {
+      return false;
+    }
+    if (this.sessions.has(sessionId)) {
+      return true;
+    }
+
+    const now = Date.now();
+    this.sessions.set(sessionId, {
+      companyDB,
+      cookieString,
+      cookies: [cookieString],
+      lastSapCall: now,
+      loginTime: now,
+      sessionId,
+      username,
+    });
+    this.retainSession(sessionId);
+    const credKey = serviceLayerCredentialKey(companyDB, username);
+    if (!this.credentialSessionIndex.has(credKey)) {
+      this.credentialSessionIndex.set(credKey, sessionId);
+    }
+    logger.info({
+      event: "service_layer_session_rehydrated",
+      companyDB,
+      sessionId: `${sessionId.slice(0, 10)}...`,
+    });
+    return true;
+  }
 }
 
 export const serviceLayerClient = new ServiceLayerClient();

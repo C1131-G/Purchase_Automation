@@ -42,6 +42,19 @@ interface VendorCustomerGridProps {
   uniformReadOnlyAppearance?: boolean;
   nameInputRef?: Ref<HTMLInputElement>;
   codeInputRef?: Ref<HTMLInputElement>;
+  /** Numbering series (NNM1) — shown under vendor name/code. */
+  showSeries?: boolean | undefined;
+  seriesInput?: string | undefined;
+  seriesFocused?: boolean | undefined;
+  seriesSuggestions?: CreateLookupOption[] | undefined;
+  seriesLoading?: boolean | undefined;
+  seriesPlaceholder?: string | undefined;
+  seriesDisabled?: boolean | undefined;
+  onSeriesChange?: ((value: string) => void) | undefined;
+  onSeriesFocus?: (() => void) | undefined;
+  onSeriesBlur?: (() => void) | undefined;
+  onOpenSeriesPopup?: (() => void) | undefined;
+  onSelectSeries?: ((item: CreateLookupOption) => void) | undefined;
 }
 
 export function VendorCustomerGrid({
@@ -79,6 +92,18 @@ export function VendorCustomerGrid({
   uniformReadOnlyAppearance = false,
   nameInputRef,
   codeInputRef,
+  showSeries = false,
+  seriesInput = "",
+  seriesFocused = false,
+  seriesSuggestions = [],
+  seriesLoading = false,
+  seriesPlaceholder = "Select series",
+  seriesDisabled = false,
+  onSeriesChange,
+  onSeriesFocus,
+  onSeriesBlur,
+  onOpenSeriesPopup,
+  onSelectSeries,
 }: VendorCustomerGridProps) {
   return (
     <SectionCard title={sectionTitle} className="lg:col-span-1">
@@ -145,6 +170,31 @@ export function VendorCustomerGrid({
             />
           ) : null}
         </div>
+
+        {showSeries ? (
+          <div className="relative">
+            <FieldBlock
+              label="Series"
+              placeholder={seriesPlaceholder}
+              value={seriesInput}
+              onChange={seriesDisabled ? () => {} : (onSeriesChange ?? (() => {}))}
+              onFocus={seriesDisabled ? () => {} : (onSeriesFocus ?? (() => {}))}
+              onBlur={onSeriesBlur ?? (() => {})}
+              {...(onOpenSeriesPopup && !seriesDisabled ? { onOpenPopup: onOpenSeriesPopup } : {})}
+              loading={seriesLoading}
+              disabled={seriesDisabled}
+              uniformReadOnlyAppearance={uniformReadOnlyAppearance}
+            />
+            {seriesFocused && !seriesDisabled ? (
+              <SuggestionList
+                items={seriesSuggestions}
+                onSelect={onSelectSeries ?? (() => {})}
+                floating
+                query={seriesInput}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </SectionCard>
   );

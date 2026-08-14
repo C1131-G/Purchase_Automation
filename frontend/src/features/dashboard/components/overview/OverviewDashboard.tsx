@@ -109,38 +109,27 @@ export function OverviewDashboard() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-surface">
-      <header className="shrink-0 border-b border-teal-100/50 bg-gradient-to-r from-teal-50/60 via-surface to-linen-50/60 px-6 py-5 sm:px-8">
+      <header className="shrink-0 border-b border-linen-100 bg-surface px-6 py-5 sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-balance text-ink-900">
               Dashboard
             </h1>
             {companyName || dbName ? (
-              <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-500">
+              <div className="mt-1 min-w-0 space-y-0.5">
                 {companyName ? (
-                  <span className="min-w-0 truncate font-medium text-ink-800" title={companyName}>
-                    {companyName}
-                  </span>
-                ) : null}
-                {companyName && dbName ? (
-                  <span aria-hidden="true" className="text-linen-300">
-                    ·
-                  </span>
+                  <p className="text-sm leading-snug text-pretty text-ink-700">{companyName}</p>
                 ) : null}
                 {dbName ? (
-                  <span
-                    className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-0.5 text-teal-800 ring-1 ring-teal-100"
-                    title={`Database ${dbName}`}
-                  >
-                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-teal-600">
-                      Database
+                  <p className="text-xs leading-snug text-neutral-500">
+                    Database
+                    <span aria-hidden="true" className="px-1.5 text-linen-300">
+                      ·
                     </span>
-                    <span className="truncate font-mono text-[13px] font-semibold tracking-tight">
-                      {dbName}
-                    </span>
-                  </span>
+                    {dbName}
+                  </p>
                 ) : null}
-              </p>
+              </div>
             ) : null}
           </div>
           <div className="flex w-full items-center justify-between gap-2.5 text-xs text-neutral-500 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-1">

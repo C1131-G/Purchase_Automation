@@ -1,4 +1,5 @@
 import { IC_RFQ_STATUS } from "@/modules/intercompany/infrastructure/constants";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import {
   getIcSqlClient,
   insertAndReadIdentity,
@@ -53,7 +54,7 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
         input.pqDraftDocEntry,
         input.pqDraftDocNum ?? null,
         input.vendorCode,
-        input.remarks ?? null,
+        toSapCreateCommentsField(input.remarks),
         input.createdBy ?? null,
       ],
     );

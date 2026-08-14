@@ -170,6 +170,14 @@ export function PurchaseQuotationCreate({
                 vendorCodeErrorText={state.productSearchFieldErrors.vendorCode}
                 nameDisabled={state.isEditMode}
                 codeDisabled={state.isEditMode}
+                {...state.seriesGridProps}
+                seriesDisabled={state.isEditMode || state.seriesDisabled}
+                {...(state.isEditMode
+                  ? {}
+                  : {
+                      onOpenSeriesPopup: () => state.openPopup("series"),
+                      onSelectSeries: state.selectSeries,
+                    })}
               />
             </div>
           </div>
@@ -405,9 +413,10 @@ export function PurchaseQuotationCreate({
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
-            state.isEditMode && !state.isClosed && docNum ? (
+            !state.isClosed &&
+            (state.isEditMode ? docNum : state.isSaved ? state.savedDocNum : null) ? (
               <CopyToDropdown
-                docNum={docNum}
+                docNum={String(state.isEditMode ? docNum : state.savedDocNum)}
                 sourceDocType="PurchaseQuotation"
                 targets={["PO", "GRPO", "AP Invoice"]}
               />

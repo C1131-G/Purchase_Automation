@@ -1,12 +1,13 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
+import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
 
@@ -54,7 +55,7 @@ export const createInvoice = async (
     Address: payload.Address,
     Address2: payload.Address2,
     CardCode: payload.CardCode,
-    Comments: toSapCommentsField(payload.Comments ?? draftComments),
+    Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
     DocDate: payload.DocDate,
     DocDueDate: payload.DocDueDate || payload.DocDate,
     AttachmentEntry: absoluteEntry ?? undefined,
@@ -97,11 +98,19 @@ export const createInvoice = async (
   }
 
   // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
-  await assignDocumentBranch({
+  const branchResolve = await assignDocumentBranch({
     dbName: resolvedDbName,
     sapPayload,
     clientPayload: payload,
     logLabel: "AP Invoice branch assignment",
+  });
+  await assignDocumentSeries({
+    branchId: branchResolve.branchId,
+    clientPayload: payload,
+    dbName: resolvedDbName,
+    logLabel: "AP Invoice series assignment",
+    objectCode: SAP_SERIES_OBJECT.apInvoice,
+    sapPayload,
   });
 
   // Resolve base document quantities for copy-to flows before submitting to SAP.

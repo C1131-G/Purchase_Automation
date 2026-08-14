@@ -44,6 +44,12 @@ import {
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -161,6 +167,22 @@ export function useAPInvoiceCreate({
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
+
+  const setSeries = useCallback(
+    (series: number | null) => {
+      setHeader({ series });
+    },
+    [setHeader],
+  );
+
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.apInvoice,
+    branchId: header.branchId,
+    series: header.series,
+    setSeries,
+    disabled: isEditMode,
+    lockSuggestion: isEditMode,
+  });
 
   const resetWarehouse = useCallback(() => {
     setWarehouseInput("");
@@ -463,6 +485,7 @@ export function useAPInvoiceCreate({
           docDueDate,
           referenceNo,
           remarks,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
         });
         // Set addresses from document: Address = Bill To, Address2 = Ship To
         setBillToAddress(String(detail.Address ?? "").trim());
@@ -669,6 +692,7 @@ export function useAPInvoiceCreate({
           docDueDate,
           referenceNo,
           remarks,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
         });
 
         const billAddr = String(detail.Address ?? "").trim() || matchedVendor?.billToAddress || "";
@@ -1116,7 +1140,9 @@ export function useAPInvoiceCreate({
           : vendorCodeInput
         : mode === "warehouse"
           ? warehouseInput
-          : buyerInput;
+          : mode === "series"
+            ? seriesField.seriesInput
+            : buyerInput;
 
     setModalMode(mode);
     setModalSearch(searchVal);
@@ -1126,6 +1152,7 @@ export function useAPInvoiceCreate({
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
       onSalesEmployee: handleBuyerChange,
+      onSeries: seriesField.handleSeriesChange,
       onVendorCode: handleVendorCodeChange,
       onVendorName: handleVendorNameChange,
       onWarehouse: handleWarehouseInputChange,
@@ -1137,6 +1164,7 @@ export function useAPInvoiceCreate({
     }
     const nextSearch = getLookupInlineSearchByMode(modalMode, {
       salesEmployee: buyerInput,
+      series: seriesField.seriesInput,
       vendorCode: vendorCodeInput,
       vendorName: vendorNameInput,
       warehouse: warehouseInput,
@@ -1146,6 +1174,7 @@ export function useAPInvoiceCreate({
     }
   }, [
     buyerInput,
+    seriesField.seriesInput,
     modalMode,
     modalOpen,
     modalSearch,
@@ -1890,6 +1919,7 @@ export function useAPInvoiceCreate({
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
           CardCode: vendorCodeInput.trim(),
+          ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
           ...(header.docDate ? { DocDate: header.docDate } : {}),
           ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
           ...sapCommentsField(header.remarks),
@@ -2050,6 +2080,15 @@ export function useAPInvoiceCreate({
     warehouseFocused,
     setWarehouseFocused,
     resetWarehouse,
+    ...seriesField,
+    selectSeries: (item: LookupItem) => {
+      if (isEditMode) {
+        notifyRestricted("Series");
+        return;
+      }
+      seriesField.selectSeries(item);
+      setModalOpen(false);
+    },
     clearLines: () => setLines([]),
     clearProductRowDrafts: () => setProductRowDrafts({}),
     docDate: header.docDate,
@@ -2078,10 +2117,12 @@ export function useAPInvoiceCreate({
             ? vendors
             : modalMode === "warehouse"
               ? warehouses
-              : salesEmployees,
+              : modalMode === "series"
+                ? (seriesField.seriesList as LookupItem[])
+                : salesEmployees,
           modalSearch,
         ),
-      [vendors, warehouses, salesEmployees, modalSearch, modalMode],
+      [vendors, warehouses, salesEmployees, seriesField.seriesList, modalSearch, modalMode],
     ),
 
     productPopupOpen,
@@ -2124,13 +2165,17 @@ export function useAPInvoiceCreate({
       ? vendorsQuery.isLoading
       : modalMode === "warehouse"
         ? warehousesQuery.isLoading
-        : salesEmployeesQuery.isLoading,
+        : modalMode === "series"
+          ? seriesField.seriesQuery.isLoading
+          : salesEmployeesQuery.isLoading,
     lookupError:
       (modalMode.includes("vendor")
         ? vendorsQuery.error
         : modalMode === "warehouse"
           ? warehousesQuery.error
-          : salesEmployeesQuery.error
+          : modalMode === "series"
+            ? seriesField.seriesQuery.error
+            : salesEmployeesQuery.error
       )?.message ?? null,
     isProductsLoading: productsQuery.isLoading,
     productsError: productsQuery.error?.message ?? null,

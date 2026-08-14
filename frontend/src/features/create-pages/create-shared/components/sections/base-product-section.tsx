@@ -264,6 +264,9 @@ function AddPopoverContent({
   onSelectAction,
   isDirty,
   disabledSaveModes = [],
+  copyToTargets = [],
+  copyToDocNum = "",
+  copyToSourceDocType = "",
 }: {
   onSubmitMode?: ((mode: SubmitSaveMode) => void) | undefined;
   isSaved: boolean;
@@ -274,9 +277,13 @@ function AddPopoverContent({
   isDirty?: boolean | undefined;
   /** Modes that stay visible but cannot be clicked (e.g. PQ). */
   disabledSaveModes?: SubmitSaveMode[] | undefined;
+  copyToTargets?: string[] | undefined;
+  copyToDocNum?: string | undefined;
+  copyToSourceDocType?: string | undefined;
 }) {
   const { setOpen } = Popover.usePopoverContext();
-  const [menuView, setMenuView] = useState<"main" | "download">("main");
+  const [menuView, setMenuView] = useState<"main" | "download" | "copy-to">("main");
+  const canCopyTo = isSaved && copyToTargets.length > 0 && Boolean(copyToDocNum);
   const router = useRouter();
   const isDraftConversion = Boolean((router.state.location.search as any)?.draftDocNum);
   const isModeDisabled = (mode: SubmitSaveMode) => disabledSaveModes.includes(mode);
@@ -334,6 +341,33 @@ function AddPopoverContent({
             </button>
           </>
         )}
+      </div>
+    );
+  }
+
+  if (menuView === "copy-to") {
+    return (
+      <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-surface">
+        <button
+          type="button"
+          onClick={() => setMenuView("main")}
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-neutral-500 transition-all cursor-pointer border-none"
+        >
+          ← Back to Actions
+        </button>
+        <div className="border-t border-linen-100 my-1" />
+        {copyToTargets.map((target) => (
+          <Link
+            key={target}
+            to={getTargetRoute(target)}
+            search={{ sourceDocNum: copyToDocNum, sourceDocType: copyToSourceDocType as never }}
+            onClick={() => setOpen(false)}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none no-underline"
+          >
+            {getTargetIcon(target)}
+            {getTargetLabel(target)}
+          </Link>
+        ))}
       </div>
     );
   }
@@ -437,6 +471,22 @@ function AddPopoverContent({
               </span>
             </button>
           )}
+
+          {canCopyTo ? (
+            <button
+              type="button"
+              onClick={() => setMenuView("copy-to")}
+              className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
+            >
+              <span className="flex items-center gap-2.5">
+                <Truck className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
+                <span>Copy To</span>
+              </span>
+              <span className="text-xs font-bold text-neutral-300 transition-all group-hover:text-teal-600">
+                ➔
+              </span>
+            </button>
+          ) : null}
 
           {/* Option 2: Reset / New Document */}
           {onReset && (
@@ -555,6 +605,7 @@ export function BaseProductSection({
   onSubmit,
   onSubmitMode,
   isSaved = false,
+  savedDocNum = null,
   onDownload,
   onReset,
   disabledSaveModes = [],
@@ -622,6 +673,9 @@ export function BaseProductSection({
       copyToSourceDocType = (props.sourceDocType as string) || "";
       copyToDocNum = (props.docNum as string) || "";
     }
+  }
+  if (!copyToDocNum && savedDocNum != null) {
+    copyToDocNum = String(savedDocNum);
   }
 
   const isPurchase =
@@ -1001,7 +1055,7 @@ export function BaseProductSection({
                     )
                   ) : null
                 ) : null}
-                {!isSaved && secondaryActions}
+                {secondaryActions}
                 {(isSaved || showSubmitButton) && (
                   <Popover.Root>
                     <Popover.Trigger asChild>
@@ -1045,6 +1099,9 @@ export function BaseProductSection({
                           onSelectAction={setActiveAction}
                           isDirty={isDirty}
                           disabledSaveModes={disabledSaveModes}
+                          copyToTargets={copyToTargets}
+                          copyToDocNum={copyToDocNum}
+                          copyToSourceDocType={copyToSourceDocType}
                         />
                       </div>
                     </Popover.Content>

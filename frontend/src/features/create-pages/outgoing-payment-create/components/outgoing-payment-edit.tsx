@@ -6,6 +6,11 @@ import { formatCurrency } from "@/features/dashboard/utils/formatters";
 import { Button } from "@/components/button";
 import { OutgoingPaymentEditSkeleton } from "@/components/skeleton/outgoing-payment-edit-skeleton";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
+import {
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   notifyActionError,
   notifyActionSuccess,
@@ -34,6 +39,21 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   const queryClient = useQueryClient();
 
   const [remarks, setRemarks] = useState("");
+  const [series, setSeries] = useState<number | null>(null);
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.outgoingPayment,
+    series,
+    setSeries,
+    disabled: true,
+    lockSuggestion: true,
+  });
+
+  useEffect(() => {
+    const fromDetail = toPositiveSeries(paymentDetail?.Series);
+    if (fromDetail != null) {
+      setSeries(fromDetail);
+    }
+  }, [paymentDetail?.Series]);
 
   useEffect(() => {
     if (paymentDetail?.Remarks) {
@@ -112,6 +132,18 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   type="text"
                   readOnly
                   value={paymentDetail.CardCode || ""}
+                  className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
+                />
+              </div>
+              <div>
+                <label htmlFor="series" className="mb-1.5 block text-xs font-bold text-neutral-500">
+                  Series
+                </label>
+                <input
+                  id="series"
+                  type="text"
+                  readOnly
+                  value={seriesField.seriesInput || String(paymentDetail.Series ?? "")}
                   className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
                 />
               </div>

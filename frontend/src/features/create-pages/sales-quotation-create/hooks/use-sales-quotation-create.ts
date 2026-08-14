@@ -37,7 +37,13 @@ import {
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
 import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -165,6 +171,22 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     warehouseCode: header.warehouseCode ?? lookups.effectiveWarehouseCode,
     branchId: header.branchId,
     setBranchId,
+  });
+
+  const setSeries = useCallback(
+    (series: number | null) => {
+      setHeader({ series });
+    },
+    [setHeader],
+  );
+
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.salesQuotation,
+    branchId: header.branchId ?? branchField.effectiveBranchId,
+    series: header.series,
+    setSeries,
+    disabled: isEditMode,
+    lockSuggestion: isEditMode,
   });
 
   const productsHook = useSqProducts({
@@ -445,6 +467,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           docDate: docDate || header.docDate,
           docDueDate,
           referenceNo,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
           vendorCode,
           vendorName,
           warehouseCode,
@@ -543,7 +566,9 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           ? lookups.warehouses
           : modals.modalMode === "branch"
             ? branchField.branches
-            : lookups.salesEmployees
+            : modals.modalMode === "series"
+              ? seriesField.seriesList
+              : lookups.salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -577,6 +602,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     lookups.warehouses,
     lookups.salesEmployees,
     branchField.branches,
+    seriesField.seriesList,
     modals.modalSearch,
     modals.modalMode,
   ]);
@@ -587,6 +613,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       codeInput: lookups.codeInput,
       nameInput: lookups.nameInput,
       salesEmployeeInput: lookups.salesEmployeeInput,
+      seriesInput: seriesField.seriesInput,
       warehouseInput: lookups.warehouseInput,
     });
   };
@@ -598,6 +625,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
       branch: branchField.branchInput,
       salesEmployee: lookups.salesEmployeeInput,
+      series: seriesField.seriesInput,
       vendorCode: lookups.codeInput,
       vendorName: lookups.nameInput,
       warehouse: lookups.warehouseInput,
@@ -607,6 +635,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     }
   }, [
     branchField.branchInput,
+    seriesField.seriesInput,
     lookups.codeInput,
     lookups.nameInput,
     lookups.salesEmployeeInput,
@@ -616,6 +645,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
+      onSeries: seriesField.handleSeriesChange,
       onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
       onVendorCode: lookups.handleVendorCodeChange,
@@ -812,6 +842,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       }));
 
     const branchFields = documentBranchPayload(header.branchId ?? branchField.effectiveBranchId);
+    const seriesFields = documentSeriesPayload(header.series ?? seriesField.effectiveSeries);
     const headerFields = {
       Address: lookups.billToAddress.trim() || undefined,
       Address2: lookups.shipToAddress.trim() || undefined,
@@ -835,6 +866,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       : {
           ...headerFields,
           CardCode: lookups.codeInput.trim(),
+          ...seriesFields,
         };
 
     const trackingAction = isDraftAction
@@ -1101,12 +1133,26 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     [branchField, modals],
   );
 
+  const selectSeries = useCallback(
+    (item: { code: string; name: string; nextNumber?: number | null | undefined }) => {
+      if (isEditMode) {
+        notifyRestricted("Series");
+        return;
+      }
+      seriesField.selectSeries(item);
+      modals.setModalOpen(false);
+    },
+    [isEditMode, seriesField, modals],
+  );
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
     ...branchField,
+    ...seriesField,
     selectBranch,
+    selectSeries,
     activeDatePicker,
     applyProductToRow: (product: ProductLookupItem) =>
       productsHook.applyProductToRow(product, {

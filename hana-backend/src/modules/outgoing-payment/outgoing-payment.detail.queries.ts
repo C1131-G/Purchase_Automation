@@ -61,6 +61,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocDate: result.DocDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: Number((result as unknown as Record<string, unknown>).Series) || undefined,
       DocTotal: result.DocTotal,
       PaymentAccounts: (result as unknown as Record<string, unknown>).PaymentAccounts || [],
       PaymentChecks: (result as unknown as Record<string, unknown>).PaymentChecks || [],

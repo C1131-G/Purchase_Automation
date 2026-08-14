@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   SAP_FIELD_MAX,
   sapDocumentBranchFields,
+  sapDocumentSeriesFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -189,6 +190,7 @@ export const CreatePurchaseOrderInputSchema = z.object({
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().optional(),
   ...sapDocumentBranchFields,
+  ...sapDocumentSeriesFields,
 });
 
 // UpdatePurchaseOrderInputSchema: Edit flow blocks vendor updates (CardCode).

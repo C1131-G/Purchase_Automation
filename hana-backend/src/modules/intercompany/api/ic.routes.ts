@@ -1,5 +1,7 @@
 import express from "express";
 
+import { validateSession } from "@/core/middleware/auth.middleware";
+
 import {
   convertRfq,
   confirmArInvoice,
@@ -19,6 +21,7 @@ import {
 const router = express.Router();
 
 router.get("/health", getIcHealth);
+router.use(validateSession);
 
 router.get("/rfqs", listRfqs);
 router.get("/rfqs/:id", getRfq);

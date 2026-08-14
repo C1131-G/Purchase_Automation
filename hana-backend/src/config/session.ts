@@ -21,38 +21,23 @@ class AtomicFileStore extends session.Store {
     this.sessionPath = options.path;
     this.ttl = options.ttl || 60 * 60 * 24 * 30; // 30 days default
 
-    this.clearSessionsFromDisk();
+    this.loadSessionsFromDisk();
     this.startReapTimer();
   }
 
-  private clearSessionsFromDisk(): void {
-    try {
-      if (!nodeFs.existsSync(this.sessionPath)) {
-        nodeFs.mkdirSync(this.sessionPath, { recursive: true });
-        return;
-      }
-      const files = nodeFs.readdirSync(this.sessionPath);
-      let clearedCount = 0;
-      for (const file of files) {
-        const filePath = path.join(this.sessionPath, file);
-        if (file.endsWith(".tmp") || file.endsWith(".json")) {
-          try {
-            nodeFs.unlinkSync(filePath);
-            clearedCount += 1;
-          } catch {}
-        }
-      }
-      logger.info({
-        event: "stale_sessions_cleared",
-        count: clearedCount,
-        msg: "Cleared persisted sessions on startup",
-      });
-    } catch (err) {
-      logger.error({
-        event: "stale_sessions_clear_failed",
-        err: err as Error,
-      });
+  private loadSessionsFromDisk(): void {
+    const result = loadSessionFilesFromDisk(this.sessionPath);
+    for (const record of result.loaded) {
+      this.sessions.set(record.sid, record.content);
+      this.lastAccess.set(record.sid, Date.now());
     }
+    logger.info({
+      event: "sessions_loaded",
+      count: result.loaded.length,
+      skippedExpired: result.skippedExpired,
+      removedCorrupt: result.removedCorrupt,
+      msg: "Loaded persisted portal sessions on startup",
+    });
   }
 
   private startReapTimer(): void {
@@ -158,6 +143,60 @@ class AtomicFileStore extends session.Store {
   touch(sid: string, sess: session.SessionData, callback?: (err?: any) => void): void {
     this.set(sid, sess, callback);
   }
+}
+
+export type LoadedSessionFile = { sid: string; content: string };
+
+export function loadSessionFilesFromDisk(sessionPath: string): {
+  loaded: LoadedSessionFile[];
+  skippedExpired: number;
+  removedCorrupt: number;
+} {
+  const loaded: LoadedSessionFile[] = [];
+  let skippedExpired = 0;
+  let removedCorrupt = 0;
+
+  if (!nodeFs.existsSync(sessionPath)) {
+    nodeFs.mkdirSync(sessionPath, { recursive: true });
+    return { loaded, skippedExpired, removedCorrupt };
+  }
+
+  const now = Date.now();
+  for (const file of nodeFs.readdirSync(sessionPath)) {
+    const filePath = path.join(sessionPath, file);
+    if (file.endsWith(".tmp")) {
+      try {
+        nodeFs.unlinkSync(filePath);
+      } catch {
+        // ignore leftover temp files
+      }
+      continue;
+    }
+    if (!file.endsWith(".json")) {
+      continue;
+    }
+
+    try {
+      const content = nodeFs.readFileSync(filePath, "utf8");
+      const sess = JSON.parse(content) as { cookie?: { expires?: string } };
+      const expires = sess.cookie?.expires ? new Date(sess.cookie.expires).getTime() : null;
+      if (expires !== null && Number.isFinite(expires) && expires < now) {
+        nodeFs.unlinkSync(filePath);
+        skippedExpired += 1;
+        continue;
+      }
+      loaded.push({ content, sid: file.slice(0, -".json".length) });
+    } catch {
+      try {
+        nodeFs.unlinkSync(filePath);
+      } catch {
+        // ignore
+      }
+      removedCorrupt += 1;
+    }
+  }
+
+  return { loaded, skippedExpired, removedCorrupt };
 }
 
 export const configureSession = (app: Application) => {

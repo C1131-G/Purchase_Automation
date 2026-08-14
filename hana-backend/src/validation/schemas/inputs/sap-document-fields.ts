@@ -38,6 +38,15 @@ export const sapDocumentBranchFields = {
   branchId: z.coerce.number().int().positive().optional(),
 };
 
+/** UI `documentSeriesPayload` — NNM1.Series. */
+export const sapDocumentSeriesFields = {
+  Series: z.coerce.number().int().positive().optional(),
+  series: z.coerce.number().int().positive().optional(),
+};
+
+/** Stamped on portal create when the user left remarks empty (IC and normal). */
+export const CREATED_FROM_PORTAL_REMARK = "Created from portal";
+
 /** SAP Document.Comments / VendorPayments.Remarks — clip to 254 so SL does not reject. */
 export const toSapCommentsField = (value: unknown): string | undefined => {
   if (value == null) {
@@ -46,6 +55,10 @@ export const toSapCommentsField = (value: unknown): string | undefined => {
   const clipped = String(value).trim().slice(0, SAP_FIELD_MAX.comments);
   return clipped || undefined;
 };
+
+/** Create only — empty remarks become `Created from portal`. Update still uses toSapCommentsField. */
+export const toSapCreateCommentsField = (value: unknown): string =>
+  toSapCommentsField(value) ?? CREATED_FROM_PORTAL_REMARK;
 
 export const sapRequiredText = (max: number) => z.string().min(1).max(max);
 

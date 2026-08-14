@@ -5,6 +5,7 @@
 import type { ApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { createApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { SAP_OBJECT_TYPE_AR_INVOICE } from "@/modules/intercompany/infrastructure/constants";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import {
   clampSapDocumentComments,
   mergeUserAndIcRemarks,
@@ -971,9 +972,9 @@ export const createIcSlDocuments = (deps?: {
       // Do not stamp U_Origin on IC auto-created docs.
       delete invoiceBody.U_Origin;
       // SAP ODOC.Comments max 254 — clamp even if caller/retry payload is older/longer.
-      if (invoiceBody.Comments != null) {
-        invoiceBody.Comments = clampSapDocumentComments(String(invoiceBody.Comments));
-      }
+      invoiceBody.Comments = toSapCreateCommentsField(
+        invoiceBody.Comments != null ? clampSapDocumentComments(String(invoiceBody.Comments)) : "",
+      );
       const lines = Array.isArray(invoiceBody.DocumentLines)
         ? (invoiceBody.DocumentLines as Record<string, unknown>[])
         : [];
@@ -1072,7 +1073,7 @@ export const createIcSlDocuments = (deps?: {
     createSalesQuotation: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = "/Quotations";
-      const remarksFull = clampSapDocumentComments(input.remarks?.trim() || "");
+      const remarksFull = toSapCreateCommentsField(clampSapDocumentComments(input.remarks));
       // Prefer buyer vendor ref (parent NumAtCard). Never stuff full IC remarks into NumAtCard.
       const vendorRef = input.numAtCard != null ? String(input.numAtCard).trim() : "";
       const numAtCard = (vendorRef || "").slice(0, 100);

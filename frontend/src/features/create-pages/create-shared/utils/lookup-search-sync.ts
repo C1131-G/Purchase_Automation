@@ -7,6 +7,7 @@ interface LookupSearchSyncHandlers {
   onWarehouse: (value: string) => void;
   onSalesEmployee: (value: string) => void;
   onBranch?: (value: string) => void;
+  onSeries?: (value: string) => void;
 }
 
 interface LookupSearchInlineValues {
@@ -15,6 +16,7 @@ interface LookupSearchInlineValues {
   warehouse: string;
   salesEmployee: string;
   branch?: string;
+  series?: string;
 }
 
 export const syncLookupSearchByMode = (
@@ -38,6 +40,10 @@ export const syncLookupSearchByMode = (
     handlers.onBranch?.(value);
     return;
   }
+  if (mode === "series") {
+    handlers.onSeries?.(value);
+    return;
+  }
   handlers.onSalesEmployee(value);
 };
 
@@ -53,6 +59,9 @@ export const getLookupInlineSearchByMode = (mode: PopupMode, values: LookupSearc
   }
   if (mode === "branch") {
     return values.branch ?? "";
+  }
+  if (mode === "series") {
+    return values.series ?? "";
   }
   return values.salesEmployee;
 };

@@ -4,6 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import {
   SAP_FIELD_MAX,
+  sapDocumentSeriesFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -137,6 +138,7 @@ export const CreateInvoiceInputSchema = z.object({
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().int().optional(),
+  ...sapDocumentSeriesFields,
 });
 
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.

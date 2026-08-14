@@ -4,6 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import {
   SAP_FIELD_MAX,
+  sapDocumentSeriesFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -130,6 +131,7 @@ export const CreateCreditNoteInputSchema = z.object({
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().int().optional(),
+  ...sapDocumentSeriesFields,
 });
 
 // UpdateCreditNoteInputSchema: Allows modification of credit note drafts.

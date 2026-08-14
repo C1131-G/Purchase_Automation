@@ -38,6 +38,7 @@ export function LookupPopupModal({
 }: LookupPopupModalProps) {
   const modeMap: Record<PopupMode, LookupPopupMode> = {
     branch: "branch",
+    series: "series",
     "sales-employee": "sales-employee",
     "vendor-code": "vendor-code",
     "vendor-name": "vendor-name",

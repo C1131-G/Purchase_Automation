@@ -7,6 +7,11 @@ import type { ComponentProps, ReactElement } from "react";
 import { Calendar } from "@/components/calendar/calendar";
 import { CreateModalSkeleton } from "@/components/skeleton/create-modal-skeleton";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 
 const LookupPopupModal = lazy(() =>
@@ -64,6 +69,13 @@ export function CreateOutgoingPaymentForm() {
   const queryClient = useQueryClient();
   const lookups = useOutgoingPaymentLookups();
   const [remarks, setRemarks] = useState("");
+  const [series, setSeries] = useState<number | null>(null);
+  const [seriesPopupOpen, setSeriesPopupOpen] = useState(false);
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.outgoingPayment,
+    series,
+    setSeries,
+  });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -372,6 +384,7 @@ export function CreateOutgoingPaymentForm() {
 
     const payload = {
       CardCode: lookups.codeInput,
+      ...documentSeriesPayload(series ?? seriesField.effectiveSeries),
       CashSum: cashSum,
       ...(cashSum > 0 ? { CashAccount: paymentDetails.CashAccount } : {}),
       CheckSum: checkSum,
@@ -442,6 +455,12 @@ export function CreateOutgoingPaymentForm() {
               }, 150);
             }}
             nameInputRef={nameInputRef}
+            {...seriesField.seriesGridProps}
+            onOpenSeriesPopup={() => setSeriesPopupOpen(true)}
+            onSelectSeries={(item) => {
+              seriesField.selectSeries(item);
+              setSeriesPopupOpen(false);
+            }}
           />
 
           <div className="rounded-2xl border border-linen-100 bg-surface p-5 shadow-sm">
@@ -845,6 +864,36 @@ export function CreateOutgoingPaymentForm() {
             </div>
           </div>
         )}
+
+        {seriesPopupOpen ? (
+          <Suspense
+            fallback={
+              <CreateModalSkeleton title="Loading series lookup" panelClassName="max-w-xl" />
+            }
+          >
+            <LookupPopupModal
+              open={seriesPopupOpen}
+              mode="series"
+              search={seriesField.seriesInput}
+              results={seriesField.seriesList}
+              loading={seriesField.seriesQuery.isLoading}
+              error={
+                seriesField.seriesQuery.isError
+                  ? seriesField.seriesQuery.error instanceof Error
+                    ? seriesField.seriesQuery.error.message
+                    : "Unable to load series"
+                  : null
+              }
+              onRetry={() => seriesField.seriesQuery.refetch()}
+              onSearchChange={seriesField.handleSeriesChange}
+              onClose={() => setSeriesPopupOpen(false)}
+              onSelect={(item) => {
+                seriesField.selectSeries(item);
+                setSeriesPopupOpen(false);
+              }}
+            />
+          </Suspense>
+        ) : null}
 
         {lookups.modalOpen ? (
           <Suspense

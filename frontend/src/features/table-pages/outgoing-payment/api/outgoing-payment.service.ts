@@ -25,6 +25,7 @@ export interface OutgoingPaymentDocNumLookupResponse {
 export interface CreateOutgoingPaymentPayload {
   CardCode: string;
   DocDate: string;
+  Series?: number;
   Remarks?: string;
   CashSum?: number;
   CashAccount?: string | null;
@@ -54,6 +55,7 @@ export interface OutgoingPaymentDetail {
   id: number;
   DocEntry: number;
   DocNum: number;
+  Series?: number;
   DocDate: string;
   CardCode: string;
   CardName: string;

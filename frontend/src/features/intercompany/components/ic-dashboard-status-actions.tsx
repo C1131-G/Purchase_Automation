@@ -6,6 +6,7 @@ import {
   useIcUnreadCount,
 } from "@/features/intercompany/api/intercompany.queries";
 import { cn } from "@/shared/utils/cn";
+import { useAuthStore } from "@/store/auth/auth.store";
 
 const formatStatusCount = (count: number | undefined, isError: boolean): string => {
   if (isError) return "—";
@@ -32,8 +33,9 @@ const actionClassName = cn(
 );
 
 export function IcDashboardStatusActions() {
-  const unreadQuery = useIcUnreadCount(true);
-  const retryQuery = useIcPendingRetryCount(true);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const unreadQuery = useIcUnreadCount(isAuthenticated);
+  const retryQuery = useIcPendingRetryCount(isAuthenticated);
   const unreadCount = unreadQuery.data?.data.count;
   const retryCount = retryQuery.data;
   const hasUnread = (unreadCount ?? 0) > 0;

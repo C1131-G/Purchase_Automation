@@ -1,6 +1,7 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
+import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
 // Data Access & Schemas
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
@@ -8,7 +9,7 @@ import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
@@ -61,7 +62,7 @@ export const createGRPO = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: toSapCommentsField(payload.Comments ?? draftComments),
+      Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       AttachmentEntry: absoluteEntry ?? undefined,
@@ -107,11 +108,19 @@ export const createGRPO = async (
     }
 
     // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
-    await assignDocumentBranch({
+    const branchResolve = await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
       logLabel: "GRPO branch assignment",
+    });
+    await assignDocumentSeries({
+      branchId: branchResolve.branchId,
+      clientPayload: payload,
+      dbName: resolvedDbName,
+      logLabel: "GRPO series assignment",
+      objectCode: SAP_SERIES_OBJECT.goodsReceiptPO,
+      sapPayload,
     });
 
     // Standardizes date format for SAP.

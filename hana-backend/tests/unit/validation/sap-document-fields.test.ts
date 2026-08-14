@@ -5,7 +5,12 @@ import {
   UpdatePurchaseOrderInputSchema,
 } from "@/modules/purchase-order/purchase-order.schema";
 import { UpdateSalesQuotationInputSchema } from "@/modules/sales-quotation/sales-quotation.schema";
-import { SAP_FIELD_MAX, toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import {
+  CREATED_FROM_PORTAL_REMARK,
+  SAP_FIELD_MAX,
+  toSapCommentsField,
+  toSapCreateCommentsField,
+} from "@/validation/schemas/inputs/sap-document-fields";
 import { SapBatchNumberInputSchema } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 
 describe("SAP document field limits", () => {
@@ -74,6 +79,13 @@ describe("SAP document field limits", () => {
     expect(toSapCommentsField("   ")).toBeUndefined();
     expect(toSapCommentsField(null)).toBeUndefined();
     expect(toSapCommentsField("c".repeat(300))).toHaveLength(254);
+  });
+
+  it("stamps Created from portal on empty create remarks only", () => {
+    expect(toSapCreateCommentsField("")).toBe(CREATED_FROM_PORTAL_REMARK);
+    expect(toSapCreateCommentsField("   ")).toBe(CREATED_FROM_PORTAL_REMARK);
+    expect(toSapCreateCommentsField(null)).toBe(CREATED_FROM_PORTAL_REMARK);
+    expect(toSapCreateCommentsField("Need by Friday")).toBe("Need by Friday");
   });
 
   it("rejects batch numbers longer than DistNumber (36)", () => {

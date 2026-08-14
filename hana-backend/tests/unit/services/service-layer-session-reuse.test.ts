@@ -72,4 +72,27 @@ describe("Service Layer session reuse (login path)", () => {
     await serviceLayerClient.logout("sess-shared");
     expect(serviceLayerClient.isSessionValid("sess-shared")).toBe(false);
   });
+
+  it("rehydrates a portal session cookie after process memory is empty", async () => {
+    vi.doMock("@/services/service-layer-request", () => ({
+      executeServiceLayerRequest: vi.fn(),
+      loginToSap: vi.fn(),
+      serviceLayerAbsoluteUrl: (base: string | undefined, path: string) => `${base ?? ""}${path}`,
+    }));
+
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    serviceLayerClient.initialize("https://sap.example.com/b1s/v1", false);
+
+    expect(serviceLayerClient.isSessionValid("sess-restart")).toBe(false);
+    expect(
+      serviceLayerClient.rehydrateFromPortalSession({
+        companyDB: "AJAX_POS_DB",
+        cookieString: "B1SESSION=keep-me",
+        sessionId: "sess-restart",
+        username: "manager",
+      }),
+    ).toBe(true);
+    expect(serviceLayerClient.isSessionValid("sess-restart")).toBe(true);
+    expect(serviceLayerClient.getSession("sess-restart")?.cookieString).toBe("B1SESSION=keep-me");
+  });
 });

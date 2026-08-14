@@ -4,6 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import {
   SAP_FIELD_MAX,
+  sapDocumentSeriesFields,
   sapOptionalText,
   sapRequiredText,
 } from "@/validation/schemas/inputs/sap-document-fields";
@@ -90,6 +91,7 @@ export const PaymentDocNumLookupQuerySchema = z.object({
 // It supports cash and transfer sums, along with a list of invoices being settled.
 export const BaseCreatePaymentInputSchema = z.object({
   CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+  ...sapDocumentSeriesFields,
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")

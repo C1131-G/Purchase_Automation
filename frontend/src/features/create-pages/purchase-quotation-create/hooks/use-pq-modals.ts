@@ -30,6 +30,9 @@ export function usePqModals() {
     if (mode === "branch") {
       setModalSearch(getters.branchInput || "");
     }
+    if (mode === "series") {
+      setModalSearch(getters.seriesInput || "");
+    }
     setModalOpen(true);
   };
 

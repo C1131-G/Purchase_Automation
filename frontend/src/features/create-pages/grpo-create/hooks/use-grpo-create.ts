@@ -34,7 +34,13 @@ import {
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
 import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -307,6 +313,22 @@ export function useGRPOCreate({
     disabled: isEditMode,
   });
 
+  const setSeries = useCallback(
+    (series: number | null) => {
+      setHeader({ series });
+    },
+    [setHeader],
+  );
+
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.goodsReceiptPO,
+    branchId: header.branchId ?? branchField.effectiveBranchId,
+    series: header.series,
+    setSeries,
+    disabled: isEditMode,
+    lockSuggestion: isEditMode,
+  });
+
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
 
@@ -516,6 +538,7 @@ export function useGRPOCreate({
           docDueDate,
           referenceNo,
           remarks,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
         });
         // Set addresses from document: Address = Bill To, Address2 = Ship To
         const billAddr = String(detail.Address ?? "").trim();
@@ -759,6 +782,7 @@ export function useGRPOCreate({
           docDueDate,
           referenceNo,
           remarks,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
         });
         const billAddr = String(detail.Address ?? "").trim();
         const shipAddr = String((detail as Record<string, unknown>).Address2 ?? "").trim();
@@ -1277,7 +1301,9 @@ export function useGRPOCreate({
           ? warehouses
           : modalMode === "branch"
             ? branchField.branches
-            : salesEmployees
+            : modalMode === "series"
+              ? seriesField.seriesList
+              : salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -1306,7 +1332,15 @@ export function useGRPOCreate({
         sensitivity: "base",
       });
     });
-  }, [vendors, warehouses, salesEmployees, branchField.branches, modalSearch, modalMode]);
+  }, [
+    vendors,
+    warehouses,
+    salesEmployees,
+    branchField.branches,
+    seriesField.seriesList,
+    modalSearch,
+    modalMode,
+  ]);
 
   const openPopupByMode = (mode: PopupMode) => {
     const searchVal =
@@ -1318,7 +1352,9 @@ export function useGRPOCreate({
           ? warehouseInput
           : mode === "branch"
             ? branchField.branchInput
-            : buyerInput;
+            : mode === "series"
+              ? seriesField.seriesInput
+              : buyerInput;
 
     setModalMode(mode);
     setModalSearch(searchVal);
@@ -1332,6 +1368,7 @@ export function useGRPOCreate({
     const nextSearch = getLookupInlineSearchByMode(modalMode, {
       branch: branchField.branchInput,
       salesEmployee: buyerInput,
+      series: seriesField.seriesInput,
       vendorCode: vendorCodeInput,
       vendorName: vendorNameInput,
       warehouse: warehouseInput,
@@ -1341,6 +1378,7 @@ export function useGRPOCreate({
     }
   }, [
     branchField.branchInput,
+    seriesField.seriesInput,
     buyerInput,
     modalMode,
     modalOpen,
@@ -1354,6 +1392,7 @@ export function useGRPOCreate({
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
       onBranch: branchField.handleBranchChange,
+      onSeries: seriesField.handleSeriesChange,
       onSalesEmployee: handleBuyerChange,
       onVendorCode: handleVendorCodeChange,
       onVendorName: handleVendorNameChange,
@@ -2077,6 +2116,7 @@ export function useGRPOCreate({
             attachmentDate: att.attachmentDate || "",
           })),
           ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
+          ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
         };
     return JSON.stringify(payload);
   }, [
@@ -2213,6 +2253,7 @@ export function useGRPOCreate({
           isDraft: true,
           draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
           ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
+          ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
         }
       : (() => {
           const parsed = JSON.parse(getPayloadString());
@@ -2427,12 +2468,21 @@ export function useGRPOCreate({
     setWarehouseFocused,
     resetWarehouse,
     ...branchField,
+    ...seriesField,
     selectBranch: (item: LookupItem) => {
       if (isEditMode) {
         notifyRestricted("Branch");
         return;
       }
       branchField.selectBranch(item);
+      setModalOpen(false);
+    },
+    selectSeries: (item: LookupItem) => {
+      if (isEditMode) {
+        notifyRestricted("Series");
+        return;
+      }
+      seriesField.selectSeries(item);
       setModalOpen(false);
     },
     docDate: header.docDate,

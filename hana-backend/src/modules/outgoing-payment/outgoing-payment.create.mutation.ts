@@ -1,8 +1,9 @@
 // Outgoing Payment Service: Manages payment transactions to vendors. Uses HANA database for listings and SAP Service Layer for payment creation.
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
+import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of Outgoing Payments from HANA.
 
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
@@ -63,7 +64,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
             };
           }) || [],
       Reference: payload.Reference,
-      Remarks: toSapCommentsField(payload.Remarks),
+      Remarks: toSapCreateCommentsField(payload.Remarks),
       TransferSum: payload.TransferSum || payload.TrsfrSum || 0,
     };
 
@@ -156,6 +157,18 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
+    }
+
+    const sessionForSeries = serviceLayerClient.getSession(sessionId);
+    const companyDB = sessionForSeries?.companyDB;
+    if (companyDB) {
+      await assignDocumentSeries({
+        clientPayload: payload,
+        dbName: companyDB,
+        logLabel: "Outgoing payment series assignment",
+        objectCode: SAP_SERIES_OBJECT.outgoingPayment,
+        sapPayload,
+      });
     }
 
     logger.info({

@@ -55,6 +55,12 @@ import {
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -160,6 +166,22 @@ export function useAPCreditMemoCreate({
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
+
+  const setSeries = useCallback(
+    (series: number | null) => {
+      setHeader({ series });
+    },
+    [setHeader],
+  );
+
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.apCreditMemo,
+    branchId: header.branchId,
+    series: header.series,
+    setSeries,
+    disabled: isEditMode,
+    lockSuggestion: isEditMode,
+  });
 
   const resetWarehouse = useCallback(() => {
     setWarehouseInput("");
@@ -489,6 +511,7 @@ export function useAPCreditMemoCreate({
           docDueDate,
           referenceNo,
           remarks,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
         });
         setBillToAddress(String(detail.Address ?? "").trim());
         setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
@@ -703,6 +726,7 @@ export function useAPCreditMemoCreate({
           docDueDate,
           referenceNo,
           remarks,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
         });
 
         const productCodes = (detail.DocumentLines ?? [])
@@ -1143,7 +1167,9 @@ export function useAPCreditMemoCreate({
           : vendorCodeInput
         : mode === "warehouse"
           ? warehouseInput
-          : buyerInput;
+          : mode === "series"
+            ? seriesField.seriesInput
+            : buyerInput;
 
     setModalMode(mode);
     setModalSearch(searchVal);
@@ -1153,6 +1179,7 @@ export function useAPCreditMemoCreate({
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
       onSalesEmployee: handleBuyerChange,
+      onSeries: seriesField.handleSeriesChange,
       onVendorCode: handleVendorCodeChange,
       onVendorName: handleVendorNameChange,
       onWarehouse: handleWarehouseInputChange,
@@ -1164,6 +1191,7 @@ export function useAPCreditMemoCreate({
     }
     const nextSearch = getLookupInlineSearchByMode(modalMode, {
       salesEmployee: buyerInput,
+      series: seriesField.seriesInput,
       vendorCode: vendorCodeInput,
       vendorName: vendorNameInput,
       warehouse: warehouseInput,
@@ -1520,6 +1548,7 @@ export function useAPCreditMemoCreate({
         ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
         Address: billToAddress.trim() || undefined,
         Address2: shipToAddress.trim() || undefined,
+        ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
         DocumentLines: buildDocumentLines(),
         SalesPersonCode: resolvedBuyerCode,
         attachments: attachments.map((att) => ({
@@ -1863,6 +1892,7 @@ export function useAPCreditMemoCreate({
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
+          ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
           DocumentLines: buildDocumentLines(),
           SalesPersonCode: resolvedBuyerCode,
           attachments: attachments.map((att) => ({
@@ -2016,6 +2046,15 @@ export function useAPCreditMemoCreate({
     handleCreateOrder: handleCreateAPCreditMemo,
     handleDocDateChange: (val: string) => setHeader({ docDate: val }),
     handleDocDueDateChange: (val: string) => setHeader({ docDueDate: val }),
+    ...seriesField,
+    selectSeries: (item: LookupItem) => {
+      if (isEditMode) {
+        notifyRestricted("Series");
+        return;
+      }
+      seriesField.selectSeries(item);
+      setModalOpen(false);
+    },
     handleLookupModalSearchSync,
     handleVendorCodeChange: (val: string) =>
       isEditMode ? notifyRestricted("Vendor Code") : handleVendorCodeChange(val),
@@ -2083,10 +2122,12 @@ export function useAPCreditMemoCreate({
             ? vendors
             : modalMode === "warehouse"
               ? warehouses
-              : salesEmployees,
+              : modalMode === "series"
+                ? (seriesField.seriesList as LookupItem[])
+                : salesEmployees,
           modalSearch,
         ),
-      [vendors, warehouses, salesEmployees, modalSearch, modalMode],
+      [vendors, warehouses, salesEmployees, seriesField.seriesList, modalSearch, modalMode],
     ),
     prefetchProducts: isEditMode ? () => {} : prefetchProducts,
     productPopupOpen,

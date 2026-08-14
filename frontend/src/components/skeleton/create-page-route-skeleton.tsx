@@ -192,8 +192,9 @@ export function CreatePageRouteSkeleton() {
 
       {/* Row 1: VendorCustomer | Logistics | DocumentDates */}
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        {/* VendorCustomerGrid: 2 FieldBlocks (Name + Code) */}
+        {/* VendorCustomerGrid: 3 FieldBlocks (Name + Code + Series) */}
         <SectionShell titleWidth="w-28">
+          <FieldSkeleton showSearch={!fieldsLocked} />
           <FieldSkeleton showSearch={!fieldsLocked} />
           <FieldSkeleton showSearch={!fieldsLocked} />
         </SectionShell>

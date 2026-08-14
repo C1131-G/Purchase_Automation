@@ -3,10 +3,11 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
+import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
@@ -56,7 +57,7 @@ export const createCreditNote = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: toSapCommentsField(payload.Comments ?? draftComments),
+      Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
@@ -100,11 +101,19 @@ export const createCreditNote = async (
     }
 
     // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
-    await assignDocumentBranch({
+    const branchResolve = await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
       logLabel: "AP Credit Memo branch assignment",
+    });
+    await assignDocumentSeries({
+      branchId: branchResolve.branchId,
+      clientPayload: payload,
+      dbName: resolvedDbName,
+      logLabel: "AP Credit Memo series assignment",
+      objectCode: SAP_SERIES_OBJECT.apCreditMemo,
+      sapPayload,
     });
 
     // Date normalization to ensure SAP acceptance (YYYY-MM-DD).

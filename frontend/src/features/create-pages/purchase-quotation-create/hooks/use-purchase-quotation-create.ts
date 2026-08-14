@@ -35,9 +35,15 @@ import {
 import { resolveDocCurrencyForPayload } from "@/shared/utils/currency";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
+import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
 import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
 import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
 import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
+import {
+  documentSeriesPayload,
+  SAP_SERIES_OBJECT,
+  toPositiveSeries,
+} from "@/features/create-pages/create-shared/utils/document-series";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -277,6 +283,22 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     setBranchId,
   });
 
+  const setSeries = useCallback(
+    (series: number | null) => {
+      setHeader({ series });
+    },
+    [setHeader],
+  );
+
+  const seriesField = useDocumentSeriesField({
+    objectCode: SAP_SERIES_OBJECT.purchaseQuotation,
+    branchId: header.branchId ?? branchField.effectiveBranchId,
+    series: header.series,
+    setSeries,
+    disabled: isEditMode,
+    lockSuggestion: isEditMode,
+  });
+
   const productsHook = usePqProducts({
     // Quoted date is left empty on new lines; only required date seeds from header.
     defaultLineQuotedDate: "",
@@ -510,6 +532,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           docDueDate,
           requiredDate: headerRequiredDate || effectiveDocDueDate,
           referenceNo,
+          series: toPositiveSeries((detail as Record<string, unknown>).Series),
           vendorCode,
           vendorName,
           warehouseCode,
@@ -612,7 +635,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           ? lookups.warehouses
           : modals.modalMode === "branch"
             ? branchField.branches
-            : lookups.salesEmployees
+            : modals.modalMode === "series"
+              ? seriesField.seriesList
+              : lookups.salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -646,6 +671,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     lookups.warehouses,
     lookups.salesEmployees,
     branchField.branches,
+    seriesField.seriesList,
     modals.modalSearch,
     modals.modalMode,
   ]);
@@ -656,6 +682,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       codeInput: lookups.codeInput,
       nameInput: lookups.nameInput,
       salesEmployeeInput: lookups.salesEmployeeInput,
+      seriesInput: seriesField.seriesInput,
       warehouseInput: lookups.warehouseInput,
     });
   };
@@ -667,6 +694,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
       branch: branchField.branchInput,
       salesEmployee: lookups.salesEmployeeInput,
+      series: seriesField.seriesInput,
       vendorCode: lookups.codeInput,
       vendorName: lookups.nameInput,
       warehouse: lookups.warehouseInput,
@@ -676,6 +704,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     }
   }, [
     branchField.branchInput,
+    seriesField.seriesInput,
     lookups.codeInput,
     lookups.nameInput,
     lookups.salesEmployeeInput,
@@ -687,6 +716,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     syncLookupSearchByMode(mode, value, {
       onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
+      onSeries: seriesField.handleSeriesChange,
       onVendorCode: lookups.handleVendorCodeChange,
       onVendorName: lookups.handleVendorNameChange,
       onWarehouse: lookups.handleWarehouseChange,
@@ -943,6 +973,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ),
         SalesPersonCode: resolvedSalesEmployeeCode,
         ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
+        ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
       };
       return JSON.stringify(payload);
     },
@@ -1041,6 +1072,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           })),
           isDraft: true,
           ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
+          ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
         }
       : isEditMode
         ? {
@@ -1102,6 +1134,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             })),
             draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
             ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
+            ...documentSeriesPayload(header.series ?? seriesField.effectiveSeries),
           };
 
     const isDraftUpdate = isDraftAction && loadedDraftDocEntry !== undefined;
@@ -1347,12 +1380,26 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     [branchField, modals],
   );
 
+  const selectSeries = useCallback(
+    (item: { code: string; name: string; nextNumber?: number | null | undefined }) => {
+      if (isEditMode) {
+        notifyRestricted("Series");
+        return;
+      }
+      seriesField.selectSeries(item);
+      modals.setModalOpen(false);
+    },
+    [isEditMode, seriesField, modals],
+  );
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
     ...branchField,
+    ...seriesField,
     selectBranch,
+    selectSeries,
     activeDatePicker,
     applyProductToRow: (product: ProductLookupItem) =>
       productsHook.applyProductToRow(product, {

@@ -34,8 +34,14 @@ export const login: RequestHandler = async (req, res, next) => {
       const { session } = req;
       session.sessionId = loginResponse.sessionId;
       session.dbName = companyDB;
+      session.dbServer = loginResponse.user.dbServer;
       session.user = { ...loginResponse.user, companyName };
       session.userAgent = req.headers["user-agent"];
+      const slSession = authService.getSessionInfo(loginResponse.sessionId);
+      if (slSession?.cookieString) {
+        session.sapCookie = slSession.cookieString;
+        session.slUsername = slSession.username;
+      }
       if (req.log) {
         req.log = req.log.child({ userId: loginResponse.user.userName, dbName: companyDB });
         bindRequestLogger(req.log);

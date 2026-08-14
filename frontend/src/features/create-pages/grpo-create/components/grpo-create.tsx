@@ -242,6 +242,14 @@ export function GRPOCreate({
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
               uniformReadOnlyAppearance={state.isEditMode}
+              {...state.seriesGridProps}
+              seriesDisabled={state.isEditMode || state.seriesDisabled}
+              {...(state.isEditMode
+                ? {}
+                : {
+                    onOpenSeriesPopup: () => state.openPopup("series"),
+                    onSelectSeries: state.selectSeries,
+                  })}
             />
           </div>
         </div>
@@ -415,9 +423,10 @@ export function GRPOCreate({
         onEditRestrictedClick={state.showEditRestrictedToast}
         headerDiscountPercent={state.headerDiscountPercent}
         secondaryActions={
-          state.isEditMode && !state.isClosed ? (
+          !state.isClosed &&
+          (state.isEditMode ? docNum : state.isSaved ? state.savedDocNum : null) ? (
             <CopyToDropdown
-              docNum={docNum!}
+              docNum={String(state.isEditMode ? docNum : state.savedDocNum)}
               sourceDocType="GoodsReceiptPO"
               targets={["AP Invoice"]}
             />

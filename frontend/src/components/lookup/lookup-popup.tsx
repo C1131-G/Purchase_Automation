@@ -13,7 +13,8 @@ export type LookupPopupMode =
   | "customer-code"
   | "warehouse"
   | "sales-employee"
-  | "branch";
+  | "branch"
+  | "series";
 
 const MODE_CONFIG: Record<
   LookupPopupMode,
@@ -60,6 +61,12 @@ const MODE_CONFIG: Record<
     field: "Code/Name",
     placeholder: "Search warehouse code or name...",
     title: "Select Warehouse",
+  },
+  series: {
+    entity: "Series",
+    field: "Name/Number",
+    placeholder: "Search series name or next number...",
+    title: "Select Series",
   },
 };
 
@@ -131,6 +138,8 @@ export function LookupPopup({
 
   const title = customTitle ?? config?.title ?? "Select";
   const placeholder = customPlaceholder ?? config?.placeholder ?? "Search code or name...";
+  const resolvedCodeLabel = mode === "series" ? "Next No." : codeLabel;
+  const resolvedNameLabel = mode === "series" ? "Series" : nameLabel;
   const showCodeOnly =
     customShowCodeOnly ??
     (!showBothColumns && (mode === "vendor-code" || mode === "customer-code"));
@@ -149,6 +158,7 @@ export function LookupPopup({
     const score = (item: LookupItem) => {
       const code = item.code.toLowerCase();
       const name = item.name.toLowerCase();
+      const nextNo = item.nextNumber != null ? String(item.nextNumber) : "";
 
       if (mode === "vendor-code" || mode === "customer-code") {
         if (code === term) {
@@ -182,13 +192,13 @@ export function LookupPopup({
         return 4;
       }
 
-      if (code === term || name === term) {
+      if (code === term || name === term || nextNo === term) {
         return 0;
       }
-      if (code.startsWith(term) || name.startsWith(term)) {
+      if (code.startsWith(term) || name.startsWith(term) || nextNo.startsWith(term)) {
         return 1;
       }
-      if (code.includes(term) || name.includes(term)) {
+      if (code.includes(term) || name.includes(term) || nextNo.includes(term)) {
         return 2;
       }
       return 3;
@@ -244,12 +254,12 @@ export function LookupPopup({
                 <tr className="flex w-full">
                   {showNameOnly ? null : (
                     <th className={`px-3 py-2 text-left font-semibold ${cellWidthClass} block`}>
-                      {codeLabel}
+                      {resolvedCodeLabel}
                     </th>
                   )}
                   {showCodeOnly ? null : (
                     <th className={`px-3 py-2 text-left font-semibold ${cellWidthClass} block`}>
-                      {nameLabel}
+                      {resolvedNameLabel}
                     </th>
                   )}
                 </tr>
@@ -304,7 +314,9 @@ export function LookupPopup({
                           <td
                             className={`px-3 py-2 font-medium text-ink-900 ${cellWidthClass} truncate block`}
                           >
-                            {item.code}
+                            {mode === "series" && item.nextNumber != null
+                              ? String(item.nextNumber)
+                              : item.code}
                           </td>
                         )}
                         {showCodeOnly ? null : (

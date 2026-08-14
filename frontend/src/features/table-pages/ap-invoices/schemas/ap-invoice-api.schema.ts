@@ -101,6 +101,7 @@ export const createAPInvoiceInputSchema = z.object({
   ),
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.number().optional(),
+  Series: z.number().optional(),
   attachments: z.array(z.any()).optional(),
 });
 

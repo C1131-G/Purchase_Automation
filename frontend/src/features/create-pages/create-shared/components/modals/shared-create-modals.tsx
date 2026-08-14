@@ -68,6 +68,13 @@ interface SharedCreateModalsProps {
     selectWarehouse: (item: LookupOption) => void;
     selectSalesEmployee: (item: LookupOption) => void;
     selectBranch?: (item: LookupOption) => void;
+    selectSeries?: (item: LookupOption) => void;
+    seriesQuery?: {
+      isFetching: boolean;
+      isError: boolean;
+      error: unknown;
+      refetch: () => void;
+    };
     branchesQuery?: {
       isFetching: boolean;
       isError: boolean;
@@ -136,7 +143,9 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
                   ? state.salesEmployeesQuery.isFetching
                   : state.modalMode === "branch"
                     ? Boolean(state.branchesQuery?.isFetching)
-                    : state.vendorsQuery.isFetching
+                    : state.modalMode === "series"
+                      ? Boolean(state.seriesQuery?.isFetching)
+                      : state.vendorsQuery.isFetching
             }
             error={
               state.modalMode === "warehouse"
@@ -157,11 +166,17 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
                         ? state.branchesQuery.error.message
                         : "Unable to load branches"
                       : null
-                    : state.vendorsQuery.isError
-                      ? state.vendorsQuery.error instanceof Error
-                        ? state.vendorsQuery.error.message
-                        : vendorErrorMsg
-                      : null
+                    : state.modalMode === "series"
+                      ? state.seriesQuery?.isError
+                        ? state.seriesQuery.error instanceof Error
+                          ? state.seriesQuery.error.message
+                          : "Unable to load series"
+                        : null
+                      : state.vendorsQuery.isError
+                        ? state.vendorsQuery.error instanceof Error
+                          ? state.vendorsQuery.error.message
+                          : vendorErrorMsg
+                        : null
             }
             onRetry={() => {
               if (state.modalMode === "warehouse") {
@@ -174,6 +189,10 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
               }
               if (state.modalMode === "branch") {
                 void state.branchesQuery?.refetch();
+                return;
+              }
+              if (state.modalMode === "series") {
+                void state.seriesQuery?.refetch();
                 return;
               }
               void state.vendorsQuery.refetch();
@@ -192,6 +211,10 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
               }
               if (state.modalMode === "branch") {
                 state.selectBranch?.(item);
+                return;
+              }
+              if (state.modalMode === "series") {
+                state.selectSeries?.(item);
                 return;
               }
               state.selectVendor(item);

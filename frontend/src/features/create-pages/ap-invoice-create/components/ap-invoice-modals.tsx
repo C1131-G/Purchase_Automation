@@ -47,6 +47,8 @@ export function APInvoiceModals({ state }: APInvoiceModalsProps) {
                 state.selectVendor(item);
               } else if (state.modalMode === "warehouse") {
                 state.selectWarehouse(item);
+              } else if (state.modalMode === "series") {
+                state.selectSeries(item);
               } else {
                 state.selectSalesEmployee(item);
               }

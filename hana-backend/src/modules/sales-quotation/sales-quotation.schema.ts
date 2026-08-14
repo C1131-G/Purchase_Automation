@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   SAP_FIELD_MAX,
   sapDocumentBranchFields,
+  sapDocumentSeriesFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -125,8 +126,7 @@ export const CreateSalesQuotationInputSchema = z.object({
   DocumentLines: z.array(SalesQuotationLineItemSchema).min(1),
   NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
   SalesPersonCode: z.coerce.number().int().optional(),
-  /** Explicit numbering series (NNM1.Series). When omitted, backend resolves SAP next series for branch. */
-  Series: z.coerce.number().int().positive().optional(),
+  ...sapDocumentSeriesFields,
   ...sapDocumentBranchFields,
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),

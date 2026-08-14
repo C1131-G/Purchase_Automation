@@ -6,6 +6,7 @@ import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-col
 import {
   SAP_FIELD_MAX,
   sapDocumentBranchFields,
+  sapDocumentSeriesFields,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
@@ -158,6 +159,7 @@ export const CreateGRPOInputSchema = z.object({
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().optional(),
   ...sapDocumentBranchFields,
+  ...sapDocumentSeriesFields,
 });
 
 // UpdateGRPOInputSchema: Edit flow accepts only delivery date and remarks/comments updates.

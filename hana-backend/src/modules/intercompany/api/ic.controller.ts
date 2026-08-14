@@ -17,14 +17,15 @@ import { ConfirmArInvoiceBodySchema, SubmitRfqBodySchema, UpdateRfqBodySchema } 
 
 const resolveSessionDbName = (req: Request): string => {
   const session = req.session as { dbName?: string; user?: { dbName?: string } } | undefined;
-  const dbName = session?.dbName || session?.user?.dbName || "";
+  const authed = req.user as { dbName?: string } | undefined;
+  const dbName = authed?.dbName || session?.dbName || session?.user?.dbName || "";
   return String(dbName).trim();
 };
 
 const resolveActorCompanyId = async (req: Request): Promise<number> => {
   const dbName = resolveSessionDbName(req);
   if (!dbName) {
-    throw new AppError("Session company database required", 401, "IC_SESSION_DB_REQUIRED");
+    throw new AppError("Session company database required", 400, "IC_SESSION_DB_REQUIRED");
   }
   const company = await createCompanyService().getBySapDbName(dbName);
   if (!company) {

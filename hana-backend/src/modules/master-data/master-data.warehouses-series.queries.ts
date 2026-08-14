@@ -5,49 +5,92 @@ import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
 
 import { fetchLookup, toTrimmed } from "./master-data.lookup-cache";
+const mapSeriesRows = (
+  rows: Array<{
+    Series: unknown;
+    SeriesName: unknown;
+    NextNumber: unknown;
+    BPLId?: unknown;
+    BPLid?: unknown;
+  }>,
+) =>
+  rows
+    .filter((row) => row.SeriesName && String(row.SeriesName).trim())
+    .map((row) => {
+      const nextRaw = Number(row.NextNumber);
+      const series = Number(row.Series);
+      const rawBranch = row.BPLId ?? row.BPLid;
+      const branchNum = Number(rawBranch);
+      const branchId = Number.isFinite(branchNum) && branchNum > 0 ? Math.trunc(branchNum) : null;
+      return {
+        Series: series,
+        Name: toTrimmed(row.SeriesName),
+        NextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
+        BPLId: branchId,
+        branchId,
+        code: String(row.Series ?? ""),
+        id: String(row.Series ?? ""),
+        name: toTrimmed(row.SeriesName),
+        nextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
+      };
+    });
+
 export const getSeries = async (dbName: string, documentType: string) => {
-  const cacheKey = `master:${dbName}:Series:${documentType}`;
+  const cacheKey = `master:${dbName}:Series:${documentType}:v2`;
   return getCachedData(
     cacheKey,
     async () => {
+      const objectCode = String(documentType ?? "").trim();
+      if (!objectCode) {
+        return [];
+      }
       try {
         // Prefer NextNumber so clients can show SAP's next DocNum for each series.
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber"
+          `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber", "BPLId"
            FROM NNM1
-           WHERE "ObjectCode" = '${documentType}'
+           WHERE "ObjectCode" = ?
              AND "Locked" = 'N'
            ORDER BY "Series" ASC`,
+          [objectCode],
         )) as Array<{
           Series: unknown;
           SeriesName: unknown;
           ObjectCode: unknown;
           Locked: unknown;
           NextNumber: unknown;
+          BPLId: unknown;
         }>;
-
-        return rows
-          .filter((row) => row.SeriesName && String(row.SeriesName).trim())
-          .map((row) => {
-            const nextRaw = Number(row.NextNumber);
-            return {
-              Series: Number(row.Series),
-              Name: toTrimmed(row.SeriesName),
-              NextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
-              code: String(row.Series ?? ""),
-              id: String(row.Series ?? ""),
-              name: toTrimmed(row.SeriesName),
-            };
-          });
+        return mapSeriesRows(rows);
       } catch (err) {
-        logger.warn({
-          db: dbName,
-          documentType,
-          err,
-          msg: "Failed to fetch series from NNM1",
-        });
-        return [];
+        // Older company DBs may not have NNM1.BPLId.
+        try {
+          const rows = (await executeTenantQuery(
+            dbName,
+            `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber"
+             FROM NNM1
+             WHERE "ObjectCode" = ?
+               AND "Locked" = 'N'
+             ORDER BY "Series" ASC`,
+            [objectCode],
+          )) as Array<{
+            Series: unknown;
+            SeriesName: unknown;
+            ObjectCode: unknown;
+            Locked: unknown;
+            NextNumber: unknown;
+          }>;
+          return mapSeriesRows(rows);
+        } catch (fallbackErr) {
+          logger.warn({
+            db: dbName,
+            documentType: objectCode,
+            err: fallbackErr ?? err,
+            msg: "Failed to fetch series from NNM1",
+          });
+          return [];
+        }
       }
     },
     1000 * 60 * 10,

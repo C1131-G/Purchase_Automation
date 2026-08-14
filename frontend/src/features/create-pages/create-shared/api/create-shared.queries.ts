@@ -3,6 +3,7 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
 import {
   mapLookup,
+  mapSeriesLookup,
   mapProductLookup,
   mapProductWarehouseStock,
   mapSalesEmployeeLookup,
@@ -47,7 +48,8 @@ export const createSharedKeys = {
   uoms: () => [...createSharedKeys.all, "uoms"] as const,
   vendors: () => [...createSharedKeys.all, "vendors-v4"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
-  series: (documentType: string) => [...createSharedKeys.all, "series", documentType] as const,
+  series: (documentType: string) =>
+    [...createSharedKeys.all, "series", documentType, "v2"] as const,
   warehouseBins: (warehouseCode: string) =>
     [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
   branches: () => [...createSharedKeys.all, "branches"] as const,
@@ -336,7 +338,7 @@ export const createSharedQueries = {
       gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
       queryFn: async () => {
         const response = await masterDataAPI.getSeries(documentType);
-        return normalizeLookups(unwrapMasterData(response).map(mapLookup));
+        return normalizeLookups(unwrapMasterData(response).map(mapSeriesLookup));
       },
       queryKey: createSharedKeys.series(documentType),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,

@@ -15,6 +15,8 @@ export interface PQHeaderState {
   warehouseCode: string;
   /** SAP business place (BPLId). Auto from warehouse on multi-branch companies. */
   branchId: number | null;
+  /** NNM1.Series. Suggested from document type; user can switch on create. */
+  series: number | null;
   referenceNo: string;
   comments: string;
 }
@@ -32,6 +34,7 @@ const getDefaultHeader = (): PQHeaderState => {
     docDueDate: autoDue,
     requiredDate: autoDue,
     branchId: null,
+    series: null,
     referenceNo: "",
     vendorCode: "",
     vendorName: "",

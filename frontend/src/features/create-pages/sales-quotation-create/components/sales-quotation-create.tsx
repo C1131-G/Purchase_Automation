@@ -155,6 +155,14 @@ export function SalesQuotationCreate({
                 vendorCodeErrorText={state.productSearchFieldErrors.vendorCode}
                 nameDisabled={state.isEditMode}
                 codeDisabled={state.isEditMode}
+                {...state.seriesGridProps}
+                seriesDisabled={state.isEditMode || state.seriesDisabled}
+                {...(state.isEditMode
+                  ? {}
+                  : {
+                      onOpenSeriesPopup: () => state.openPopup("series"),
+                      onSelectSeries: state.selectSeries,
+                    })}
               />
             </div>
           </div>

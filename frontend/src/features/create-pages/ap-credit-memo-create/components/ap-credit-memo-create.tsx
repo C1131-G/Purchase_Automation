@@ -206,6 +206,14 @@ export function APCreditMemoCreate({
               vendorCodeErrorText={state.fieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              {...state.seriesGridProps}
+              seriesDisabled={state.isEditMode || state.seriesDisabled}
+              {...(state.isEditMode
+                ? {}
+                : {
+                    onOpenSeriesPopup: () => state.openPopup("series"),
+                    onSelectSeries: state.selectSeries,
+                  })}
               uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>

@@ -8,6 +8,7 @@ import {
   buildFlow2ArRemarks,
   clampSapDocumentComments,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import { SAP_OBJ_SALES_QUOTATION } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
 import type {
@@ -107,19 +108,21 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
 
   // Keep existing PO comments; ensure PQ (buyer) + RFQ (seller) + SQ (seller).
   // SAP Document.Comments is max 254 — long company names + chain easily overflow.
-  const comments = clampSapDocumentComments(
-    buildFlow2ArRemarks({
-      buyerCompanyName: input.buyerCompanyName,
-      sellerCompanyName: input.sellerCompanyName,
-      cardName: input.remarksCardName,
-      existingComments: input.comments,
-      pqDocEntry: input.pqDocEntry,
-      pqDocNum: input.pqDocNum,
-      rfqId: input.rfqId,
-      rfqNumber: input.rfqNumber,
-      sqDocEntry: input.sqDocEntry,
-      sqDocNum: input.sqDocNum,
-    }),
+  const comments = toSapCreateCommentsField(
+    clampSapDocumentComments(
+      buildFlow2ArRemarks({
+        buyerCompanyName: input.buyerCompanyName,
+        sellerCompanyName: input.sellerCompanyName,
+        cardName: input.remarksCardName,
+        existingComments: input.comments,
+        pqDocEntry: input.pqDocEntry,
+        pqDocNum: input.pqDocNum,
+        rfqId: input.rfqId,
+        rfqNumber: input.rfqNumber,
+        sqDocEntry: input.sqDocEntry,
+        sqDocNum: input.sqDocNum,
+      }),
+    ),
   );
 
   // A/R Invoice Draft body (POST /Drafts). DocObjectCode 13 = A/R Invoice object type.
