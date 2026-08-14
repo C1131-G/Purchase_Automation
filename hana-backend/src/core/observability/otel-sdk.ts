@@ -17,6 +17,7 @@ import {
 
 import { initAppMetrics } from "./metrics";
 import { createPrometheusExporter } from "./prometheus";
+import { shouldStartObservability } from "./should-start-observability";
 
 export type ObservabilityOptions = {
   serviceName: string;
@@ -37,13 +38,7 @@ function envFlag(name: string, defaultTrue = false): boolean {
 }
 
 function shouldDisable(): boolean {
-  if (process.env.NODE_ENV === "test") {
-    return true;
-  }
-  if (envFlag("OTEL_SDK_DISABLED", false)) {
-    return true;
-  }
-  return false;
+  return !shouldStartObservability();
 }
 
 function buildSampler() {

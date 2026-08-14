@@ -55,8 +55,16 @@ export const EnvSchema = z.object({
   OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(0.1),
   METRICS_ENABLED: z
     .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
+    .optional()
+    .transform((value) => {
+      if (value === "true") {
+        return true;
+      }
+      if (value === "false") {
+        return false;
+      }
+      return undefined;
+    }),
   METRICS_PATH: z.string().min(1).default("/metrics"),
   METRICS_BEARER_TOKEN: z.string().min(1).optional(),
 });

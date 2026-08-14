@@ -72,7 +72,7 @@ export const config = {
   nodeEnv: validatedEnv.NODE_ENV,
   observability: {
     metricsBearerToken: validatedEnv.METRICS_BEARER_TOKEN,
-    metricsEnabled: validatedEnv.METRICS_ENABLED,
+    metricsEnabled: validatedEnv.METRICS_ENABLED ?? validatedEnv.NODE_ENV === "production",
     metricsPath: validatedEnv.METRICS_PATH,
     otlpEndpoint: validatedEnv.OTEL_EXPORTER_OTLP_ENDPOINT,
     otlpTracesEndpoint: validatedEnv.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,

@@ -1,6 +1,6 @@
 // OpenAPI 3.1 from Zod + registered paths; gated Swagger UI + JSON (non-prod only).
 
-import type { Application, Request, Response } from "express";
+import type { Application, Request, RequestHandler, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import { OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 
@@ -50,22 +50,26 @@ export const generateOpenApiSpec = () => {
 };
 
 export const configureSwagger = (app: Application) => {
-  const document = generateOpenApiSpec();
   const isProd = process.env.NODE_ENV === "production";
+  let document: ReturnType<typeof generateOpenApiSpec> | undefined;
+  const getDocument = () => {
+    document ??= generateOpenApiSpec();
+    return document;
+  };
 
   if (!isProd) {
-    app.use(
-      "/api-docs",
-      swaggerUi.serve,
-      swaggerUi.setup(document, {
+    let setupHandler: RequestHandler | undefined;
+    app.use("/api-docs", swaggerUi.serve, (req, res, next) => {
+      setupHandler ??= swaggerUi.setup(getDocument(), {
         customSiteTitle: "Vendor Portal API Docs",
         swaggerOptions: {
           docExpansion: "list",
           filter: true,
           persistAuthorization: true,
         },
-      }),
-    );
+      });
+      setupHandler(req, res, next);
+    });
   }
 
   app.get("/api-docs.json", (_req: Request, res: Response) => {
@@ -76,6 +80,6 @@ export const configureSwagger = (app: Application) => {
       });
       return;
     }
-    res.json(document);
+    res.json(getDocument());
   });
 };

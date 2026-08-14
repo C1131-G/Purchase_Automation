@@ -36,7 +36,7 @@ class HanaConnectionPool {
 
     const poolOptions = {
       max_pool_size: config.hana.maxPoolSize,
-      min_pool_size: 2,
+      min_pool_size: config.nodeEnv === "development" ? 1 : 2,
       // Health check interval to prune dead connections.
       ping_interval: 60_000,
       // Hard limit on how long a connection can stay in the pool before being recycled.

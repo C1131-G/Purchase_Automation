@@ -25,13 +25,14 @@ const start = async () => {
   try {
     logger.info(`Starting ${packageJson.name} v${packageJson.version}...`);
 
-    // SAP Integration initialization sequence.
-    await hanaPool.initialize();
-    await initializeDatabase(); // Center-of-truth registry initialization.
+    // SAP Integration: HANA pool and TypeORM can handshake in parallel.
+    const sapStartedAt = Date.now();
+    await Promise.all([hanaPool.initialize(), initializeDatabase()]);
     serviceLayerClient.initialize(
       config.serviceLayer.serviceLayerURL,
       config.serviceLayer.httpsVerify,
     );
+    logger.info({ durationMs: Date.now() - sapStartedAt }, "SAP connections ready");
 
     // HTTP Server initialization.
     const server = app.listen(PORT, () => {

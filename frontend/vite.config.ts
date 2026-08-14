@@ -24,7 +24,7 @@ const ensurePwaIconsDir = () => {
 ensurePwaIconsDir();
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     TanStackRouterVite({
       autoCodeSplitting: true,
@@ -44,11 +44,17 @@ export default defineConfig({
       routesDirectory: "./src/routes",
     }),
     react(),
-    babel({
-      include: /src\/.*\.[jt]sx?$/,
-      exclude: [/node_modules/, /routeTree\.gen\.ts$/],
-      presets: [reactCompilerPreset({ target: "19" })],
-    }),
+    // React Compiler is expensive on every Vite transform. Keep it for production
+    // builds only so `pnpm dev` can listen without compiling the whole graph.
+    ...(command === "build"
+      ? [
+          babel({
+            include: /src\/.*\.[jt]sx?$/,
+            exclude: [/node_modules/, /routeTree\.gen\.ts$/],
+            presets: [reactCompilerPreset({ target: "19" })],
+          }),
+        ]
+      : []),
     tailwindcss(),
   ],
   resolve: {
@@ -58,10 +64,11 @@ export default defineConfig({
   },
   server: {
     warmup: {
-      clientFiles: ["./src/main.tsx", "./src/App.tsx", "./src/routeTree.gen.ts"],
+      clientFiles: ["./src/main.tsx"],
     },
   },
   optimizeDeps: {
+    holdUntilCrawlEnd: false,
     include: [
       "react",
       "react/jsx-runtime",
@@ -78,4 +85,4 @@ export default defineConfig({
       "tailwind-merge",
     ],
   },
-});
+}));
