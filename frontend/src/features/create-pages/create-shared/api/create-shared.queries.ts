@@ -55,6 +55,8 @@ export const createSharedKeys = {
     [...createSharedKeys.all, "item-batches", itemCode, warehouseCode] as const,
   itemSerials: (itemCode: string, warehouseCode: string) =>
     [...createSharedKeys.all, "item-serials", itemCode, warehouseCode] as const,
+  itemDefaultBin: (itemCode: string, warehouseCode: string) =>
+    [...createSharedKeys.all, "item-default-bin", itemCode, warehouseCode] as const,
 };
 
 /** Stable key segment for batch codes (order-independent). */
@@ -445,6 +447,32 @@ export const createSharedQueries = {
           .filter((row) => row.internalSerialNumber);
       },
       queryKey: createSharedKeys.itemSerials(item, warehouse),
+      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
+    });
+  },
+  itemDefaultBin: (itemCode?: string, warehouseCode?: string) => {
+    const item = itemCode?.trim() ?? "";
+    const warehouse = warehouseCode?.trim() ?? "";
+    return queryOptions({
+      enabled: Boolean(item && warehouse),
+      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
+      queryFn: async () => {
+        if (!item || !warehouse) {
+          return null;
+        }
+        const response = await masterDataAPI.getItemDefaultBin(item, warehouse);
+        const data = response?.data;
+        if (!data || typeof data !== "object") {
+          return null;
+        }
+        const binAbsEntry = Number(data.binAbsEntry);
+        const binCode = String(data.binCode ?? "").trim();
+        if (!Number.isFinite(binAbsEntry) || binAbsEntry <= 0 || !binCode) {
+          return null;
+        }
+        return { binAbsEntry: Math.trunc(binAbsEntry), binCode };
+      },
+      queryKey: createSharedKeys.itemDefaultBin(item, warehouse),
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     });
   },

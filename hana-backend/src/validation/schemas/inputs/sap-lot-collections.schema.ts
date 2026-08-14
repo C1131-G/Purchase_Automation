@@ -33,7 +33,14 @@ export const SapSerialNumberInputSchema = z.object({
   Quantity: z.number().positive().optional(),
 });
 
+export const SapBinAllocationInputSchema = z.object({
+  BinAbsEntry: z.number().int().positive(),
+  Quantity: z.number().positive(),
+  SerialAndBatchNumbersBaseLine: z.number().int().nonnegative(),
+});
+
 export const sapLotCollectionsFields = {
   BatchNumbers: z.array(SapBatchNumberInputSchema).optional(),
+  DocumentLinesBinAllocations: z.array(SapBinAllocationInputSchema).optional(),
   SerialNumbers: z.array(SapSerialNumberInputSchema).optional(),
 };

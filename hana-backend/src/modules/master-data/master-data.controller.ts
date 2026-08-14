@@ -259,6 +259,20 @@ export const getItemBatches = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+export const getItemDefaultBin = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const itemCode = typeof req.query.itemCode === "string" ? req.query.itemCode : "";
+    const warehouseCode =
+      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : "";
+    const defaultBin = await masterDataService.getItemDefaultBin(dbName, itemCode, warehouseCode);
+    res.status(200).json({ data: defaultBin, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getItemSerials = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
@@ -277,6 +291,7 @@ export const masterDataController = {
   getBusinessPartnerAddresses,
   getCustomers,
   getItemBatches,
+  getItemDefaultBin,
   getItemSerials,
   getPriceLists,
   getProductWarehouseStocks,

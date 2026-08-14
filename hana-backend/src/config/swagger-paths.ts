@@ -132,6 +132,14 @@ export const registerAllPaths = () => {
     tags: ["Master Data"],
     responses: jsonResponses({ successDescription: "Serial rows for the item and warehouse." }),
   });
+  registerPath("/master-data/item-default-bin", "get", {
+    security: cookieSecurity,
+    operationId: "getItemDefaultBin",
+    summary: "Item default bin",
+    description: "OITW.DftBinAbs and OBIN.BinCode for itemCode + warehouseCode.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Default bin for the item and warehouse." }),
+  });
   registerPath("/master-data/product-warehouse-stocks-batch", "get", {
     security: cookieSecurity,
     operationId: "listProductWarehouseStocksBatch",

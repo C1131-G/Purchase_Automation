@@ -9,6 +9,12 @@ export const LOT_NUMBER_PATTERN = /^[A-Za-z0-9]+$/;
 
 export type LotAllocationMode = "enter" | "select";
 
+export type SapBinAllocation = {
+  BinAbsEntry: number;
+  Quantity: number;
+  SerialAndBatchNumbersBaseLine: number;
+};
+
 export type SapLotCollections = {
   BatchNumbers?: Array<{
     AddmisionDate?: string;
@@ -18,6 +24,7 @@ export type SapLotCollections = {
     Notes?: string;
     Quantity: number;
   }>;
+  DocumentLinesBinAllocations?: SapBinAllocation[];
   SerialNumbers?: Array<{
     ExpiryDate?: string;
     InternalSerialNumber: string;
@@ -152,12 +159,36 @@ export const firstRequiredLotError = (rows: ProductRow[]): string | null => {
   return null;
 };
 
+const sapBinAllocationsFromLots = (
+  lots: Array<{ binAbsEntry?: number | undefined; quantity?: number | undefined }>,
+): SapBinAllocation[] => {
+  const allocations: SapBinAllocation[] = [];
+  for (const [index, lot] of lots.entries()) {
+    const binAbsEntry = Number(lot.binAbsEntry);
+    const quantity = Number(lot.quantity ?? 1);
+    if (!Number.isFinite(binAbsEntry) || binAbsEntry <= 0) {
+      continue;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      continue;
+    }
+    allocations.push({
+      BinAbsEntry: Math.trunc(binAbsEntry),
+      Quantity: quantity,
+      SerialAndBatchNumbersBaseLine: index,
+    });
+  }
+  return allocations;
+};
+
 export const sapLotFieldsFromRow = (
   row: Pick<ProductRow, "batchNumbers" | "manBtchNum" | "manSerNum" | "serialNumbers">,
 ): SapLotCollections => {
   if (isBatchManaged(row) && (row.batchNumbers?.length ?? 0) > 0) {
+    const batches = row.batchNumbers ?? [];
+    const binAllocations = sapBinAllocationsFromLots(batches);
     return {
-      BatchNumbers: (row.batchNumbers ?? []).map((batch) => ({
+      BatchNumbers: batches.map((batch) => ({
         BatchNumber: batch.batchNumber.trim(),
         Quantity: Number(batch.quantity),
         ...(batch.admissionDate ? { AddmisionDate: batch.admissionDate } : {}),
@@ -165,11 +196,19 @@ export const sapLotFieldsFromRow = (
         ...(batch.manufacturingDate ? { ManufacturingDate: batch.manufacturingDate } : {}),
         ...(batch.notes ? { Notes: batch.notes } : {}),
       })),
+      ...(binAllocations.length > 0 ? { DocumentLinesBinAllocations: binAllocations } : {}),
     };
   }
   if (isSerialManaged(row) && (row.serialNumbers?.length ?? 0) > 0) {
+    const serials = row.serialNumbers ?? [];
+    const binAllocations = sapBinAllocationsFromLots(
+      serials.map((serial) => ({
+        binAbsEntry: serial.binAbsEntry,
+        quantity: 1,
+      })),
+    );
     return {
-      SerialNumbers: (row.serialNumbers ?? []).map((serial) => ({
+      SerialNumbers: serials.map((serial) => ({
         InternalSerialNumber: serial.internalSerialNumber.trim(),
         Quantity: 1,
         ...(serial.expiryDate ? { ExpiryDate: serial.expiryDate } : {}),
@@ -177,6 +216,7 @@ export const sapLotFieldsFromRow = (
           ? { ManufacturerSerialNumber: serial.manufacturerSerialNumber.trim() }
           : {}),
       })),
+      ...(binAllocations.length > 0 ? { DocumentLinesBinAllocations: binAllocations } : {}),
     };
   }
   return {};

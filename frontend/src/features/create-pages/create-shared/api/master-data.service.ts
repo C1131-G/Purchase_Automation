@@ -222,4 +222,16 @@ export const masterDataAPI = {
       `/api/v1/master-data/item-serials?${query.toString()}`,
     );
   },
+  getItemDefaultBin: async (itemCode: string, warehouseCode: string) => {
+    const query = new URLSearchParams();
+    if (itemCode.trim()) {
+      query.set("itemCode", itemCode.trim());
+    }
+    if (warehouseCode.trim()) {
+      query.set("warehouseCode", warehouseCode.trim());
+    }
+    return apiClient<{ data: { binAbsEntry?: number; binCode?: string } | null; success: boolean }>(
+      `/api/v1/master-data/item-default-bin?${query.toString()}`,
+    );
+  },
 };

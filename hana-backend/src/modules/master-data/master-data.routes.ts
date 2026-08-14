@@ -85,4 +85,11 @@ router.get(
   masterDataController.getItemSerials,
 );
 
+// GET /item-default-bin: OITW.DftBinAbs + OBIN for item + warehouse.
+router.get(
+  "/item-default-bin",
+  validateQuery(MasterDataQuerySchema),
+  masterDataController.getItemDefaultBin,
+);
+
 export const masterDataRoutes = router;

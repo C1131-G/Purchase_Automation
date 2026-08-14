@@ -7,6 +7,7 @@ import {
   calculateSummaryCurrency,
 } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 import type { GRPOCreateLine } from "@/features/create-pages/grpo-create/hooks/use-grpo-create";
 
 interface GRPOProductSectionProps {
@@ -49,6 +50,7 @@ interface GRPOProductSectionProps {
   secondaryActions?: ReactNode;
   headerDiscountPercent?: number;
   warehouseErrors?: Record<string, string>;
+  onOpenLotPage?: (row: ProductRow) => void;
   onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
   isSaved?: boolean;
   savedDocNum?: string | number | null;
@@ -95,6 +97,7 @@ export function GRPOProductSection({
   secondaryActions,
   headerDiscountPercent = 0,
   warehouseErrors,
+  onOpenLotPage,
   onSubmitMode,
   isSaved = false,
   savedDocNum = null,
@@ -187,7 +190,8 @@ export function GRPOProductSection({
           showExplicitZeroDiscount={true}
           showTaxCode
           taxSide="purchase"
-          lotRequired
+          lotRequired={!isEditMode}
+          {...(!isEditMode && onOpenLotPage ? { onOpenLotPage } : {})}
           warehouseErrors={warehouseErrors}
           showUom={true}
         />

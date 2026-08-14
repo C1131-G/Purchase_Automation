@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
@@ -43,11 +44,13 @@ import {
   scheduleHydrateWarehouseStocks,
   taxRatesFromProductMeta,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
+import { resolveGrpoLotIntercept } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
 import {
   firstRequiredLotError,
   lotFieldsFromProduct,
   sapLotFieldsFromRow,
 } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import {
   useCreateGRPO,
@@ -155,6 +158,12 @@ export function useGRPOCreate({
   const draftDocEntry = (draftDocEntryOption ?? "").trim();
   const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const locationSearch = useRouterState({
+    select: (state) => state.location.search as Record<string, unknown>,
+  });
+  const continueSubmit = useGRPOLotSessionStore((state) => state.continueSubmit);
+  const lotContinueRef = useRef(false);
   const header = useGRPOHeader();
   const setHeader = useSetGRPOHeaderAction();
   const rows = useGRPOLines();
@@ -233,6 +242,7 @@ export function useGRPOCreate({
     setHydratedDocNum(null);
     setFormSnapshot(null);
     setAttachments([]);
+    useGRPOLotSessionStore.getState().reset();
   }, [resetGRPOCreate, resetWarehouse]);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
@@ -1893,6 +1903,10 @@ export function useGRPOCreate({
   }, [missingMandatoryFields, rows]);
 
   const updateProductRow = (id: string, patch: Partial<GRPOCreateLine>) => {
+    const invalidatesLots =
+      patch.quantity !== undefined ||
+      patch.productCode !== undefined ||
+      patch.warehouseCode !== undefined;
     setLines((prev) =>
       prev.map((row) => {
         if (row.id !== id) {
@@ -1903,6 +1917,11 @@ export function useGRPOCreate({
         return next;
       }),
     );
+    if (invalidatesLots) {
+      const lotSession = useGRPOLotSessionStore.getState();
+      lotSession.invalidateBatches();
+      lotSession.invalidateSerials();
+    }
   };
 
   const removeProductRow = (id: string) => {
@@ -2117,13 +2136,7 @@ export function useGRPOCreate({
         return;
       }
 
-      const lotError = firstRequiredLotError(filteredRows);
-      if (lotError) {
-        setCreateError(lotError);
-        return;
-      }
-
-      if (isEditMode && !isDirty) {
+      if (isEditMode && !isDirty && !continueSubmit) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
         return;
@@ -2131,6 +2144,40 @@ export function useGRPOCreate({
     }
 
     setCreateError(null);
+
+    const lotSession = useGRPOLotSessionStore.getState();
+    const lotIntercept = resolveGrpoLotIntercept({
+      action,
+      confirmed: {
+        batchesConfirmed: lotSession.batchesConfirmed,
+        serialsConfirmed: lotSession.serialsConfirmed,
+      },
+      isEditMode,
+      rows: filteredRows,
+    });
+    if (lotIntercept.type === "navigate") {
+      lotSession.start({
+        docLabel: draftDocNum || "New",
+        pendingAction: action,
+        returnTo: {
+          search: locationSearch,
+          to: "/purchase/create-grpo",
+        },
+      });
+      void navigate({
+        search: {},
+        to: lotIntercept.path,
+      });
+      return;
+    }
+
+    if (!isEditMode) {
+      const lotError = firstRequiredLotError(filteredRows);
+      if (lotError) {
+        setCreateError(lotError);
+        return;
+      }
+    }
 
     const loadedDraftDocEntry =
       editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id;
@@ -2319,6 +2366,19 @@ export function useGRPOCreate({
       notifyCreateApiError(errorMsg, "grpo");
     }
   };
+
+  useEffect(() => {
+    if (!continueSubmit || lotContinueRef.current) {
+      return;
+    }
+    lotContinueRef.current = true;
+    useGRPOLotSessionStore.getState().clearContinueSubmit();
+    const pending = useGRPOLotSessionStore.getState().pendingAction;
+    const action = pending ?? "save-new";
+    void handleCreateGRPO(action).finally(() => {
+      lotContinueRef.current = false;
+    });
+  }, [continueSubmit, isEditMode]);
 
   return {
     isEditMode,

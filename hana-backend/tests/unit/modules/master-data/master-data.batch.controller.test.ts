@@ -5,6 +5,7 @@ const getProductsByCodes = vi.fn();
 const getProductWarehouseStocksBatch = vi.fn();
 const getBusinessPartnerAddresses = vi.fn();
 const getItemBatches = vi.fn();
+const getItemDefaultBin = vi.fn();
 const getItemSerials = vi.fn();
 
 vi.mock("@/modules/master-data/master-data.service", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/modules/master-data/master-data.service", () => ({
     getProductWarehouseStocksBatch: (...args: unknown[]) => getProductWarehouseStocksBatch(...args),
     getBusinessPartnerAddresses: (...args: unknown[]) => getBusinessPartnerAddresses(...args),
     getItemBatches: (...args: unknown[]) => getItemBatches(...args),
+    getItemDefaultBin: (...args: unknown[]) => getItemDefaultBin(...args),
     getItemSerials: (...args: unknown[]) => getItemSerials(...args),
   },
 }));
@@ -20,6 +22,7 @@ vi.mock("@/modules/master-data/master-data.service", () => ({
 import {
   getBusinessPartnerAddresses as getBusinessPartnerAddressesController,
   getItemBatches as getItemBatchesController,
+  getItemDefaultBin as getItemDefaultBinController,
   getItemSerials as getItemSerialsController,
   getProductsByCodes as getProductsByCodesController,
   getProductWarehouseStocksBatch as getProductWarehouseStocksBatchController,
@@ -185,6 +188,22 @@ describe("master-data batch controllers", () => {
     expect(next).not.toHaveBeenCalled();
     expect(getItemBatches).toHaveBeenCalledWith("TEST_COMPANY", "SKU-1", "01");
     expect((res.body as { success: boolean; data: unknown[] }).data).toHaveLength(1);
+  });
+
+  it("item-default-bin forwards item and warehouse", async () => {
+    getItemDefaultBin.mockResolvedValue({ binAbsEntry: 12, binCode: "S101-A" });
+    const res = mockRes();
+    const next = vi.fn() as unknown as NextFunction;
+
+    await getItemDefaultBinController(
+      authReq({ query: { itemCode: "SKU-1", warehouseCode: "S101" } }),
+      res,
+      next,
+    );
+
+    expect(next).not.toHaveBeenCalled();
+    expect(getItemDefaultBin).toHaveBeenCalledWith("TEST_COMPANY", "SKU-1", "S101");
+    expect((res.body as { data: { binCode: string } }).data.binCode).toBe("S101-A");
   });
 
   it("item-serials forwards item and warehouse", async () => {

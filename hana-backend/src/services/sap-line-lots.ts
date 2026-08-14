@@ -12,4 +12,8 @@ export function attachSapLotCollections(
   if (Array.isArray(serials) && serials.length > 0) {
     docLine.SerialNumbers = serials;
   }
+  const bins = item.DocumentLinesBinAllocations;
+  if (Array.isArray(bins) && bins.length > 0) {
+    docLine.DocumentLinesBinAllocations = bins;
+  }
 }

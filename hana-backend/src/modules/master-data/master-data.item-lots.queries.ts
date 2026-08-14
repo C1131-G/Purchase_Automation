@@ -157,6 +157,45 @@ async function loadSerialsFromOsri(
   }
 }
 
+export type ItemDefaultBinLookup = {
+  binAbsEntry: number;
+  binCode: string;
+};
+
+export const getItemDefaultBin = async (
+  dbName: string,
+  itemCode?: string,
+  warehouseCode?: string,
+): Promise<ItemDefaultBinLookup | null> => {
+  const item = toTrimmed(itemCode);
+  const warehouse = toTrimmed(warehouseCode);
+  if (!item || !warehouse) {
+    return null;
+  }
+
+  try {
+    const rows = (await executeTenantQuery(
+      dbName,
+      `SELECT oitw."DftBinAbs" AS "BinAbsEntry",
+              obin."BinCode" AS "BinCode"
+         FROM OITW oitw
+         LEFT JOIN OBIN obin
+           ON obin."AbsEntry" = oitw."DftBinAbs"
+        WHERE oitw."ItemCode" = '${sqlLiteral(item)}'
+          AND oitw."WhsCode" = '${sqlLiteral(warehouse)}'`,
+    )) as Array<{ BinAbsEntry?: unknown; BinCode?: unknown }>;
+    const first = rows[0];
+    const binAbsEntry = Number(first?.BinAbsEntry);
+    const binCode = toTrimmed(first?.BinCode);
+    if (!Number.isFinite(binAbsEntry) || binAbsEntry <= 0 || !binCode) {
+      return null;
+    }
+    return { binAbsEntry: Math.trunc(binAbsEntry), binCode };
+  } catch {
+    return null;
+  }
+};
+
 function mapSerialRows(
   rows: Array<{
     ExpiryDate?: unknown;

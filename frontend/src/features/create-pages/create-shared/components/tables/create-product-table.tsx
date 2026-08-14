@@ -74,6 +74,8 @@ interface CreateProductTableProps {
   taxSide?: TaxDocumentSide;
   /** GRPO create/edit only: require batch/serial on managed items. */
   lotRequired?: boolean;
+  /** When set, the row button opens a full lot page instead of the modal. */
+  onOpenLotPage?: (row: ProductRow) => void;
 }
 
 export function CreateProductTable({
@@ -110,13 +112,15 @@ export function CreateProductTable({
   taxCodes = [],
   taxSide = "purchase",
   lotRequired = false,
+  onOpenLotPage,
 }: CreateProductTableProps) {
   const lotMode = taxSide === "sales" ? "select" : "enter";
   const [lotRowId, setLotRowId] = useState<string | null>(null);
   const promptedLotsRef = useRef(new Set<string>());
+  const useLotPage = Boolean(onOpenLotPage);
 
   useEffect(() => {
-    if (!lotRequired) {
+    if (!lotRequired || useLotPage) {
       return;
     }
     const liveIds = new Set(productRows.map((row) => `${row.id}:${row.productCode}`));
@@ -139,7 +143,7 @@ export function CreateProductTable({
         break;
       }
     }
-  }, [lotRequired, lotRowId, productRows]);
+  }, [lotRequired, lotRowId, productRows, useLotPage]);
 
   const lotRow = lotRowId ? (productRows.find((row) => row.id === lotRowId) ?? null) : null;
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
@@ -268,7 +272,12 @@ export function CreateProductTable({
                     taxCodes={taxCodes}
                     taxSide={taxSide}
                     lotRequired={lotRequired}
-                    {...(lotRequired ? { onOpenLotAllocation: () => setLotRowId(row.id) } : {})}
+                    {...(lotRequired
+                      ? {
+                          onOpenLotAllocation: () =>
+                            onOpenLotPage ? onOpenLotPage(row) : setLotRowId(row.id),
+                        }
+                      : {})}
                   />
                 );
               })}
@@ -284,7 +293,7 @@ export function CreateProductTable({
           </table>
         </div>
       </div>
-      {lotRequired ? (
+      {lotRequired && !useLotPage ? (
         <ProductLotAllocationModal
           mode={lotMode}
           open={Boolean(lotRow)}

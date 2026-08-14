@@ -13,6 +13,19 @@ describe("attachSapLotCollections", () => {
     expect(docLine.SerialNumbers).toEqual([{ InternalSerialNumber: "S1", Quantity: 1 }]);
   });
 
+  it("copies bin allocations when present", () => {
+    const docLine: Record<string, unknown> = { ItemCode: "SKU-1" };
+    attachSapLotCollections(docLine, {
+      BatchNumbers: [{ BatchNumber: "B01", Quantity: 2 }],
+      DocumentLinesBinAllocations: [
+        { BinAbsEntry: 12, Quantity: 2, SerialAndBatchNumbersBaseLine: 0 },
+      ],
+    });
+    expect(docLine.DocumentLinesBinAllocations).toEqual([
+      { BinAbsEntry: 12, Quantity: 2, SerialAndBatchNumbersBaseLine: 0 },
+    ]);
+  });
+
   it("does not add empty collections", () => {
     const docLine: Record<string, unknown> = { ItemCode: "SKU-1" };
     attachSapLotCollections(docLine, { BatchNumbers: [], SerialNumbers: [] });

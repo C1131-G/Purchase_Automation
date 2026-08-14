@@ -19,6 +19,7 @@ import {
   resolveItemSalesUom,
   getBusinessPartnerAddresses,
   getItemBatches,
+  getItemDefaultBin,
   getItemSerials,
 } from "./master-data.queries";
 
@@ -43,6 +44,7 @@ export {
   resolveItemSalesUom,
   getBusinessPartnerAddresses,
   getItemBatches,
+  getItemDefaultBin,
   getItemSerials,
 };
 
@@ -67,5 +69,6 @@ export const masterDataService = {
   resolveItemSalesUom,
   getBusinessPartnerAddresses,
   getItemBatches,
+  getItemDefaultBin,
   getItemSerials,
 };

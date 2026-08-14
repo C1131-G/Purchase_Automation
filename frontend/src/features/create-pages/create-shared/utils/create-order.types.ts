@@ -75,7 +75,12 @@ export interface ProductGridRow {
   serialNumbers?: ProductSerialAllocation[] | undefined;
 }
 
-export interface ProductBatchAllocation {
+export interface ProductLotBinFields {
+  binAbsEntry?: number | undefined;
+  binCode?: string | undefined;
+}
+
+export interface ProductBatchAllocation extends ProductLotBinFields {
   admissionDate?: string | undefined;
   batchNumber: string;
   expiryDate?: string | undefined;
@@ -84,10 +89,11 @@ export interface ProductBatchAllocation {
   quantity: number;
 }
 
-export interface ProductSerialAllocation {
+export interface ProductSerialAllocation extends ProductLotBinFields {
   expiryDate?: string | undefined;
   internalSerialNumber: string;
   manufacturerSerialNumber?: string | undefined;
+  quantity?: number | undefined;
 }
 
 export interface ProductGridRowDraft {

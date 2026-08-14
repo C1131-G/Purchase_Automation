@@ -92,6 +92,16 @@ describe("sapLotFieldsFromRow", () => {
     });
   });
 
+  it("maps bin allocations onto the Service Layer line", () => {
+    const row = baseRow({
+      manBtchNum: "Y",
+      batchNumbers: [{ batchNumber: "B01", quantity: 2, binAbsEntry: 12, binCode: "S101-A" }],
+    });
+    expect(sapLotFieldsFromRow(row).DocumentLinesBinAllocations).toEqual([
+      { BinAbsEntry: 12, Quantity: 2, SerialAndBatchNumbersBaseLine: 0 },
+    ]);
+  });
+
   it("maps serials for Service Layer", () => {
     const row = baseRow({
       manSerNum: "Y",
