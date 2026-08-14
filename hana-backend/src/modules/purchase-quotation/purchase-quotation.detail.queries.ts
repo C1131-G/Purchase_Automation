@@ -10,6 +10,7 @@ import { resolveCurrencyCode } from "@/services/currency-format";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { getPqCopyEligibility, listPqCopyAllowedDocEntries } from "@/modules/intercompany";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a filtered and paginated list of Purchase Quotations from the tenant-specific HANA database.
@@ -38,6 +39,10 @@ export const getPurchaseQuotation = async (sessionId: string, id: string, isDraf
       );
     }
 
+    const copyEligibility = dbName
+      ? await getPqCopyEligibility(dbName, Number(result.DocEntry))
+      : { allowed: true, rfqStatus: null };
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -63,6 +68,8 @@ export const getPurchaseQuotation = async (sessionId: string, id: string, isDraf
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard ?? "",
       AttachmentEntry: attachmentEntry,
       attachments,
+      rfqCopyAllowed: copyEligibility.allowed,
+      rfqStatus: copyEligibility.rfqStatus,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         // Single source of truth for PQ line split (do not merge fields):
@@ -179,6 +186,9 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
       .addOrderBy('"l"."LineNum"', "ASC")
       .getRawMany()) as Record<string, unknown>[];
 
+    const copyAllowedDocEntries = await listPqCopyAllowedDocEntries(dbName);
+    const allowedEntrySet = copyAllowedDocEntries === null ? null : new Set(copyAllowedDocEntries);
+
     const openLines = rows.map((row) => {
       const normalized = normalizeSAPLineData(row);
       const headerDiscountPercent = Number(row["HeaderDiscountPercent"] ?? 0);
@@ -213,9 +223,14 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
       };
     });
 
-    logger.info({ count: openLines.length, msg: "Open PQ lines from HANA" });
+    const copyEligibleLines =
+      allowedEntrySet === null
+        ? openLines
+        : openLines.filter((line) => allowedEntrySet.has(Number(line.DocEntry)));
 
-    return openLines;
+    logger.info({ count: copyEligibleLines.length, msg: "Open PQ lines from HANA" });
+
+    return copyEligibleLines;
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
     logger.error({

@@ -413,10 +413,9 @@ export function PurchaseQuotationCreate({
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
-            !state.isClosed &&
-            (state.isEditMode ? docNum : state.isSaved ? state.savedDocNum : null) ? (
+            !state.isClosed && state.rfqCopyAllowed && state.isEditMode && docNum ? (
               <CopyToDropdown
-                docNum={String(state.isEditMode ? docNum : state.savedDocNum)}
+                docNum={String(docNum)}
                 sourceDocType="PurchaseQuotation"
                 targets={["PO", "GRPO", "AP Invoice"]}
               />

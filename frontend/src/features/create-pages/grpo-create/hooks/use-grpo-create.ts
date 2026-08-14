@@ -29,9 +29,14 @@ import {
 import {
   dismissDocumentHydrating,
   notifyCreateApiError,
+  notifyDocumentHydrateError,
   notifyDocumentHydrating,
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import {
+  isPqRfqCopyAllowed,
+  PQ_RFQ_COPY_BLOCKED_MESSAGE,
+} from "@/features/create-pages/create-shared/utils/pq-rfq-copy";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
 import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
@@ -1008,7 +1013,7 @@ export function useGRPOCreate({
     // Fetch all source documents in parallel
     const fetchAllSources = async () => {
       try {
-        const details = await Promise.all(
+        const fetchedDetails = await Promise.all(
           sourceDocNums.map(async (num) => {
             if (currentSourceDocType === "PurchaseQuotation") {
               const res = await queryClient.fetchQuery(
@@ -1020,6 +1025,18 @@ export function useGRPOCreate({
             return res.data;
           }),
         );
+        const details =
+          currentSourceDocType === "PurchaseQuotation"
+            ? fetchedDetails.filter((detail) => isPqRfqCopyAllowed(detail))
+            : fetchedDetails;
+        if (details.length === 0) {
+          if (isMetadataLoaded) {
+            hydratedDocNumRef.current = hydrKey;
+          }
+          notifyDocumentHydrateError("grpo", PQ_RFQ_COPY_BLOCKED_MESSAGE);
+          dismissDocumentHydrating("grpo");
+          return;
+        }
 
         // Use first source for header fields (vendor, buyer, addresses)
         const primaryDetail = details[0]!;

@@ -41,8 +41,13 @@ import {
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import {
   notifyCreateApiError,
+  notifyDocumentHydrateError,
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import {
+  isPqRfqCopyAllowed,
+  PQ_RFQ_COPY_BLOCKED_MESSAGE,
+} from "@/features/create-pages/create-shared/utils/pq-rfq-copy";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
 import {
@@ -886,7 +891,7 @@ export function useAPInvoiceCreate({
     }
 
     const fetchAllSources = async () => {
-      const details = await Promise.all(
+      const fetchedDetails = await Promise.all(
         sourceDocNums.map(async (num) => {
           if (currentSourceDocType === "GoodsReceiptPO") {
             const res = await queryClient.fetchQuery(grpoQueries.detailByDocNum(num));
@@ -900,6 +905,17 @@ export function useAPInvoiceCreate({
           return res.data;
         }),
       );
+      const details =
+        currentSourceDocType === "PurchaseQuotation"
+          ? fetchedDetails.filter((detail) => isPqRfqCopyAllowed(detail))
+          : fetchedDetails;
+      if (details.length === 0) {
+        if (isMetadataLoaded) {
+          hydratedDocNumRef.current = hydrationKey;
+        }
+        notifyDocumentHydrateError("ap-invoice", PQ_RFQ_COPY_BLOCKED_MESSAGE);
+        return;
+      }
 
       const primaryDetail = details[0]!;
       const vendorCode = String(primaryDetail.CardCode ?? "").trim();

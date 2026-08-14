@@ -11,6 +11,15 @@ export {
   recordIcPqToPoLink,
 } from "./api/ic-edit-lifecycle";
 export {
+  assertPqCopyAllowed,
+  assertPqLinesCopyAllowed,
+  collectPqBaseEntries,
+  getPqCopyEligibility,
+  listPqCopyAllowedDocEntries,
+  PQ_RFQ_COPY_BLOCKED_MESSAGE,
+  SAP_BASE_TYPE_PURCHASE_QUOTATION,
+} from "./api/pq-copy-eligibility";
+export {
   afterPqSaved,
   /** @deprecated Prefer `afterPqSaved`. */
   afterPqDraftSaved,

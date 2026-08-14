@@ -58,6 +58,11 @@ export const PurchaseQuotationQuerySchema = z
       .enum(["asc", "desc"])
       .optional()
       .openapi({ description: "Sort direction", example: "desc" }),
+    /** Copy-from only: keep PQs whose RFQ is SUBMITTED or COMPLETED. */
+    rfqSubmittedOnly: z
+      .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
+      .optional()
+      .transform((value) => value === true || value === "true" || value === "1"),
   })
   .transform((data) => {
     const normalized = { ...data };

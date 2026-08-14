@@ -35,9 +35,14 @@ import {
 import {
   dismissDocumentHydrating,
   notifyCreateApiError,
+  notifyDocumentHydrateError,
   notifyDocumentHydrating,
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import {
+  isPqRfqCopyAllowed,
+  PQ_RFQ_COPY_BLOCKED_MESSAGE,
+} from "@/features/create-pages/create-shared/utils/pq-rfq-copy";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
 import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
@@ -528,8 +533,16 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             return res.data;
           }),
         );
+        const allowedDetails = details.filter((detail) => isPqRfqCopyAllowed(detail));
+        if (allowedDetails.length === 0) {
+          if (isMetadataLoaded) {
+            hydratedDocNumRef.current = hydrationKey;
+          }
+          notifyDocumentHydrateError("po", PQ_RFQ_COPY_BLOCKED_MESSAGE);
+          return;
+        }
 
-        const primaryDetail = details[0]!;
+        const primaryDetail = allowedDetails[0]!;
         const vendorCode = String(primaryDetail.CardCode ?? "").trim();
         const vendorName = String(primaryDetail.CardName ?? "").trim();
         const matchedVendor = lookups.vendors.find((v) => String(v.code).trim() === vendorCode);
@@ -589,7 +602,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
         );
 
-        const allDetailLines = details.flatMap((d) => d.DocumentLines ?? []);
+        const allDetailLines = allowedDetails.flatMap((d) => d.DocumentLines ?? []);
         const uniqueItemCodes = [
           ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
@@ -604,7 +617,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
         const baseType = 540000006;
         let lineIndex = 0;
-        const mappedRows = details.flatMap((detail, docIdx) => {
+        const mappedRows = allowedDetails.flatMap((detail, docIdx) => {
           const detailLines = detail.DocumentLines ?? [];
           return detailLines.map((line: PurchaseOrderDetailLine) => {
             const idx = lineIndex++;

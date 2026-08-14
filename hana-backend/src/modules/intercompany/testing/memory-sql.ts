@@ -468,6 +468,20 @@ export const createMemorySqlClient = (
       ) as T[];
     }
 
+    if (
+      statement.includes('FROM "IC_RFQ_HEADER"') &&
+      statement.includes("STATUS") &&
+      statement.includes("SUBMITTED") &&
+      statement.includes("COMPLETED")
+    ) {
+      const sourceCompanyId = params[0];
+      return db.tables.IC_RFQ_HEADER.filter(
+        (row) =>
+          row.SOURCE_COMPANY_ID === sourceCompanyId &&
+          (row.STATUS === "SUBMITTED" || row.STATUS === "COMPLETED"),
+      ) as T[];
+    }
+
     if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("PQ_DRAFT_DOC_ENTRY")) {
       const [sourceCompanyId, pqDraftDocEntry] = params;
       return withRfqCompanyNames(

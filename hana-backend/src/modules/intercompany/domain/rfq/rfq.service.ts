@@ -22,6 +22,7 @@ export type RfqService = {
   ) => Promise<IcRfqHeader | null>;
   /** Seller inbox — only RFQs where company is target (not buyer). */
   listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
+  listSubmittedSourcePqEntries: (sourceCompanyId: number) => Promise<number[]>;
   updateLines: (rfqId: number, lines: UpdateRfqLineInput[]) => Promise<IcRfqHeader | null>;
   submit: (rfqId: number) => Promise<IcRfqHeader | null>;
   complete: (rfqId: number) => Promise<IcRfqHeader | null>;
@@ -57,6 +58,9 @@ export const createRfqService = (deps?: {
     getById: (rfqId, withLines = true) => queries.getById(rfqId, withLines),
 
     listForCompany: (companyId) => queries.listForCompany(companyId),
+
+    listSubmittedSourcePqEntries: (sourceCompanyId) =>
+      queries.listSubmittedSourcePqEntries(sourceCompanyId),
 
     submit: (rfqId) => mutations.setStatus(rfqId, IC_RFQ_STATUS.SUBMITTED),
 

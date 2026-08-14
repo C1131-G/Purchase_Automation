@@ -72,6 +72,9 @@ export interface PurchaseQuotationDetail {
   DocTotal?: number | string;
   DocumentLines?: PurchaseQuotationDetailLine[];
   attachments?: any[];
+  /** True after the related RFQ is submitted or completed. */
+  rfqCopyAllowed?: boolean;
+  rfqStatus?: string | null;
 }
 export interface PurchaseQuotationDetailResponse {
   success: boolean;

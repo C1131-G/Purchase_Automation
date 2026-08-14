@@ -1425,6 +1425,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     isEditHydrated,
     isEditMode,
     isSaved: saveActions.isSaved,
+    rfqCopyAllowed: Boolean(editDetailQuery.data?.data?.rfqCopyAllowed),
     savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
     missingSearchMandatoryFields,

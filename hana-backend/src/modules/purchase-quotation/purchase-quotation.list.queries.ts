@@ -3,6 +3,7 @@
 import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import type { PurchaseQuotationFilters } from "./purchase-quotation.types";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
+import { listPqCopyAllowedDocEntries } from "@/modules/intercompany";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 
@@ -10,12 +11,25 @@ import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-for
 
 export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuotationFilters) => {
   try {
+    const copyAllowedDocEntries = filters.rfqSubmittedOnly
+      ? await listPqCopyAllowedDocEntries(dbName)
+      : null;
+
     const buildSubQuery = (table: string, isDraft: boolean) => {
       const whereClauses = ["1=1"];
       const params: unknown[] = [];
 
       if (isDraft) {
         whereClauses.push(`"ObjType" = '540000006'`);
+      }
+
+      if (copyAllowedDocEntries) {
+        if (copyAllowedDocEntries.length === 0) {
+          whereClauses.push("1=0");
+        } else {
+          whereClauses.push(`"DocEntry" IN (${copyAllowedDocEntries.map(() => "?").join(", ")})`);
+          params.push(...copyAllowedDocEntries);
+        }
       }
 
       if (filters.DocNum) {

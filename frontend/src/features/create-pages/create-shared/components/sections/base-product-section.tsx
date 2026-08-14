@@ -1055,7 +1055,6 @@ export function BaseProductSection({
                     )
                   ) : null
                 ) : null}
-                {secondaryActions}
                 {(isSaved || showSubmitButton) && (
                   <Popover.Root>
                     <Popover.Trigger asChild>

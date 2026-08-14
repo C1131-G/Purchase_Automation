@@ -33,4 +33,5 @@ export const purchaseQuotationListParamsSchema = z.object({
   page: z.number().optional(),
   sortBy: z.enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
+  rfqSubmittedOnly: z.boolean().optional(),
 });

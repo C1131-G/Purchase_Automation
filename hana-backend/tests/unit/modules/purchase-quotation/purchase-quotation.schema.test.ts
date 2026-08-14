@@ -15,4 +15,18 @@ describe("PurchaseQuotationQuerySchema", () => {
       expect(result.data.limit).toBe(25);
     }
   });
+
+  it("coerces rfqSubmittedOnly query flags", () => {
+    const enabled = PurchaseQuotationQuerySchema.safeParse({ rfqSubmittedOnly: "true" });
+    expect(enabled.success).toBe(true);
+    if (enabled.success) {
+      expect(enabled.data.rfqSubmittedOnly).toBe(true);
+    }
+
+    const omitted = PurchaseQuotationQuerySchema.safeParse({});
+    expect(omitted.success).toBe(true);
+    if (omitted.success) {
+      expect(omitted.data.rfqSubmittedOnly).toBeFalsy();
+    }
+  });
 });

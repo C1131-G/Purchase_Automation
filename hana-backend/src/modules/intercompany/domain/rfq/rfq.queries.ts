@@ -115,6 +115,8 @@ export type RfqQueries = {
     remarkRef: number | string,
   ) => Promise<IcRfqHeader | null>;
   listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
+  /** Buyer PQ DocEntry values whose RFQ is SUBMITTED or COMPLETED. */
+  listSubmittedSourcePqEntries: (sourceCompanyId: number) => Promise<number[]>;
 };
 
 export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQueries => ({
@@ -181,6 +183,24 @@ export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQuerie
       [companyId],
     );
     return rows.map(mapRfqHeaderRow);
+  },
+
+  listSubmittedSourcePqEntries: async (sourceCompanyId) => {
+    const rows = await sql.query(
+      `SELECT h."PQ_DRAFT_DOC_ENTRY" AS "PQ_DRAFT_DOC_ENTRY"
+         FROM "IC_RFQ_HEADER" h
+        WHERE h."SOURCE_COMPANY_ID" = ?
+          AND h."STATUS" IN ('SUBMITTED', 'COMPLETED')`,
+      [sourceCompanyId],
+    );
+    const entries = new Set<number>();
+    for (const row of rows) {
+      const entry = toNumber(row.PQ_DRAFT_DOC_ENTRY ?? row.pqDraftDocEntry);
+      if (Number.isFinite(entry) && entry > 0) {
+        entries.add(Math.trunc(entry));
+      }
+    }
+    return [...entries];
   },
 });
 

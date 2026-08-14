@@ -293,6 +293,7 @@ export function CopyFromDialog({
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
             limit,
+            rfqSubmittedOnly: true,
           };
           if (query) {
             params.DocNum = query;

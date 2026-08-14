@@ -9,6 +9,7 @@ import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { assertPqLinesCopyAllowed } from "@/modules/intercompany";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
@@ -48,6 +49,9 @@ export const createGRPO = async (
 
     const session = serviceLayerClient.getSession(sessionId);
     const resolvedDbName = session?.companyDB || dbName || "";
+    if (resolvedDbName) {
+      await assertPqLinesCopyAllowed(resolvedDbName, lines);
+    }
 
     let absoluteEntry: number | null = null;
     if (attachments && attachments.length > 0 && resolvedDbName) {
