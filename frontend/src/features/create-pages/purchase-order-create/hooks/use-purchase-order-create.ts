@@ -17,7 +17,6 @@ import {
   resolveHydrateProductMeta,
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
-import { sapLotFieldsFromRow } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import {
   clipSapText,
   SAP_FIELD_MAX,
@@ -1053,7 +1052,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
-              ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
               BaseType: typeof row.baseType === "number" ? row.baseType : undefined,
               BaseEntry: typeof row.baseEntry === "number" ? row.baseEntry : undefined,
@@ -1087,7 +1085,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                     UoMCode: row.uomCode || undefined,
                     UoMEntry: row.uomEntry ?? undefined,
                     VatGroup: row.vatGroup || undefined,
-                    ...sapLotFieldsFromRow(row),
                     WarehouseCode: row.warehouseCode || undefined,
                   });
                   continue;
@@ -1108,7 +1105,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                     UoMCode: row.uomCode || undefined,
                     UoMEntry: row.uomEntry ?? undefined,
                     VatGroup: row.vatGroup || undefined,
-                    ...sapLotFieldsFromRow(row),
                     WarehouseCode: row.warehouseCode || undefined,
                   });
                 }
@@ -1123,7 +1119,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                     UoMCode: row.uomCode || undefined,
                     UoMEntry: row.uomEntry ?? undefined,
                     VatGroup: row.vatGroup || undefined,
-                    ...sapLotFieldsFromRow(row),
                     WarehouseCode: row.warehouseCode || undefined,
                   });
                 }
@@ -1211,7 +1206,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
@@ -1242,7 +1236,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
-              ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
               BaseType: typeof row.baseType === "number" ? row.baseType : undefined,
               BaseEntry: typeof row.baseEntry === "number" ? row.baseEntry : undefined,
@@ -1283,7 +1276,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                     UoMCode: row.uomCode || undefined,
                     UoMEntry: row.uomEntry ?? undefined,
                     VatGroup: row.vatGroup || undefined,
-                    ...sapLotFieldsFromRow(row),
                     WarehouseCode: row.warehouseCode || undefined,
                   });
                   continue;
@@ -1304,7 +1296,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                     UoMCode: row.uomCode || undefined,
                     UoMEntry: row.uomEntry ?? undefined,
                     VatGroup: row.vatGroup || undefined,
-                    ...sapLotFieldsFromRow(row),
                     WarehouseCode: row.warehouseCode || undefined,
                   });
                 }
@@ -1319,7 +1310,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                     UoMCode: row.uomCode || undefined,
                     UoMEntry: row.uomEntry ?? undefined,
                     VatGroup: row.vatGroup || undefined,
-                    ...sapLotFieldsFromRow(row),
                     WarehouseCode: row.warehouseCode || undefined,
                   });
                 }

@@ -8,7 +8,6 @@ import {
   resolveItemSalesUom,
 } from "@/modules/master-data/master-data.service";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
-import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
@@ -109,7 +108,6 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
             docLine.BaseLine = line.BaseLine;
           }
 
-          attachSapLotCollections(docLine, line);
           return docLine;
         }),
       ),

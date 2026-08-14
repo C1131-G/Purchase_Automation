@@ -49,11 +49,6 @@ import {
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
 import {
-  firstRequiredLotError,
-  lotFieldsFromProduct,
-  sapLotFieldsFromRow,
-} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
-import {
   resolveHydrateProductMeta,
   taxRatesFromProductMeta,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
@@ -1430,7 +1425,6 @@ export function useAPInvoiceCreate({
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
                 warehouseCode: targetWhs,
-                ...lotFieldsFromProduct(product),
               }
             : row,
         );
@@ -1463,7 +1457,6 @@ export function useAPInvoiceCreate({
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
           warehouseCode: targetWhs,
-          ...lotFieldsFromProduct(product),
         },
       ];
     });
@@ -1544,7 +1537,6 @@ export function useAPInvoiceCreate({
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
-              ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
             });
             continue;
@@ -1565,7 +1557,6 @@ export function useAPInvoiceCreate({
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
-              ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
             });
           }
@@ -1580,7 +1571,6 @@ export function useAPInvoiceCreate({
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               VatGroup: row.vatGroup || undefined,
-              ...sapLotFieldsFromRow(row),
               WarehouseCode: row.warehouseCode || undefined,
             });
           }
@@ -1659,7 +1649,6 @@ export function useAPInvoiceCreate({
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
           warehouseCode: targetWhs,
-          ...lotFieldsFromProduct(product),
         };
       }),
     ]);
@@ -1718,12 +1707,6 @@ export function useAPInvoiceCreate({
         return;
       }
 
-      const lotError = firstRequiredLotError(filteredRows);
-      if (lotError) {
-        setCreateError(lotError);
-        return;
-      }
-
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
@@ -1754,7 +1737,6 @@ export function useAPInvoiceCreate({
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
           });
           continue;
@@ -1777,7 +1759,6 @@ export function useAPInvoiceCreate({
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
           });
         }
@@ -1793,7 +1774,6 @@ export function useAPInvoiceCreate({
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || undefined,
           });
         }

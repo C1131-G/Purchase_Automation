@@ -97,28 +97,6 @@ export const createAPInvoiceInputSchema = z.object({
       UoMEntry: z.number().optional(),
       VatGroup: z.string().optional(),
       WarehouseCode: z.string().optional(),
-      BatchNumbers: z
-        .array(
-          z.object({
-            AddmisionDate: z.string().optional(),
-            BatchNumber: z.string(),
-            ExpiryDate: z.string().optional(),
-            ManufacturingDate: z.string().optional(),
-            Notes: z.string().optional(),
-            Quantity: z.number(),
-          }),
-        )
-        .optional(),
-      SerialNumbers: z
-        .array(
-          z.object({
-            ExpiryDate: z.string().optional(),
-            InternalSerialNumber: z.string(),
-            ManufacturerSerialNumber: z.string().optional(),
-            Quantity: z.number().optional(),
-          }),
-        )
-        .optional(),
     }),
   ),
   NumAtCard: z.string().optional(),

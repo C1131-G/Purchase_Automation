@@ -2,7 +2,6 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 import {
   SAP_FIELD_MAX,
   sapDocumentBranchFields,
@@ -143,7 +142,6 @@ const PurchaseOrderLineItemSchema = z.object({
   BaseType: z.number().int().optional(),
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
-  ...sapLotCollectionsFields,
 });
 
 // CreatePurchaseOrderInputSchema: Validates the full payload for a new procurement document.

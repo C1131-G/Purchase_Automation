@@ -2,7 +2,6 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 import {
   SAP_FIELD_MAX,
   sapDocumentBranchFields,
@@ -112,7 +111,6 @@ const PurchaseQuotationLineItemSchema = z.object({
   VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
   WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
   LineNum: z.number().int().optional(),
-  ...sapLotCollectionsFields,
 });
 
 export const AttachmentInputSchema = z.object({

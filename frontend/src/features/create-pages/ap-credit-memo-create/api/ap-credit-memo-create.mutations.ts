@@ -25,20 +25,6 @@ export interface CreateAPCreditMemoInput {
     BaseLine?: number;
     BaseType?: number;
     U_ReturnReason?: string;
-    BatchNumbers?: Array<{
-      AddmisionDate?: string;
-      BatchNumber: string;
-      ExpiryDate?: string;
-      ManufacturingDate?: string;
-      Notes?: string;
-      Quantity: number;
-    }>;
-    SerialNumbers?: Array<{
-      ExpiryDate?: string;
-      InternalSerialNumber: string;
-      ManufacturerSerialNumber?: string;
-      Quantity?: number;
-    }>;
   }[];
   SalesPersonCode?: number | undefined;
   attachments?: any[];
@@ -67,20 +53,6 @@ export interface UpdateAPCreditMemoInput {
     BaseLine?: number;
     BaseType?: number;
     U_ReturnReason?: string;
-    BatchNumbers?: Array<{
-      AddmisionDate?: string;
-      BatchNumber: string;
-      ExpiryDate?: string;
-      ManufacturingDate?: string;
-      Notes?: string;
-      Quantity: number;
-    }>;
-    SerialNumbers?: Array<{
-      ExpiryDate?: string;
-      InternalSerialNumber: string;
-      ManufacturerSerialNumber?: string;
-      Quantity?: number;
-    }>;
   }[];
   attachments?: any[];
   isDraft?: boolean;

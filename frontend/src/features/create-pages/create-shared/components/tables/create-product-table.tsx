@@ -72,7 +72,7 @@ interface CreateProductTableProps {
   showTaxCode?: boolean;
   taxCodes?: CreateLookupOption[];
   taxSide?: TaxDocumentSide;
-  /** GRPO / AP Invoice / AP Credit Memo require lots on managed items. */
+  /** GRPO create/edit only: require batch/serial on managed items. */
   lotRequired?: boolean;
 }
 
@@ -116,6 +116,9 @@ export function CreateProductTable({
   const promptedLotsRef = useRef(new Set<string>());
 
   useEffect(() => {
+    if (!lotRequired) {
+      return;
+    }
     const liveIds = new Set(productRows.map((row) => `${row.id}:${row.productCode}`));
     for (const key of promptedLotsRef.current) {
       if (!liveIds.has(key)) {
@@ -136,7 +139,7 @@ export function CreateProductTable({
         break;
       }
     }
-  }, [lotRowId, productRows]);
+  }, [lotRequired, lotRowId, productRows]);
 
   const lotRow = lotRowId ? (productRows.find((row) => row.id === lotRowId) ?? null) : null;
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
@@ -265,7 +268,7 @@ export function CreateProductTable({
                     taxCodes={taxCodes}
                     taxSide={taxSide}
                     lotRequired={lotRequired}
-                    onOpenLotAllocation={() => setLotRowId(row.id)}
+                    {...(lotRequired ? { onOpenLotAllocation: () => setLotRowId(row.id) } : {})}
                   />
                 );
               })}
@@ -281,19 +284,21 @@ export function CreateProductTable({
           </table>
         </div>
       </div>
-      <ProductLotAllocationModal
-        mode={lotMode}
-        open={Boolean(lotRow)}
-        required={lotRequired}
-        row={lotRow}
-        onClose={() => setLotRowId(null)}
-        onSave={(patch) => {
-          if (!lotRow) {
-            return;
-          }
-          updateProductRow(lotRow.id, patch);
-        }}
-      />
+      {lotRequired ? (
+        <ProductLotAllocationModal
+          mode={lotMode}
+          open={Boolean(lotRow)}
+          required={lotRequired}
+          row={lotRow}
+          onClose={() => setLotRowId(null)}
+          onSave={(patch) => {
+            if (!lotRow) {
+              return;
+            }
+            updateProductRow(lotRow.id, patch);
+          }}
+        />
+      ) : null}
     </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 import {
   SAP_FIELD_MAX,
   sapOptionalCode,
@@ -109,7 +108,6 @@ const CreditNoteLineItemSchema = z.object({
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
   WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
-  ...sapLotCollectionsFields,
 });
 
 // CreateCreditNoteInputSchema: Validates new credit note creation.

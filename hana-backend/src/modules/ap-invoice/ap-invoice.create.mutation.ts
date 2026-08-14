@@ -6,7 +6,6 @@ import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
@@ -87,7 +86,6 @@ export const createInvoice = async (
         docLine.BaseLine = item.BaseLine;
       }
 
-      attachSapLotCollections(docLine, item);
       return docLine;
     }),
     NumAtCard: payload.NumAtCard ?? draftNumAtCard,

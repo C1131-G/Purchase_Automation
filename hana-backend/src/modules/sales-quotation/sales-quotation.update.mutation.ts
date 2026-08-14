@@ -7,7 +7,6 @@ import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { assertIcSqEditable } from "@/modules/intercompany";
-import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
@@ -159,7 +158,6 @@ export const updateSalesQuotation = async (
           docLine.BaseLine = line.BaseLine;
         }
 
-        attachSapLotCollections(docLine, line);
         return docLine;
       });
     }
