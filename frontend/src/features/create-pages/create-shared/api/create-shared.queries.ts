@@ -31,6 +31,16 @@ const fetchCustomersFromMasterDataRoute = async () =>
 const fetchSalesEmployees = async () =>
   apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/sales-quotations/SalesEmployee");
 
+/** Product browse cache is per document + vendor — never share PQ catalog with GRPO/AP Invoice. */
+export type ProductCatalogScope =
+  | "purchase-quotation"
+  | "purchase-order"
+  | "grpo"
+  | "ap-invoice"
+  | "ap-credit-memo"
+  | "sales-quotation"
+  | "hydrate";
+
 export const createSharedKeys = {
   all: ["create-shared"] as const,
   // v4: list payload omits addresses[]; use businessPartnerAddresses for pickers.
@@ -41,7 +51,7 @@ export const createSharedKeys = {
   productWarehouseStocks: () => [...createSharedKeys.all, "product-warehouse-stocks"] as const,
   productWarehouseStocksBatch: () =>
     [...createSharedKeys.all, "product-warehouse-stocks-batch"] as const,
-  products: () => [...createSharedKeys.all, "products-v2"] as const,
+  products: () => [...createSharedKeys.all, "products-v3"] as const,
   productsByCodes: () => [...createSharedKeys.all, "products-by-codes"] as const,
   salesEmployees: () => [...createSharedKeys.all, "sales-employees"] as const,
   taxCodes: () => [...createSharedKeys.all, "tax-codes"] as const,
@@ -235,6 +245,7 @@ export const createSharedQueries = {
     type?: "sales" | "purchase",
     priceList?: string,
     cardCode?: string,
+    catalog?: ProductCatalogScope,
   ) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
@@ -265,6 +276,7 @@ export const createSharedQueries = {
       },
       queryKey: [
         ...createSharedKeys.products(),
+        catalog ?? "shared",
         warehouseCode ?? "",
         search ?? "",
         limit,

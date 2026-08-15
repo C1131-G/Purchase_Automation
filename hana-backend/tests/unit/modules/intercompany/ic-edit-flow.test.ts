@@ -280,6 +280,29 @@ describe("IC edit lifecycle", () => {
 
     expect(stack.db.tables.IC_RFQ_LINE[0]?.TAX_CODE).toBe("IN-12.5");
   });
+
+  it("does not wipe RFQ quoted qty when buyer PQ quoted qty is 0", async () => {
+    const stack = createStack();
+    addRfq(stack.db, "DRAFT");
+    stack.db.tables.IC_RFQ_LINE.push({
+      ITEM_CODE: "SELLER-ITEM",
+      LINE_NUM: 0,
+      QUANTITY: 4,
+      RFQ_ID: 1,
+      RFQ_LINE_ID: 1,
+      UNIT_PRICE: 5,
+    });
+
+    await createUpdateRfqFromPqService({ rfq: stack.rfq }).update({
+      purchaseQuotation: {
+        ...captureInput,
+        lines: [{ ItemCode: "BUYER-ITEM", LineNum: 0, Quantity: 0, RequiredQuantity: 9 }],
+      },
+      rfqId: 1,
+    });
+
+    expect(stack.db.tables.IC_RFQ_LINE[0]?.QUANTITY).toBe(4);
+  });
 });
 
 describe("PQ to PO source resolution", () => {

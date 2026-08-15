@@ -12,8 +12,10 @@ import {
   sanitizeLotNumberInput,
 } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import type {
+  GrpoCreateSearch,
   ItemDefaultBin,
   LotSetupKind,
+  LotSetupReturnTo,
   LotSetupStep,
 } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
 
@@ -32,8 +34,46 @@ export const compactDateStamp = (isoDate: string): string => {
   return new Date().toISOString().slice(0, 10).replaceAll("-", "");
 };
 
-export const suggestBatchNumber = (docDate: string, lineIndex: number): string =>
-  sanitizeLotNumberInput(`B${compactDateStamp(docDate)}${String(lineIndex + 1).padStart(3, "0")}`);
+/** Batch numbers use calendar date as ddmmyyyy (e.g. 14/08/2026 → 14082026). */
+export const batchDateStamp = (isoDate: string): string => {
+  const yyyymmdd = compactDateStamp(isoDate);
+  if (yyyymmdd.length === 8) {
+    return `${yyyymmdd.slice(6, 8)}${yyyymmdd.slice(4, 6)}${yyyymmdd.slice(0, 4)}`;
+  }
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, "0");
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${day}${month}${now.getFullYear()}`;
+};
+
+/** Rewrite leftover auto stamps that used yyyymmdd instead of ddmmyyyy. */
+export const normalizeBatchNumberStamp = (batchNumber: string, docDate: string): string => {
+  const trimmed = batchNumber.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  const oldStamp = compactDateStamp(docDate);
+  const newStamp = batchDateStamp(docDate);
+  if (oldStamp.length === 8 && trimmed.startsWith(oldStamp)) {
+    return `${newStamp}${trimmed.slice(oldStamp.length)}`;
+  }
+  return trimmed;
+};
+
+export const suggestBatchNumber = (
+  docDate: string,
+  lineIndex: number,
+  batchIndex: number = 0,
+): string => {
+  const dateStr = batchDateStamp(docDate);
+  if (lineIndex === 0 && batchIndex === 0) {
+    return dateStr;
+  }
+  if (batchIndex === 0) {
+    return sanitizeLotNumberInput(`${dateStr}${String(lineIndex + 1).padStart(2, "0")}`);
+  }
+  return sanitizeLotNumberInput(`${dateStr}B${batchIndex + 1}`);
+};
 
 export const suggestSerialNumber = (
   docDate: string,
@@ -78,7 +118,7 @@ export const seedBatchAllocations = (
   return [
     applyDefaultBinToBatch(
       {
-        batchNumber: suggestBatchNumber(docDate, lineIndex),
+        batchNumber: suggestBatchNumber(docDate, lineIndex, 0),
         quantity: needed,
       },
       defaultBin,
@@ -98,7 +138,12 @@ export const resizeBatchAllocations = (
   }
   const next = batches
     .filter((batch) => batch.batchNumber.trim() || Number(batch.quantity) > 0)
-    .map((batch) => applyDefaultBinToBatch({ ...batch }, defaultBin));
+    .map((batch) =>
+      applyDefaultBinToBatch(
+        { ...batch, batchNumber: normalizeBatchNumberStamp(batch.batchNumber, docDate) },
+        defaultBin,
+      ),
+    );
   if (next.length === 0) {
     return [
       applyDefaultBinToBatch(
@@ -110,45 +155,297 @@ export const resizeBatchAllocations = (
       ),
     ];
   }
-  const allocated = allocatedBatchQuantity(next);
-  const delta = needed - allocated;
-  if (Math.abs(delta) <= QTY_EPSILON) {
+  let allocated = allocatedBatchQuantity(next);
+  if (allocated <= needed + QTY_EPSILON) {
     return next;
   }
-  const lastIndex = next.length - 1;
-  const last = next[lastIndex];
-  if (!last) {
-    return next;
+  let overflow = allocated - needed;
+  for (let index = next.length - 1; index >= 0 && overflow > QTY_EPSILON; index -= 1) {
+    const current = next[index];
+    if (!current) {
+      continue;
+    }
+    const qty = Number(current.quantity) || 0;
+    const take = Math.min(qty, overflow);
+    const reduced = qty - take;
+    overflow -= take;
+    if (reduced > QTY_EPSILON) {
+      next[index] = { ...current, quantity: reduced };
+    } else {
+      next.splice(index, 1);
+    }
   }
-  const adjustedLastQty = Number(last.quantity) + delta;
-  if (adjustedLastQty > QTY_EPSILON) {
-    next[lastIndex] = { ...last, quantity: adjustedLastQty };
-    return next;
+  if (next.length === 0 && needed > 0) {
+    return [
+      applyDefaultBinToBatch(
+        {
+          batchNumber: suggestBatchNumber(docDate, lineIndex),
+          quantity: needed,
+        },
+        defaultBin,
+      ),
+    ];
   }
-  const kept = next.slice(0, -1);
-  return resizeBatchAllocations(kept, needed, lineIndex, docDate, defaultBin);
+  return next;
 };
 
 export const addBatchSplitRow = (
   batches: ProductBatchAllocation[],
+  needed: number,
   lineIndex: number,
   docDate: string,
   defaultBin?: ItemDefaultBin | null,
-): ProductBatchAllocation[] => [
-  ...batches,
-  applyDefaultBinToBatch(
-    {
-      batchNumber: suggestBatchNumber(docDate, lineIndex + batches.length),
-      quantity: 0,
-    },
-    defaultBin,
-  ),
-];
+): ProductBatchAllocation[] => {
+  const remaining = Math.max(0, needed - allocatedBatchQuantity(batches));
+  if (remaining <= QTY_EPSILON) {
+    return batches;
+  }
+  return [
+    ...batches,
+    applyDefaultBinToBatch(
+      {
+        batchNumber: suggestBatchNumber(docDate, lineIndex, batches.length),
+        quantity: remaining,
+      },
+      defaultBin,
+    ),
+  ];
+};
+
+export const sameBatchAllocations = (
+  left: ProductBatchAllocation[] | undefined,
+  right: ProductBatchAllocation[] | undefined,
+): boolean => {
+  const a = left ?? [];
+  const b = right ?? [];
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every((batch, index) => {
+    const other = b[index];
+    if (!other) {
+      return false;
+    }
+    return (
+      batch.batchNumber === other.batchNumber &&
+      Number(batch.quantity) === Number(other.quantity) &&
+      Number(batch.binAbsEntry ?? 0) === Number(other.binAbsEntry ?? 0) &&
+      (batch.binCode ?? "") === (other.binCode ?? "") &&
+      (batch.expiryDate ?? "") === (other.expiryDate ?? "")
+    );
+  });
+};
+
+/** Keep the qty the user typed. Never auto-fill leftover; only cap so total cannot exceed Needed. */
+export const rebalanceBatchQuantities = (
+  batches: ProductBatchAllocation[],
+  needed: number,
+  editedIndex?: number,
+): ProductBatchAllocation[] => {
+  if (batches.length === 0) {
+    return batches;
+  }
+  const next = batches.map((batch) => ({
+    ...batch,
+    quantity: Math.max(0, Number(batch.quantity) || 0),
+  }));
+  if (editedIndex !== undefined && next[editedIndex]) {
+    const others = next.reduce((sum, batch, index) => {
+      if (index === editedIndex) {
+        return sum;
+      }
+      return sum + Number(batch.quantity || 0);
+    }, 0);
+    const maxEdited = Math.max(0, needed - others);
+    next[editedIndex] = {
+      ...next[editedIndex]!,
+      quantity: Math.min(Number(next[editedIndex]!.quantity) || 0, maxEdited),
+    };
+  }
+  return next;
+};
+
+const emptySerialAllocation = (defaultBin?: ItemDefaultBin | null): ProductSerialAllocation =>
+  applyDefaultBinToSerial({ internalSerialNumber: "", quantity: 1 }, defaultBin);
+
+export type SerialAutoFillDirection = "increase" | "decrease";
+export type SerialAutoFillPartKind = "string" | "number";
+
+export interface SerialAutoFillPart {
+  kind: SerialAutoFillPartKind;
+  value: string;
+}
+
+export interface SerialAutoFillInput {
+  count: number;
+  direction: SerialAutoFillDirection;
+  parts: SerialAutoFillPart[];
+}
+
+export const formatSerialAutoFillValue = (prefix: string, suffix: string): string => {
+  const cleanPrefix = sanitizeLotNumberInput(prefix).replace(/-+$/g, "");
+  const cleanSuffix = sanitizeLotNumberInput(suffix).replace(/^-+/g, "");
+  if (!cleanPrefix) {
+    return cleanSuffix;
+  }
+  if (!cleanSuffix) {
+    return cleanPrefix;
+  }
+  return sanitizeLotNumberInput(`${cleanPrefix}-${cleanSuffix}`);
+};
+
+export const joinSerialAutoFillParts = (parts: string[]): string => {
+  let joined = "";
+  for (const part of parts) {
+    joined = formatSerialAutoFillValue(joined, part);
+  }
+  return joined;
+};
+
+const steppedNumberValue = (
+  raw: string,
+  index: number,
+  direction: SerialAutoFillDirection,
+): string | null => {
+  const start = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(start)) {
+    return null;
+  }
+  const step = direction === "decrease" ? -1 : 1;
+  const digits = raw.trim().replace(/^-/, "");
+  const pad = digits.length > 1 && digits.startsWith("0") ? digits.length : 1;
+  const value = start + index * step;
+  if (value < 0) {
+    return null;
+  }
+  return String(value).padStart(pad, "0");
+};
+
+const bumpSerialChar = (char: string): { carry: boolean; next: string } => {
+  if (char >= "A" && char <= "Y") {
+    return { carry: false, next: String.fromCharCode(char.charCodeAt(0) + 1) };
+  }
+  if (char >= "a" && char <= "y") {
+    return { carry: false, next: String.fromCharCode(char.charCodeAt(0) + 1) };
+  }
+  if (char === "Z") {
+    return { carry: true, next: "A" };
+  }
+  if (char === "z") {
+    return { carry: true, next: "a" };
+  }
+  if (char >= "0" && char <= "8") {
+    return { carry: false, next: String.fromCharCode(char.charCodeAt(0) + 1) };
+  }
+  if (char === "9") {
+    return { carry: true, next: "0" };
+  }
+  return { carry: true, next: char };
+};
+
+export const nextSerialString = (value: string): string => {
+  const chars = [...sanitizeLotNumberInput(value)];
+  if (chars.length === 0) {
+    return "A";
+  }
+  for (let index = chars.length - 1; index >= 0; index -= 1) {
+    const current = chars[index];
+    if (!current || current === "-") {
+      continue;
+    }
+    const bumped = bumpSerialChar(current);
+    chars[index] = bumped.next;
+    if (!bumped.carry) {
+      return chars.join("");
+    }
+  }
+  return `A${chars.join("")}`;
+};
+
+export const buildSerialAutoFillNumbers = (input: SerialAutoFillInput): string[] => {
+  const count = Math.max(0, Math.trunc(input.count));
+  const parts = input.parts.filter((part) => part.value.trim());
+  if (count === 0 || parts.length === 0) {
+    return [];
+  }
+
+  const lastNumberIndex = parts.findLastIndex((part) => part.kind === "number");
+  const lastStringIndex = parts.findLastIndex((part) => part.kind === "string");
+  const next: string[] = [];
+
+  for (let rowIndex = 0; rowIndex < count; rowIndex += 1) {
+    const pieces: string[] = [];
+    for (const [partIndex, part] of parts.entries()) {
+      if (part.kind === "number") {
+        const shouldStep = partIndex === lastNumberIndex;
+        const value = shouldStep
+          ? steppedNumberValue(part.value, rowIndex, input.direction)
+          : steppedNumberValue(part.value, 0, "increase");
+        if (value === null) {
+          return [];
+        }
+        pieces.push(value);
+        continue;
+      }
+      const seed = sanitizeLotNumberInput(part.value);
+      if (!seed) {
+        continue;
+      }
+      if (lastNumberIndex < 0 && partIndex === lastStringIndex && rowIndex > 0) {
+        let current = seed;
+        for (let stepIndex = 0; stepIndex < rowIndex; stepIndex += 1) {
+          current = nextSerialString(current);
+        }
+        pieces.push(current);
+        continue;
+      }
+      pieces.push(seed);
+    }
+    const serial = joinSerialAutoFillParts(pieces);
+    if (!serial) {
+      return [];
+    }
+    next.push(serial);
+  }
+  return next;
+};
+
+export const applySerialAutoFill = (
+  serials: ProductSerialAllocation[],
+  numbers: string[],
+): ProductSerialAllocation[] =>
+  serials.map((serial, index) => {
+    const number = numbers[index];
+    if (!number) {
+      return serial;
+    }
+    return { ...serial, internalSerialNumber: number, quantity: 1 };
+  });
+
+export const addSerialSplitRow = (
+  serials: ProductSerialAllocation[],
+  _lineIndex: number,
+  _docDate: string,
+  defaultBin?: ItemDefaultBin | null,
+  needed?: number,
+): ProductSerialAllocation[] => {
+  const maxRows = needed === undefined ? Number.POSITIVE_INFINITY : Math.max(0, Math.trunc(needed));
+  if (serials.length >= maxRows) {
+    return serials;
+  }
+  return [...serials, emptySerialAllocation(defaultBin)];
+};
+
+export const documentQtyFromBatches = (batches: ProductBatchAllocation[] | undefined): number =>
+  allocatedBatchQuantity(batches);
+
+export const documentQtyFromSerials = (serials: ProductSerialAllocation[] | undefined): number =>
+  allocatedSerialCount(serials);
 
 export const seedSerialAllocations = (
   row: ProductRow,
-  lineIndex: number,
-  docDate: string,
+  _lineIndex: number,
+  _docDate: string,
   defaultBin?: ItemDefaultBin | null,
 ): ProductSerialAllocation[] => {
   const needed = Math.max(0, Math.trunc(lineNeededQty(row)));
@@ -158,19 +455,11 @@ export const seedSerialAllocations = (
   const next: ProductSerialAllocation[] = [];
   for (let index = 0; index < needed; index += 1) {
     const current = existing[index];
-    if (current?.internalSerialNumber.trim()) {
+    if (current) {
       next.push({ ...current, quantity: 1 });
       continue;
     }
-    next.push(
-      applyDefaultBinToSerial(
-        {
-          internalSerialNumber: suggestSerialNumber(docDate, lineIndex, index),
-          quantity: 1,
-        },
-        defaultBin,
-      ),
-    );
+    next.push(emptySerialAllocation(defaultBin));
   }
   return next;
 };
@@ -207,8 +496,84 @@ export const resolveLotSetupStep = (
   return "submit";
 };
 
-export const lotSetupPath = (kind: Exclude<LotSetupStep, "submit">): string =>
-  kind === "serials" ? "/purchase/grpo-lots/serials" : "/purchase/grpo-lots/batches";
+/** @deprecated Route-based lot setup removed. Kind is handled inside the modal now. */
+export const lotSetupPath = (_kind: Exclude<LotSetupStep, "submit">): string =>
+  "/purchase/create-grpo";
+
+export const lotSetupKindForRow = (
+  row: Pick<ProductRow, "manBtchNum" | "manSerNum">,
+): Exclude<LotSetupStep, "submit"> => (isSerialManaged(row) ? "serials" : "batches");
+
+export const normalizeAppPath = (pathname: string): string =>
+  pathname.replace(/^\/_layout/, "").replace(/\/+$/, "") || "/";
+
+export const isGrpoCreateFlowPath = (pathname: string): boolean => {
+  const path = normalizeAppPath(pathname);
+  return path === "/purchase/create-grpo";
+};
+
+export const pickGrpoCreateSearch = (
+  search?: Record<string, unknown> | GrpoCreateSearch | null,
+): GrpoCreateSearch => {
+  if (!search) {
+    return {};
+  }
+  const next: GrpoCreateSearch = {};
+  const sourceDocNum = String(search.sourceDocNum ?? "").trim();
+  const draftDocNum = String(search.draftDocNum ?? "").trim();
+  const draftDocEntry = String(search.draftDocEntry ?? "").trim();
+  if (sourceDocNum) {
+    next.sourceDocNum = sourceDocNum;
+  }
+  if (search.sourceDocType === "PurchaseOrder" || search.sourceDocType === "PurchaseQuotation") {
+    next.sourceDocType = search.sourceDocType;
+  }
+  if (draftDocNum) {
+    next.draftDocNum = draftDocNum;
+  }
+  if (draftDocEntry) {
+    next.draftDocEntry = draftDocEntry;
+  }
+  return next;
+};
+
+export const grpoCreateReturnTarget = (
+  returnTo?: LotSetupReturnTo | null,
+): { search: GrpoCreateSearch; to: "/purchase/create-grpo" } => ({
+  search: pickGrpoCreateSearch(returnTo?.search),
+  to: "/purchase/create-grpo",
+});
+
+export const grpoLotDocLabel = (input: { draftDocNum?: string | undefined }): string => {
+  const draft = String(input.draftDocNum ?? "").trim();
+  if (draft) {
+    return draft;
+  }
+  return "New";
+};
+
+export const lotNumbersPreview = (row: ProductRow, kind: LotSetupKind): string => {
+  if (kind === "batches") {
+    return (row.batchNumbers ?? [])
+      .map((batch) => batch.batchNumber.trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+  return (row.serialNumbers ?? [])
+    .map((serial) => serial.internalSerialNumber.trim())
+    .filter(Boolean)
+    .join(", ");
+};
+
+export const shouldPreserveGrpoCreateDraft = (input: {
+  hasLines: boolean;
+  chrome?: unknown;
+  continueSubmit?: boolean;
+  pendingAction?: string | null;
+  returnTo?: LotSetupReturnTo | null;
+}): boolean =>
+  input.hasLines &&
+  Boolean(input.returnTo || input.pendingAction || input.continueSubmit || input.chrome);
 
 export const GRPO_CREATE_LOT_ACTIONS = ["save-new", "view", "close", "draft"] as const;
 
@@ -220,7 +585,7 @@ export const resolveGrpoLotIntercept = (input: {
   confirmed: { batchesConfirmed: boolean; serialsConfirmed: boolean };
   isEditMode: boolean;
   rows: ProductRow[];
-}): { path: string; type: "navigate" } | { type: "submit" } => {
+}): { kind: LotSetupKind; rowId?: string | undefined; type: "open-modal" } | { type: "submit" } => {
   if (!shouldOpenGrpoLotSetup(input.isEditMode, input.action)) {
     return { type: "submit" };
   }
@@ -228,7 +593,13 @@ export const resolveGrpoLotIntercept = (input: {
   if (step === "submit") {
     return { type: "submit" };
   }
-  return { path: lotSetupPath(step), type: "navigate" };
+  const managed = lotManagedRows(input.rows, step).filter((r) => lineNeededQty(r) > 0);
+  const unallocated = managed.find((r) => Boolean(lotAllocationError(r, true)));
+  return {
+    kind: step,
+    rowId: (unallocated ?? managed[0])?.id,
+    type: "open-modal",
+  };
 };
 
 export const resolveLotSetupAfterOk = (input: {
@@ -236,13 +607,13 @@ export const resolveLotSetupAfterOk = (input: {
   hasPendingCreateAction: boolean;
   kind: LotSetupKind;
   rows: ProductRow[];
-}): { path: string; type: "next" } | { type: "continue-submit" } | { type: "return" } => {
+}): { kind: LotSetupKind; type: "next" } | { type: "continue-submit" } | { type: "return" } => {
   const next = resolveLotSetupStep(input.rows, {
     batchesConfirmed: input.kind === "batches" ? true : input.confirmed.batchesConfirmed,
     serialsConfirmed: input.kind === "serials" ? true : input.confirmed.serialsConfirmed,
   });
   if (next !== "submit" && input.hasPendingCreateAction) {
-    return { path: lotSetupPath(next), type: "next" };
+    return { kind: next, type: "next" };
   }
   if (input.hasPendingCreateAction) {
     return { type: "continue-submit" };

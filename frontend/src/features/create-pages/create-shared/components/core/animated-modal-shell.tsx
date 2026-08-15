@@ -13,6 +13,7 @@ interface AnimatedModalShellProps {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  overlayClassName?: string;
   panelClassName?: string;
   onAfterClose?: (() => void) | undefined;
 }
@@ -21,6 +22,7 @@ export function AnimatedModalShell({
   open,
   onClose,
   children,
+  overlayClassName,
   panelClassName,
   onAfterClose,
 }: AnimatedModalShellProps) {
@@ -38,6 +40,7 @@ export function AnimatedModalShell({
     <div
       className={cn(
         CREATE_MODAL_OVERLAY_CLASS,
+        overlayClassName,
         open ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >

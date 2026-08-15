@@ -4,6 +4,7 @@
 
 export { afterPoCreated } from "./api/hooks/after-po-created.hook";
 export { afterPoUpdated } from "./api/hooks/after-po-updated.hook";
+export { afterPqUpdated } from "./api/hooks/after-pq-updated.hook";
 export {
   assertIcPoEditable,
   assertIcPqEditable,

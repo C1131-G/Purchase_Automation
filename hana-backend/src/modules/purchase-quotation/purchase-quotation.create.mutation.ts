@@ -91,11 +91,11 @@ export const createPurchaseQuotation = async (
           ? Number(line.RequiredQuantity)
           : hasRequiredQtyAlt
             ? Number(line.requiredQuantity)
-            : 0;
+            : 1;
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
           Quantity: Number.isFinite(quotedQty) ? quotedQty : 0,
-          RequiredQuantity: Number.isFinite(requiredQty) ? requiredQty : 0,
+          RequiredQuantity: Number.isFinite(requiredQty) && requiredQty >= 1 ? requiredQty : 1,
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,

@@ -277,6 +277,7 @@ export function useAPInvoiceCreate({
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
+  const partnerCardCode = vendorCodeInput.trim() || undefined;
 
   const productsQuery = useQuery({
     ...createSharedQueries.products(
@@ -284,8 +285,11 @@ export function useAPInvoiceCreate({
       debouncedProductSearch.trim() || undefined,
       debouncedProductSearch.trim() ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
+      undefined,
+      partnerCardCode,
+      "ap-invoice",
     ),
-    enabled: productPopupOpen && vendorSelected,
+    enabled: productPopupOpen && vendorSelected && Boolean(partnerCardCode),
   });
 
   useEffect(() => {
@@ -303,18 +307,21 @@ export function useAPInvoiceCreate({
   }, [debouncedProductSearch, vendorSelected, productPopupOpen]);
 
   const prefetchProducts = useCallback(() => {
-    if (!vendorSelected) {
+    if (!vendorSelected || !partnerCardCode) {
       return;
     }
     void queryClient.prefetchQuery(
       createSharedQueries.products(
-        undefined, // Pass undefined to keep search warehouse-agnostic
-        productSearch.trim() || undefined,
+        undefined,
+        undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
+        undefined,
+        partnerCardCode,
+        "ap-invoice",
       ),
     );
-  }, [vendorSelected, productSearch, queryClient]);
+  }, [vendorSelected, partnerCardCode, queryClient]);
 
   useEffect(() => {
     if (!vendorSelected) {
@@ -325,7 +332,7 @@ export function useAPInvoiceCreate({
 
   // After the quick first page settles, warm the full browse page so scroll load-more is instant.
   useEffect(() => {
-    if (!productPopupOpen || !vendorSelected) {
+    if (!productPopupOpen || !vendorSelected || !partnerCardCode) {
       return;
     }
     if (debouncedProductSearch.trim()) {
@@ -341,11 +348,20 @@ export function useAPInvoiceCreate({
       return;
     }
     void queryClient.prefetchQuery(
-      createSharedQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "purchase"),
+      createSharedQueries.products(
+        undefined,
+        undefined,
+        BROWSE_PRODUCT_LIMIT,
+        "purchase",
+        undefined,
+        partnerCardCode,
+        "ap-invoice",
+      ),
     );
   }, [
     productPopupOpen,
     vendorSelected,
+    partnerCardCode,
     debouncedProductSearch,
     productsQuery.isFetching,
     productsQuery.isError,

@@ -108,8 +108,7 @@ export function ShellLayoutNavigation({
                   isActive={
                     pathname === "/purchase/create-grpo" ||
                     pathname === "/purchase/grpo" ||
-                    pathname.startsWith("/purchase/grpo/") ||
-                    pathname.startsWith("/purchase/grpo-lots/")
+                    pathname.startsWith("/purchase/grpo/")
                   }
                 >
                   GRPO

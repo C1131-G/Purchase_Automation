@@ -9,15 +9,18 @@ export type IcHookResult =
     }
   | { status: "queued_retry"; retryId: number }
   | { status: "failed"; message: string; historyId?: number }
-  /** Hook accepted work; full Flow 1/2 runs after the main doc HTTP response. */
-  | { status: "accepted"; flow: "flow1" | "flow2"; message?: string };
+  /** Hook accepted work; Flow 1/2 create or IC edit sync runs after the main doc HTTP response. */
+  | { status: "accepted"; flow: "flow1" | "flow2" | "edit"; message?: string };
 
 export const skipResult = (reason: string): IcHookResult => ({
   reason,
   status: "skipped",
 });
 
-export const acceptedResult = (flow: "flow1" | "flow2", message?: string): IcHookResult => ({
+export const acceptedResult = (
+  flow: "flow1" | "flow2" | "edit",
+  message?: string,
+): IcHookResult => ({
   flow,
   message: message ?? "Intercompany processing started in background",
   status: "accepted",

@@ -182,4 +182,60 @@ describe("Service Layer access logging", () => {
     expect(logPayload).not.toHaveProperty("Password");
     expect(JSON.stringify(logPayload)).not.toContain("secret-password");
   });
+
+  it("silently re-logins with company credentials after SAP 401", async () => {
+    const axiosError = Object.assign(new Error("Request failed with status code 401"), {
+      isAxiosError: true,
+      response: {
+        status: 401,
+        data: { error: { message: { value: "Invalid session" } } },
+      },
+      toJSON: () => ({}),
+    });
+    const { default: axios } = await import("axios");
+    vi.spyOn(axios, "isAxiosError").mockReturnValue(true);
+
+    const clientFn = vi
+      .fn()
+      .mockRejectedValueOnce(axiosError)
+      .mockResolvedValueOnce({ status: 201, data: { DocEntry: 9 } });
+    const { host, postFn } = createHost(clientFn);
+    host.request = (sessionId, method, endpoint, data, allowRetry) =>
+      executeServiceLayerRequest(host, sessionId, method, endpoint, data, allowRetry);
+    host.resolveRefreshCredentials = vi.fn().mockResolvedValue({
+      companyDB: "SBO",
+      password: "sl-secret",
+      username: "manager",
+    });
+    seedSession(host);
+    postFn.mockResolvedValue({
+      status: 200,
+      headers: { "set-cookie": ["B1SESSION=new-sess; path=/"] },
+      data: { SessionTimeout: 30, Version: "10" },
+    });
+
+    const result = await executeServiceLayerRequest(
+      host,
+      "sess-1",
+      "POST",
+      "/PurchaseDeliveryNotes",
+      {
+        CardCode: "V1",
+      },
+    );
+
+    expect(result).toEqual({ DocEntry: 9 });
+    expect(host.resolveRefreshCredentials).toHaveBeenCalledWith("sess-1");
+    expect(postFn).toHaveBeenCalledWith(
+      "/Login",
+      expect.objectContaining({
+        CompanyDB: "SBO",
+        Password: "sl-secret",
+        UserName: "manager",
+      }),
+    );
+    expect(host.sessions.get("sess-1")?.cookieString).toBe("B1SESSION=new-sess");
+    expect(host.sessionCredentials.get("sess-1")?.password).toBe("sl-secret");
+    expect(host.destroyLocalSession).not.toHaveBeenCalled();
+  });
 });

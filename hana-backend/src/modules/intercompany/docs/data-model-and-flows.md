@@ -33,7 +33,8 @@ Tax: **no static tax code table**. Seller tax is resolved from **OVTG rate match
 | 04   | `04-seller-fill-rfq/`   | API: seller prices / submit                    |
 | 05   | `05-convert-pq-and-sq/` | Update buyer PQ commercials + create seller SQ |
 
-Trigger: `afterPqSaved` on PQ create/update (background by default).  
+Trigger: `afterPqSaved` on **PQ create** only (background by default).  
+**PQ update** uses `afterPqUpdated` → IC edit sync (`scope: ic.edit`, `check: ic_edit_sync`). It updates an existing DRAFT RFQ and never re-runs Flow 1 create (1–18).  
 Orchestrator auto-runs 01→02→03. Steps 04/05 are user/API driven (submit may auto-convert).
 
 ## Flow 2 — PO → A/R Invoice Draft

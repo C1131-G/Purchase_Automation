@@ -29,15 +29,12 @@ import { Route as LayoutPurchaseCreateOrderRouteImport } from './routes/_layout/
 import { Route as LayoutPurchaseCreateOutgoingPaymentRouteImport } from './routes/_layout/purchase/create-outgoing-payment'
 import { Route as LayoutPurchaseCreateQuotationRouteImport } from './routes/_layout/purchase/create-quotation'
 import { Route as LayoutPurchaseGrpoRouteRouteImport } from './routes/_layout/purchase/grpo/route'
-import { Route as LayoutPurchaseGrpoLotsRouteRouteImport } from './routes/_layout/purchase/grpo-lots/route'
 import { Route as LayoutPurchaseOrdersRouteRouteImport } from './routes/_layout/purchase/orders/route'
 import { Route as LayoutPurchaseOutgoingPaymentRouteRouteImport } from './routes/_layout/purchase/outgoing-payment/route'
 import { Route as LayoutPurchaseQuotationsRouteRouteImport } from './routes/_layout/purchase/quotations/route'
 import { Route as LayoutSalesCreateQuotationRouteImport } from './routes/_layout/sales/create-quotation'
 import { Route as LayoutSalesQuotationsRouteRouteImport } from './routes/_layout/sales/quotations/route'
 import { Route as LayoutSalesRequestForQuotationsRouteRouteImport } from './routes/_layout/sales/request-for-quotations/route'
-import { Route as LayoutPurchaseGrpoLotsBatchesRouteImport } from './routes/_layout/purchase/grpo-lots/batches'
-import { Route as LayoutPurchaseGrpoLotsSerialsRouteImport } from './routes/_layout/purchase/grpo-lots/serials'
 import { Route as LayoutSalesRequestForQuotationsRfqIdRouteImport } from './routes/_layout/sales/request-for-quotations/$rfqId'
 import { Route as LayoutPurchaseApCreditMemoDocNumUpdateRouteImport } from './routes/_layout/purchase/ap-credit-memo/$docNum.update'
 import { Route as LayoutPurchaseApInvoiceDocNumUpdateRouteImport } from './routes/_layout/purchase/ap-invoice/$docNum.update'
@@ -156,12 +153,6 @@ const LayoutPurchaseGrpoRouteRoute = LayoutPurchaseGrpoRouteRouteImport.update({
   path: '/purchase/grpo',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutPurchaseGrpoLotsRouteRoute =
-  LayoutPurchaseGrpoLotsRouteRouteImport.update({
-    id: '/purchase/grpo-lots',
-    path: '/purchase/grpo-lots',
-    getParentRoute: () => LayoutRoute,
-  } as any)
 const LayoutPurchaseOrdersRouteRoute =
   LayoutPurchaseOrdersRouteRouteImport.update({
     id: '/purchase/orders',
@@ -197,18 +188,6 @@ const LayoutSalesRequestForQuotationsRouteRoute =
     id: '/sales/request-for-quotations',
     path: '/sales/request-for-quotations',
     getParentRoute: () => LayoutRoute,
-  } as any)
-const LayoutPurchaseGrpoLotsBatchesRoute =
-  LayoutPurchaseGrpoLotsBatchesRouteImport.update({
-    id: '/batches',
-    path: '/batches',
-    getParentRoute: () => LayoutPurchaseGrpoLotsRouteRoute,
-  } as any)
-const LayoutPurchaseGrpoLotsSerialsRoute =
-  LayoutPurchaseGrpoLotsSerialsRouteImport.update({
-    id: '/serials',
-    path: '/serials',
-    getParentRoute: () => LayoutPurchaseGrpoLotsRouteRoute,
   } as any)
 const LayoutSalesRequestForQuotationsRfqIdRoute =
   LayoutSalesRequestForQuotationsRfqIdRouteImport.update({
@@ -267,7 +246,6 @@ export interface FileRoutesByFullPath {
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
-  '/purchase/grpo-lots': typeof LayoutPurchaseGrpoLotsRouteRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
   '/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
@@ -286,8 +264,6 @@ export interface FileRoutesByFullPath {
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/dashboard/': typeof LayoutDashboardIndexRoute
   '/intercompany/': typeof LayoutIntercompanyIndexRoute
-  '/purchase/grpo-lots/batches': typeof LayoutPurchaseGrpoLotsBatchesRoute
-  '/purchase/grpo-lots/serials': typeof LayoutPurchaseGrpoLotsSerialsRoute
   '/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
   '/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
   '/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
@@ -303,7 +279,6 @@ export interface FileRoutesByTo {
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
-  '/purchase/grpo-lots': typeof LayoutPurchaseGrpoLotsRouteRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
   '/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
@@ -322,8 +297,6 @@ export interface FileRoutesByTo {
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/dashboard': typeof LayoutDashboardIndexRoute
   '/intercompany': typeof LayoutIntercompanyIndexRoute
-  '/purchase/grpo-lots/batches': typeof LayoutPurchaseGrpoLotsBatchesRoute
-  '/purchase/grpo-lots/serials': typeof LayoutPurchaseGrpoLotsSerialsRoute
   '/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
   '/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
   '/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
@@ -343,7 +316,6 @@ export interface FileRoutesById {
   '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/_layout/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
-  '/_layout/purchase/grpo-lots': typeof LayoutPurchaseGrpoLotsRouteRouteWithChildren
   '/_layout/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
   '/_layout/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   '/_layout/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
@@ -362,8 +334,6 @@ export interface FileRoutesById {
   '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/_layout/dashboard/': typeof LayoutDashboardIndexRoute
   '/_layout/intercompany/': typeof LayoutIntercompanyIndexRoute
-  '/_layout/purchase/grpo-lots/batches': typeof LayoutPurchaseGrpoLotsBatchesRoute
-  '/_layout/purchase/grpo-lots/serials': typeof LayoutPurchaseGrpoLotsSerialsRoute
   '/_layout/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
   '/_layout/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
   '/_layout/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
@@ -383,7 +353,6 @@ export interface FileRouteTypes {
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
-    | '/purchase/grpo-lots'
     | '/purchase/orders'
     | '/purchase/outgoing-payment'
     | '/purchase/quotations'
@@ -402,8 +371,6 @@ export interface FileRouteTypes {
     | '/sales/create-quotation'
     | '/dashboard/'
     | '/intercompany/'
-    | '/purchase/grpo-lots/batches'
-    | '/purchase/grpo-lots/serials'
     | '/sales/request-for-quotations/$rfqId'
     | '/purchase/ap-credit-memo/$docNum/update'
     | '/purchase/ap-invoice/$docNum/update'
@@ -419,7 +386,6 @@ export interface FileRouteTypes {
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
-    | '/purchase/grpo-lots'
     | '/purchase/orders'
     | '/purchase/outgoing-payment'
     | '/purchase/quotations'
@@ -438,8 +404,6 @@ export interface FileRouteTypes {
     | '/sales/create-quotation'
     | '/dashboard'
     | '/intercompany'
-    | '/purchase/grpo-lots/batches'
-    | '/purchase/grpo-lots/serials'
     | '/sales/request-for-quotations/$rfqId'
     | '/purchase/ap-credit-memo/$docNum/update'
     | '/purchase/ap-invoice/$docNum/update'
@@ -458,7 +422,6 @@ export interface FileRouteTypes {
     | '/_layout/purchase/ap-credit-memo'
     | '/_layout/purchase/ap-invoice'
     | '/_layout/purchase/grpo'
-    | '/_layout/purchase/grpo-lots'
     | '/_layout/purchase/orders'
     | '/_layout/purchase/outgoing-payment'
     | '/_layout/purchase/quotations'
@@ -477,8 +440,6 @@ export interface FileRouteTypes {
     | '/_layout/sales/create-quotation'
     | '/_layout/dashboard/'
     | '/_layout/intercompany/'
-    | '/_layout/purchase/grpo-lots/batches'
-    | '/_layout/purchase/grpo-lots/serials'
     | '/_layout/sales/request-for-quotations/$rfqId'
     | '/_layout/purchase/ap-credit-memo/$docNum/update'
     | '/_layout/purchase/ap-invoice/$docNum/update'
@@ -637,13 +598,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseGrpoRouteRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/purchase/grpo-lots': {
-      id: '/_layout/purchase/grpo-lots'
-      path: '/purchase/grpo-lots'
-      fullPath: '/purchase/grpo-lots'
-      preLoaderRoute: typeof LayoutPurchaseGrpoLotsRouteRouteImport
-      parentRoute: typeof LayoutRoute
-    }
     '/_layout/purchase/orders': {
       id: '/_layout/purchase/orders'
       path: '/purchase/orders'
@@ -685,20 +639,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/sales/request-for-quotations'
       preLoaderRoute: typeof LayoutSalesRequestForQuotationsRouteRouteImport
       parentRoute: typeof LayoutRoute
-    }
-    '/_layout/purchase/grpo-lots/batches': {
-      id: '/_layout/purchase/grpo-lots/batches'
-      path: '/batches'
-      fullPath: '/purchase/grpo-lots/batches'
-      preLoaderRoute: typeof LayoutPurchaseGrpoLotsBatchesRouteImport
-      parentRoute: typeof LayoutPurchaseGrpoLotsRouteRoute
-    }
-    '/_layout/purchase/grpo-lots/serials': {
-      id: '/_layout/purchase/grpo-lots/serials'
-      path: '/serials'
-      fullPath: '/purchase/grpo-lots/serials'
-      preLoaderRoute: typeof LayoutPurchaseGrpoLotsSerialsRouteImport
-      parentRoute: typeof LayoutPurchaseGrpoLotsRouteRoute
     }
     '/_layout/sales/request-for-quotations/$rfqId': {
       id: '/_layout/sales/request-for-quotations/$rfqId'
@@ -836,22 +776,6 @@ const LayoutPurchaseGrpoRouteRouteWithChildren =
     LayoutPurchaseGrpoRouteRouteChildren,
   )
 
-interface LayoutPurchaseGrpoLotsRouteRouteChildren {
-  LayoutPurchaseGrpoLotsBatchesRoute: typeof LayoutPurchaseGrpoLotsBatchesRoute
-  LayoutPurchaseGrpoLotsSerialsRoute: typeof LayoutPurchaseGrpoLotsSerialsRoute
-}
-
-const LayoutPurchaseGrpoLotsRouteRouteChildren: LayoutPurchaseGrpoLotsRouteRouteChildren =
-  {
-    LayoutPurchaseGrpoLotsBatchesRoute: LayoutPurchaseGrpoLotsBatchesRoute,
-    LayoutPurchaseGrpoLotsSerialsRoute: LayoutPurchaseGrpoLotsSerialsRoute,
-  }
-
-const LayoutPurchaseGrpoLotsRouteRouteWithChildren =
-  LayoutPurchaseGrpoLotsRouteRoute._addFileChildren(
-    LayoutPurchaseGrpoLotsRouteRouteChildren,
-  )
-
 interface LayoutPurchaseOrdersRouteRouteChildren {
   LayoutPurchaseOrdersDocNumUpdateRoute: typeof LayoutPurchaseOrdersDocNumUpdateRoute
 }
@@ -933,7 +857,6 @@ interface LayoutRouteChildren {
   LayoutPurchaseApCreditMemoRouteRoute: typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   LayoutPurchaseApInvoiceRouteRoute: typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   LayoutPurchaseGrpoRouteRoute: typeof LayoutPurchaseGrpoRouteRouteWithChildren
-  LayoutPurchaseGrpoLotsRouteRoute: typeof LayoutPurchaseGrpoLotsRouteRouteWithChildren
   LayoutPurchaseOrdersRouteRoute: typeof LayoutPurchaseOrdersRouteRouteWithChildren
   LayoutPurchaseOutgoingPaymentRouteRoute: typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   LayoutPurchaseQuotationsRouteRoute: typeof LayoutPurchaseQuotationsRouteRouteWithChildren
@@ -956,8 +879,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutPurchaseApInvoiceRouteRoute:
     LayoutPurchaseApInvoiceRouteRouteWithChildren,
   LayoutPurchaseGrpoRouteRoute: LayoutPurchaseGrpoRouteRouteWithChildren,
-  LayoutPurchaseGrpoLotsRouteRoute:
-    LayoutPurchaseGrpoLotsRouteRouteWithChildren,
   LayoutPurchaseOrdersRouteRoute: LayoutPurchaseOrdersRouteRouteWithChildren,
   LayoutPurchaseOutgoingPaymentRouteRoute:
     LayoutPurchaseOutgoingPaymentRouteRouteWithChildren,

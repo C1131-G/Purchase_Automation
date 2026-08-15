@@ -102,8 +102,8 @@ export const createUpdateArDraftService = (deps?: {
         }
       }
       await documents.patchArInvoiceDraft({ companyId: map.targetCompanyId, draftEntry, patch });
-      icLog.info(IC_LOG_SCOPE.FLOW2, "PO update mirrored to seller A/R draft", {
-        check: "ar_draft_update",
+      icLog.info(IC_LOG_SCOPE.EDIT, "IC edit sync — PO mirrored to seller A/R draft", {
+        check: "ic_edit_sync.apply",
         draftEntry,
         mappingId: map.mappingId,
         outcome: "pass",

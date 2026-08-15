@@ -2,13 +2,14 @@
 
 Commercial RFQ chain between partner companies. The buyer posts a **real Purchase Quotation** in the portal; IC creates a custom RFQ for the seller, then on convert updates the buyer PQ and creates the seller **Sales Quotation**.
 
-|                  |                                                          |
-| ---------------- | -------------------------------------------------------- |
-| **Path**         | `flows/flow-1-pq-rfq-chain/`                             |
-| **Trigger**      | `afterPqSaved` (PQ create/update; background by default) |
-| **Flag**         | `ENABLE_FLOW1_RFQ_CHAIN` in `IC_CONFIGURATION`           |
-| **Orchestrator** | `flow-1.orchestrator.ts`                                 |
-| **Hook**         | `api/hooks/after-pq-saved.hook.ts`                       |
+|                  |                                                                    |
+| ---------------- | ------------------------------------------------------------------ |
+| **Path**         | `flows/flow-1-pq-rfq-chain/`                                       |
+| **Trigger**      | `afterPqSaved` (PQ **create** only; background by default)         |
+| **Edit sync**    | `afterPqUpdated` — DRAFT RFQ only; logs `ic.edit` / `ic_edit_sync` |
+| **Flag**         | `ENABLE_FLOW1_RFQ_CHAIN` in `IC_CONFIGURATION`                     |
+| **Orchestrator** | `flow-1.orchestrator.ts`                                           |
+| **Hook**         | `api/hooks/after-pq-saved.hook.ts`                                 |
 
 ## Steps
 
@@ -23,9 +24,13 @@ Commercial RFQ chain between partner companies. The buyer posts a **real Purchas
 ### Who runs what
 
 ```text
-PQ save (buyer portal)
+PQ create (buyer portal)
   → afterPqSaved → schedule background
   → orchestrator: 01 → 02 → 03 automatically
+
+PQ update (buyer portal)
+  → afterPqUpdated → IC edit sync (existing DRAFT RFQ)
+  → does not log Flow 1 [1/18] PQ created
 
 Seller UI / API
   → 04 fill + submit  (submit may auto-run convert)

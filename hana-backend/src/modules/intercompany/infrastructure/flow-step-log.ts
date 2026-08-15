@@ -7,7 +7,7 @@ import { IC_LOG_SCOPE, icLog, type IcLogFields, type IcLogOutcome } from "./ic-l
 
 export type FlowStepContext = IcLogFields & {
   corrId?: string;
-  flow?: "flow1" | "flow2";
+  flow?: "flow1" | "flow2" | "edit";
 };
 
 /** Drop null/undefined keys so step logs stay readable. */
@@ -277,3 +277,35 @@ export const FLOW2_RETRY_STEPS = {
 
 export const FLOW1_SCOPE = IC_LOG_SCOPE.FLOW1;
 export const FLOW2_SCOPE = IC_LOG_SCOPE.FLOW2;
+export const IC_EDIT_SCOPE = IC_LOG_SCOPE.EDIT;
+
+/**
+ * Portal update → partner DRAFT sync.
+ * Not Flow 1/2: no [n/total] counter, no step/stepName/stepTotal.
+ * Filter: check=ic_edit_sync  scope=ic.edit  kind=edit_sync
+ */
+export const logIcEditSync = (params: {
+  phase: string;
+  outcome?: IcLogOutcome;
+  check?: string;
+  ctx?: FlowStepContext;
+  detail?: Record<string, unknown>;
+}): void => {
+  const outcome = params.outcome ?? "pass";
+  const check = params.check ?? "ic_edit_sync";
+  const fields: IcLogFields = {
+    ...params.ctx,
+    ...params.detail,
+    check,
+    flow: "edit",
+    kind: "edit_sync",
+    outcome,
+    phase: params.phase,
+  };
+  const msg = `IC edit sync — ${params.phase}`;
+  if (outcome === "fail") {
+    icLog.error(IC_EDIT_SCOPE, msg, fields);
+    return;
+  }
+  icLog.info(IC_EDIT_SCOPE, msg, fields);
+};

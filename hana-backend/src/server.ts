@@ -98,7 +98,7 @@ const start = async () => {
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
 
-    // Critical Error Management: Non-catchable errors resulting in process termination.
+    // Native / sync crashes can leave the process unsafe — exit so the supervisor restarts.
     process.on("uncaughtException", (err) => {
       logger.fatal({
         err: err,
@@ -108,12 +108,14 @@ const start = async () => {
       process.exit(1);
     });
 
+    // IC background work (setImmediate hooks, HANA lookups) can reject after the
+    // HTTP response. Do not kill the API — that looks like a server.ts restart
+    // every time an IC page or notification poll hits a transient error.
     process.on("unhandledRejection", (reason) => {
-      logger.fatal({
+      logger.error({
         err: reason instanceof Error ? reason : new Error(String(reason)),
-        msg: "UNHANDLED REJECTION",
+        msg: "UNHANDLED REJECTION (server stays up)",
       });
-      process.exit(1);
     });
   } catch (error) {
     logger.fatal({

@@ -56,6 +56,7 @@ const seedPerCodeProductCache = (
       type,
       undefined,
       partnerCode,
+      "hydrate",
     );
     if (!queryClient.getQueryData(singleOptions.queryKey)) {
       queryClient.setQueryData(singleOptions.queryKey, [product]);
@@ -92,6 +93,7 @@ export async function resolveHydrateProductMeta(
       type,
       undefined,
       partnerCode,
+      "hydrate",
     );
     const cached = queryClient.getQueryData<ProductLookupItem[]>(singleOptions.queryKey);
     if (cached?.length) {
@@ -148,6 +150,7 @@ export async function resolveHydrateProductMeta(
         type,
         undefined,
         partnerCode,
+        "hydrate",
       );
       const products = await queryClient
         .fetchQuery(queryOptions)

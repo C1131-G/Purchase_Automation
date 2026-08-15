@@ -206,7 +206,9 @@ export function CreateProductTable({
                 <th className="w-[7%] px-2 py-2 text-left">Total</th>
                 {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
                 {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
-                <th className="w-[7%] px-2 py-2 text-right">Actions</th>
+                <th className={`${lotRequired ? "w-[10%]" : "w-[7%]"} px-2 py-2 text-right`}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>

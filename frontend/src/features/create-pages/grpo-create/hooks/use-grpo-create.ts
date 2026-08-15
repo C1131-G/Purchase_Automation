@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
@@ -55,7 +55,17 @@ import {
   scheduleHydrateWarehouseStocks,
   taxRatesFromProductMeta,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
-import { resolveGrpoLotIntercept } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
+import type {
+  GrpoCreateFormChrome,
+  LotSetupKind,
+} from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
+import {
+  grpoLotDocLabel,
+  isGrpoCreateFlowPath,
+  pickGrpoCreateSearch,
+  resolveGrpoLotIntercept,
+  shouldPreserveGrpoCreateDraft,
+} from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
 import {
   firstRequiredLotError,
   lotFieldsFromProduct,
@@ -86,6 +96,7 @@ import {
   purchaseQuotationQueries,
 } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import {
+  useGRPOCreateStore,
   useGRPOHeader,
   useGRPOLines,
   useResetGRPOCreateAction,
@@ -169,7 +180,6 @@ export function useGRPOCreate({
   const draftDocEntry = (draftDocEntryOption ?? "").trim();
   const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const locationSearch = useRouterState({
     select: (state) => state.location.search as Record<string, unknown>,
   });
@@ -186,12 +196,18 @@ export function useGRPOCreate({
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false);
+  const lotChrome = useGRPOLotSessionStore.getState().chrome;
+  const headerSnapshot = useGRPOCreateStore.getState().header;
 
-  const [vendorNameInput, setVendorNameInput] = useState("");
-  const [vendorCodeInput, setVendorCodeInput] = useState("");
+  const [vendorNameInput, setVendorNameInput] = useState(
+    lotChrome?.vendorName || headerSnapshot.vendorName || "",
+  );
+  const [vendorCodeInput, setVendorCodeInput] = useState(
+    lotChrome?.vendorCode || headerSnapshot.vendorCode || "",
+  );
   const [vendorNameFocused, setVendorNameFocused] = useState(false);
   const [vendorCodeFocused, setVendorCodeFocused] = useState(false);
-  const [buyerInput, setBuyerInput] = useState("");
+  const [buyerInput, setBuyerInput] = useState(lotChrome?.buyerInput ?? "");
   const [buyerFocused, setBuyerFocused] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<PopupMode>("vendor-name");
@@ -201,7 +217,7 @@ export function useGRPOCreate({
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
   const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT);
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
-  const [warehouseInput, setWarehouseInput] = useState("");
+  const [warehouseInput, setWarehouseInput] = useState(lotChrome?.warehouseInput ?? "");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
 
   const resetWarehouse = useCallback(() => {
@@ -211,8 +227,8 @@ export function useGRPOCreate({
     setFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }));
   }, [setHeader]);
 
-  const [billToAddress, setBillToAddressRaw] = useState("");
-  const [shipToAddress, setShipToAddressRaw] = useState("");
+  const [billToAddress, setBillToAddressRaw] = useState(lotChrome?.billToAddress ?? "");
+  const [shipToAddress, setShipToAddressRaw] = useState(lotChrome?.shipToAddress ?? "");
 
   const setBillToAddress = useCallback((value: string) => {
     setBillToAddressRaw(formatAddressForDisplay(value));
@@ -227,7 +243,81 @@ export function useGRPOCreate({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<GRPOFieldErrors>(EMPTY_GRPO_FIELD_ERRORS);
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
-  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>(
+    (lotChrome?.attachments as AttachmentItem[] | undefined) ?? [],
+  );
+
+  const [lotModalKind, setLotModalKind] = useState<LotSetupKind | null>(null);
+  const [lotModalRowId, setLotModalRowId] = useState<string | undefined>(undefined);
+
+  const captureLotChrome = (): GrpoCreateFormChrome => ({
+    attachments,
+    billToAddress,
+    buyerInput,
+    shipToAddress,
+    vendorCode: vendorCodeInput,
+    vendorName: vendorNameInput,
+    warehouseInput,
+  });
+
+  const persistLotNavigation = useCallback(() => {
+    const lotSession = useGRPOLotSessionStore.getState();
+    lotSession.setChrome(captureLotChrome());
+    lotSession.setDocLabel(grpoLotDocLabel({ draftDocNum }));
+    lotSession.setReturnTo({
+      search: pickGrpoCreateSearch(locationSearch),
+      to: "/purchase/create-grpo",
+    });
+    setHeader({
+      vendorCode: vendorCodeInput,
+      vendorName: vendorNameInput,
+    });
+  }, [
+    attachments,
+    billToAddress,
+    buyerInput,
+    draftDocNum,
+    locationSearch,
+    setHeader,
+    shipToAddress,
+    vendorCodeInput,
+    vendorNameInput,
+    warehouseInput,
+  ]);
+
+  const openLotModal = useCallback(
+    (
+      rowOrKind?:
+        | { id?: string; manBtchNum?: string | undefined; manSerNum?: string | undefined }
+        | LotSetupKind
+        | null,
+    ) => {
+      persistLotNavigation();
+      if (!rowOrKind) {
+        setLotModalRowId(undefined);
+        const hasSerials = rows.some(
+          (r) => (r.manSerNum === "Y" || r.manSerNum === "y") && Number(r.quantity) > 0,
+        );
+        setLotModalKind(hasSerials ? "serials" : "batches");
+        return;
+      }
+      if (typeof rowOrKind === "string") {
+        setLotModalRowId(undefined);
+        setLotModalKind(rowOrKind);
+        return;
+      }
+      const isSerial = rowOrKind.manSerNum === "Y" || rowOrKind.manSerNum === "y";
+      const kind: LotSetupKind = isSerial ? "serials" : "batches";
+      setLotModalRowId(rowOrKind.id);
+      setLotModalKind(kind);
+    },
+    [persistLotNavigation, rows],
+  );
+
+  const closeLotModal = useCallback(() => {
+    setLotModalKind(null);
+    setLotModalRowId(undefined);
+  }, []);
 
   const resetForm = useCallback(() => {
     resetGRPOCreate();
@@ -253,6 +343,8 @@ export function useGRPOCreate({
     setHydratedDocNum(null);
     setFormSnapshot(null);
     setAttachments([]);
+    setLotModalKind(null);
+    setLotModalRowId(undefined);
     useGRPOLotSessionStore.getState().reset();
   }, [resetGRPOCreate, resetWarehouse]);
 
@@ -336,6 +428,7 @@ export function useGRPOCreate({
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
+  const partnerCardCode = vendorCodeInput.trim() || undefined;
 
   const productsQuery = useQuery({
     ...createSharedQueries.products(
@@ -343,8 +436,11 @@ export function useGRPOCreate({
       debouncedProductSearch.trim() || undefined,
       debouncedProductSearch.trim() ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
+      undefined,
+      partnerCardCode,
+      "grpo",
     ),
-    enabled: productPopupOpen && vendorSelected,
+    enabled: productPopupOpen && vendorSelected && Boolean(partnerCardCode),
   });
 
   const products = useMemo(
@@ -367,22 +463,25 @@ export function useGRPOCreate({
   }, [debouncedProductSearch, vendorSelected, productPopupOpen]);
 
   const prefetchProducts = useCallback(() => {
-    if (!vendorSelected) {
+    if (!vendorSelected || !partnerCardCode) {
       return;
     }
     void queryClient.prefetchQuery(
       createSharedQueries.products(
-        undefined, // Pass undefined to keep search warehouse-agnostic
-        productSearch.trim() || undefined,
+        undefined,
+        undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
+        undefined,
+        partnerCardCode,
+        "grpo",
       ),
     );
-  }, [vendorSelected, productSearch, queryClient]);
+  }, [vendorSelected, partnerCardCode, queryClient]);
 
   // After the quick first page settles, warm the full browse page so scroll load-more is instant.
   useEffect(() => {
-    if (!productPopupOpen || !vendorSelected) {
+    if (!productPopupOpen || !vendorSelected || !partnerCardCode) {
       return;
     }
     if (debouncedProductSearch.trim()) {
@@ -398,11 +497,20 @@ export function useGRPOCreate({
       return;
     }
     void queryClient.prefetchQuery(
-      createSharedQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "purchase"),
+      createSharedQueries.products(
+        undefined,
+        undefined,
+        BROWSE_PRODUCT_LIMIT,
+        "purchase",
+        undefined,
+        partnerCardCode,
+        "grpo",
+      ),
     );
   }, [
     productPopupOpen,
     vendorSelected,
+    partnerCardCode,
     debouncedProductSearch,
     productsQuery.isFetching,
     productsQuery.isError,
@@ -464,17 +572,15 @@ export function useGRPOCreate({
         : (editDetailQuery.data?.data?.DocStatus ?? "Open");
 
   useEffect(() => {
-    if (!isEditMode && !draftDocNum) {
-      // Preserve store state during same-page route transitions (e.g. search param updates).
-      // Cleanup is handled when unmounting and leaving the page.
-    }
     return () => {
-      if (window.location.pathname !== "/purchase/create-grpo") {
-        resetGRPOCreate();
-        resetWarehouse();
+      if (isGrpoCreateFlowPath(window.location.pathname)) {
+        return;
       }
+      resetGRPOCreate();
+      resetWarehouse();
+      useGRPOLotSessionStore.getState().reset();
     };
-  }, [isEditMode, draftDocNum, resetGRPOCreate, resetWarehouse]);
+  }, [resetGRPOCreate, resetWarehouse]);
 
   useEffect(() => {
     if (header.warehouseCode && warehouses.length > 0) {
@@ -987,6 +1093,20 @@ export function useGRPOCreate({
       return;
     }
 
+    const lotSession = useGRPOLotSessionStore.getState();
+    if (
+      shouldPreserveGrpoCreateDraft({
+        chrome: lotSession.chrome,
+        continueSubmit: lotSession.continueSubmit,
+        hasLines: rows.length > 0,
+        pendingAction: lotSession.pendingAction,
+        returnTo: lotSession.returnTo,
+      })
+    ) {
+      setSourceHydrationComplete(true);
+      return;
+    }
+
     // Parse comma-separated source docNums for multi-doc copy
     const sourceDocNums = currentSourceDocNum
       .split(",")
@@ -1467,6 +1587,7 @@ export function useGRPOCreate({
   const applyVendorChange = (vendor: LookupItem) => {
     setVendorNameInput(vendor.name);
     setVendorCodeInput(vendor.code);
+    setHeader({ vendorCode: vendor.code, vendorName: vendor.name });
     setBillToAddress(vendor.billToAddress ?? "");
     setShipToAddress(vendor.shipToAddress ?? vendor.billToAddress ?? "");
     setVendorNameFocused(false);
@@ -1613,6 +1734,7 @@ export function useGRPOCreate({
   const applyVendorChangeForConfirmation = (vendor: LookupItem) => {
     setVendorNameInput(vendor.name);
     setVendorCodeInput(vendor.code);
+    setHeader({ vendorCode: vendor.code, vendorName: vendor.name });
     setBillToAddress(vendor.billToAddress ?? "");
     setShipToAddress(vendor.shipToAddress ?? vendor.billToAddress ?? "");
     setVendorNameFocused(false);
@@ -1734,14 +1856,19 @@ export function useGRPOCreate({
     setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     setProductQueryLimit(QUICK_PRODUCT_LIMIT);
-    void queryClient.prefetchQuery(
-      createSharedQueries.products(
-        warehouse.code || undefined,
-        undefined,
-        QUICK_PRODUCT_LIMIT,
-        "purchase",
-      ),
-    );
+    if (partnerCardCode) {
+      void queryClient.prefetchQuery(
+        createSharedQueries.products(
+          undefined,
+          undefined,
+          QUICK_PRODUCT_LIMIT,
+          "purchase",
+          undefined,
+          partnerCardCode,
+          "grpo",
+        ),
+      );
+    }
     setLines((prev) =>
       prev.map((row) => ({
         ...row,
@@ -2212,28 +2339,29 @@ export function useGRPOCreate({
       isEditMode,
       rows: filteredRows,
     });
-    if (lotIntercept.type === "navigate") {
+    if (lotIntercept.type === "open-modal") {
       lotSession.start({
-        docLabel: draftDocNum || "New",
+        chrome: captureLotChrome(),
+        docLabel: grpoLotDocLabel({ draftDocNum }),
         pendingAction: action,
         returnTo: {
-          search: locationSearch,
+          search: pickGrpoCreateSearch(locationSearch),
           to: "/purchase/create-grpo",
         },
       });
-      void navigate({
-        search: {},
-        to: lotIntercept.path,
+      setHeader({
+        vendorCode: vendorCodeInput,
+        vendorName: vendorNameInput,
       });
+      setLotModalRowId(lotIntercept.rowId);
+      setLotModalKind(lotIntercept.kind);
       return;
     }
 
-    if (!isEditMode) {
-      const lotError = firstRequiredLotError(filteredRows);
-      if (lotError) {
-        setCreateError(lotError);
-        return;
-      }
+    const lotError = firstRequiredLotError(filteredRows);
+    if (lotError) {
+      setCreateError(lotError);
+      return;
     }
 
     const loadedDraftDocEntry =
@@ -2614,5 +2742,13 @@ export function useGRPOCreate({
         : null,
     attachments,
     setAttachments,
+    lotModalKind,
+    setLotModalKind,
+    lotModalRowId,
+    setLotModalRowId,
+    openLotModal,
+    closeLotModal,
+    openLotSetupPage: openLotModal,
+    persistLotNavigation,
   };
 }

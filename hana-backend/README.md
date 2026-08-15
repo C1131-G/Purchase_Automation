@@ -42,21 +42,21 @@ node --import ./dist/core/observability/register.js dist/server.js
 
 ## Scripts
 
-| Command                 | Purpose                                       |
-| ----------------------- | --------------------------------------------- |
-| `pnpm dev`              | Watch `src/` (`tsx --watch` + optional OTel)  |
-| `pnpm build`            | `typecheck` then `tsup` → `dist/`             |
-| `pnpm start`            | Run compiled server from `dist/server.js`     |
-| `pnpm typecheck`        | `tsc --noEmit`                                |
-| `pnpm test`             | Vitest (interactive / watch by default)       |
-| `pnpm test:run`         | Vitest once (CI-friendly)                     |
-| `pnpm test:unit`        | Unit tests only                               |
-| `pnpm test:integration` | Integration route tests                       |
-| `pnpm test:smoke`       | Smoke (import verification, OpenAPI contract) |
-| `pnpm test:coverage`    | Coverage report                               |
-| `pnpm openapi:lint`     | OpenAPI contract smoke only                   |
-| `pnpm worker:ic`        | IC background worker (loop)                   |
-| `pnpm worker:ic:once`   | IC worker single pass then exit               |
+| Command                 | Purpose                                                   |
+| ----------------------- | --------------------------------------------------------- |
+| `pnpm dev`              | `tsx watch` on the server graph (IC docs/ops/sql ignored) |
+| `pnpm build`            | `typecheck` then `tsup` → `dist/`                         |
+| `pnpm start`            | Run compiled server from `dist/server.js`                 |
+| `pnpm typecheck`        | `tsc --noEmit`                                            |
+| `pnpm test`             | Vitest (interactive / watch by default)                   |
+| `pnpm test:run`         | Vitest once (CI-friendly)                                 |
+| `pnpm test:unit`        | Unit tests only                                           |
+| `pnpm test:integration` | Integration route tests                                   |
+| `pnpm test:smoke`       | Smoke (import verification, OpenAPI contract)             |
+| `pnpm test:coverage`    | Coverage report                                           |
+| `pnpm openapi:lint`     | OpenAPI contract smoke only                               |
+| `pnpm worker:ic`        | IC background worker (loop)                               |
+| `pnpm worker:ic:once`   | IC worker single pass then exit                           |
 
 From repository root:
 
@@ -173,13 +173,21 @@ Order is enforced in `src/server.ts` — do not reorder casually.
 Partner automation lives **only** in `src/modules/intercompany/`. Other modules must import the public wall:
 
 ```ts
-import { afterPoCreated, afterPqSaved, icRoutes } from "@/modules/intercompany";
+import {
+  afterPoCreated,
+  afterPoUpdated,
+  afterPqSaved,
+  afterPqUpdated,
+  icRoutes,
+} from "@/modules/intercompany";
 ```
 
-| Flow   | Trigger          | Partner outcome                    | Flag                     |
-| ------ | ---------------- | ---------------------------------- | ------------------------ |
-| Flow 1 | `afterPqSaved`   | RFQ → update buyer PQ + seller SQ  | `ENABLE_FLOW1_RFQ_CHAIN` |
-| Flow 2 | `afterPoCreated` | A/R Invoice Draft (`POST /Drafts`) | `ENABLE_FLOW2_DIRECT_PO` |
+| Flow    | Trigger          | Partner outcome                    | Flag                     |
+| ------- | ---------------- | ---------------------------------- | ------------------------ |
+| Flow 1  | `afterPqSaved`   | RFQ → update buyer PQ + seller SQ  | `ENABLE_FLOW1_RFQ_CHAIN` |
+| PQ edit | `afterPqUpdated` | DRAFT RFQ sync (`ic.edit`)         | `ENABLE_FLOW1_RFQ_CHAIN` |
+| Flow 2  | `afterPoCreated` | A/R Invoice Draft (`POST /Drafts`) | `ENABLE_FLOW2_DIRECT_PO` |
+| PO edit | `afterPoUpdated` | A/R draft sync (`ic.edit`)         | `ENABLE_FLOW2_DIRECT_PO` |
 
 IC never fails the primary portal document save. Work is scheduled in the background (`accepted`).
 

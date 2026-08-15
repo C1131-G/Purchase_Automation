@@ -13,7 +13,7 @@ export type IcBackgroundMeta = {
   dbName?: string;
   docEntry?: number;
   docNum?: number | null;
-  flow: "flow1" | "flow2";
+  flow: "flow1" | "flow2" | "edit";
   hook: string;
 };
 

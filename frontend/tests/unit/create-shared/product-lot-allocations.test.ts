@@ -28,12 +28,14 @@ const baseRow = (overrides: Partial<ProductRow> = {}): ProductRow => ({
 });
 
 describe("lot number alphanumeric", () => {
-  it("accepts letters and digits only", () => {
+  it("accepts letters, digits, and hyphen", () => {
     expect(isAlphanumericLotNumber("BATCH01")).toBe(true);
     expect(isAlphanumericLotNumber("ab12")).toBe(true);
-    expect(isAlphanumericLotNumber("B-01")).toBe(false);
+    expect(isAlphanumericLotNumber("B-01")).toBe(true);
+    expect(isAlphanumericLotNumber("abc-1")).toBe(true);
     expect(isAlphanumericLotNumber("B 01")).toBe(false);
-    expect(sanitizeLotNumberInput("B-01 #x")).toBe("B01x");
+    expect(isAlphanumericLotNumber("B#01")).toBe(false);
+    expect(sanitizeLotNumberInput("B-01 #x")).toBe("B-01x");
     expect(sanitizeLotNumberInput(`B${"1".repeat(40)}`)).toHaveLength(36);
   });
 });
@@ -56,12 +58,20 @@ describe("lotAllocationError", () => {
     expect(lotAllocationError(row, false)).toBeNull();
   });
 
-  it("rejects non-alphanumeric batch numbers", () => {
+  it("rejects batch numbers with spaces or other symbols", () => {
+    const row = baseRow({
+      manBtchNum: "Y",
+      batchNumbers: [{ batchNumber: "B 1", quantity: 2 }],
+    });
+    expect(lotAllocationError(row, true)).toMatch(/letters, numbers, and hyphen/);
+  });
+
+  it("accepts hyphenated batch numbers", () => {
     const row = baseRow({
       manBtchNum: "Y",
       batchNumbers: [{ batchNumber: "B-1", quantity: 2 }],
     });
-    expect(lotAllocationError(row, true)).toMatch(/alphanumeric/);
+    expect(lotAllocationError(row, true)).toBeNull();
   });
 
   it("requires batch qty to match line qty", () => {

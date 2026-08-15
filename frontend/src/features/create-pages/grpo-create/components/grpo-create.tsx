@@ -2,10 +2,6 @@ import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import type { MouseEvent } from "react";
 
-import { isSerialManaged } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
-import { lotSetupPath } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
-import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
-
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 import { usePartnerAddressOptions } from "@/features/create-pages/create-shared/hooks/use-partner-address-options";
 
@@ -34,6 +30,7 @@ import { GRPOModals } from "@/features/create-pages/grpo-create/components/grpo-
 import { GRPOProductSection } from "@/features/create-pages/grpo-create/components/grpo-product-section";
 import { useGRPOCreate } from "@/features/create-pages/grpo-create/hooks/use-grpo-create";
 import { GRPO_FIELD_LABEL_TEXT } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
+import { LotSetupModal } from "@/features/create-pages/create-shared/lot-setup/lot-setup-modal";
 
 interface GRPOCreateProps {
   mode?: "create" | "edit";
@@ -116,19 +113,6 @@ export function GRPOCreate({
   };
 
   const { billToOptions, shipToOptions } = usePartnerAddressOptions(state.vendorCodeInput);
-  const setLotReturnTo = useGRPOLotSessionStore((session) => session.setReturnTo);
-
-  const handleOpenLotPage = (row: { id: string; manSerNum?: string | undefined }) => {
-    const location = router.state.location;
-    setLotReturnTo({
-      search: (location.search as Record<string, unknown>) ?? {},
-      to: location.pathname.replace(/^\/_layout/, "") || "/purchase/create-grpo",
-    });
-    void router.navigate({
-      search: { selectedRowId: row.id },
-      to: lotSetupPath(isSerialManaged(row) ? "serials" : "batches"),
-    });
-  };
 
   return (
     <CreatePageWrapper
@@ -412,7 +396,7 @@ export function GRPOCreate({
         isSubmitting={state.createMutation.isPending || state.updateMutation.isPending}
         isEditMode={state.isEditMode}
         loading={isFormHydrating}
-        onOpenLotPage={handleOpenLotPage}
+        onOpenLotPage={state.openLotModal}
         onUpdateProductRow={state.updateProductRow}
         onRemoveProductRow={state.removeProductRow}
         onSetProductRowDraft={state.setProductRowDraft}
@@ -447,6 +431,16 @@ export function GRPOCreate({
       />
 
       <GRPOModals state={state} />
+
+      {state.lotModalKind ? (
+        <LotSetupModal
+          kind={state.lotModalKind}
+          open={Boolean(state.lotModalKind)}
+          selectedRowId={state.lotModalRowId}
+          onClose={state.closeLotModal}
+          onAfterOk={state.closeLotModal}
+        />
+      ) : null}
 
       {state.pendingVendorChange && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-ink-900/30">

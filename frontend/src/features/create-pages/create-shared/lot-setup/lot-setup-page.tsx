@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/button";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
@@ -8,9 +8,13 @@ import { CreatedBatchesTable } from "@/features/create-pages/create-shared/lot-s
 import { CreatedSerialsTable } from "@/features/create-pages/create-shared/lot-setup/created-serials-table";
 import { LotDocumentRowsTable } from "@/features/create-pages/create-shared/lot-setup/lot-document-rows-table";
 import type { LotSetupKind } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
-import { resolveLotSetupAfterOk } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
+import {
+  grpoCreateReturnTarget,
+  isGrpoCreateFlowPath,
+  resolveLotSetupAfterOk,
+} from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
 import { useLotSetup } from "@/features/create-pages/create-shared/lot-setup/use-lot-setup";
-import { useGRPOLines } from "@/store/create/grpo-create.store";
+import { useGRPOCreateStore, useGRPOLines } from "@/store/create/grpo-create.store";
 import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
 
 interface LotSetupPageProps {
@@ -25,12 +29,23 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const setup = useLotSetup(kind, selectedRowId);
   const title = kind === "serials" ? "Serial Numbers - Setup" : "Batches - Setup";
-  const returnTo = session.returnTo ?? { to: "/purchase/create-grpo" };
+  const returnTarget = grpoCreateReturnTarget(session.returnTo);
+
+  useEffect(() => {
+    return () => {
+      if (isGrpoCreateFlowPath(window.location.pathname)) {
+        return;
+      }
+      useGRPOCreateStore.getState().reset();
+      useGRPOLotSessionStore.getState().reset();
+    };
+  }, []);
 
   const handleCancel = () => {
     void navigate({
-      search: (returnTo.search ?? {}) as Record<string, never>,
-      to: returnTo.to,
+      replace: true,
+      search: returnTarget.search,
+      to: returnTarget.to,
     });
   };
 
@@ -55,16 +70,17 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
     });
     if (next.type === "next") {
       void navigate({
-        search: selectedRowId ? { selectedRowId } : {},
-        to: next.path,
+        search: returnTarget.search,
+        to: returnTarget.to,
       });
       return;
     }
     if (next.type === "continue-submit") {
       session.requestContinueSubmit();
       void navigate({
-        search: (returnTo.search ?? {}) as Record<string, never>,
-        to: returnTo.to,
+        replace: true,
+        search: returnTarget.search,
+        to: returnTarget.to,
       });
       return;
     }
@@ -73,12 +89,17 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
 
   return (
     <CreatePageWrapper
-      breadcrumbParent={{ label: "GRPO", to: "/purchase/grpo" }}
+      breadcrumbParent={{
+        label: setup.docLabel === "New" ? "Create GRPO" : `GRPO ${setup.docLabel}`,
+        search: returnTarget.search,
+        to: returnTarget.to,
+      }}
       dashboardUrl="/dashboard/purchase"
+      fillHeight
       pageTitle={title}
     >
-      <div className="flex flex-col gap-4">
-        <SectionCard title="Rows from Documents">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <SectionCard className="h-auto shrink-0" title="Rows from Documents">
           <LotDocumentRowsTable
             activeRowId={setup.activeRowId}
             docLabel={setup.docLabel}
@@ -86,14 +107,20 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
             onNeededQtyChange={(rowId, quantity) => setup.patchRow(rowId, { quantity })}
             onSelectRow={setup.setActiveRowId}
             rows={setup.documentRows}
-            warehouseNameByCode={setup.warehouseNameByCode}
+            warehouseNames={setup.warehouseNames}
           />
         </SectionCard>
-        <SectionCard title={kind === "serials" ? "Created Serial Numbers" : "Created Batches"}>
+        <SectionCard
+          className="min-h-0 flex-1 overflow-hidden"
+          title={kind === "serials" ? "Created Serial Numbers" : "Created Batches"}
+        >
           {kind === "serials" ? (
             <CreatedSerialsTable
               binRequired={setup.binRequired}
+              onAddSplit={setup.splitActiveSerial}
+              onAutoFill={setup.applyActiveSerialAutoFill}
               onChange={setup.updateActiveSerial}
+              onRemove={setup.removeActiveSerial}
               row={setup.activeRow}
             />
           ) : (
@@ -106,13 +133,13 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
             />
           )}
         </SectionCard>
-        {formError || setup.pageError ? (
-          <p className="text-sm text-red-700" role="alert">
-            {formError || setup.pageError}
+        {formError ? (
+          <p className="shrink-0 text-sm text-red-700" role="alert">
+            {formError}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-4 text-xs text-neutral-600">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-5 text-sm text-neutral-600">
             {kind === "batches" ? (
               <>
                 <span>
@@ -130,10 +157,10 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
             )}
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleCancel} size="sm" type="button" variant="outline">
+            <Button onClick={handleCancel} type="button" variant="outline">
               Cancel
             </Button>
-            <Button onClick={handleOk} size="sm" type="button">
+            <Button onClick={handleOk} type="button">
               OK
             </Button>
           </div>

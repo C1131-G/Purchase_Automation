@@ -72,7 +72,7 @@ describe("resolveHydrateProductMeta", () => {
     expect(batchCalls).toHaveLength(1);
     const limit1Calls = fetchQuery.mock.calls.filter((call) => {
       const key = (call[0] as { queryKey: unknown[] }).queryKey;
-      return key.includes("products-v2");
+      return key.includes("products-v3");
     });
     expect(limit1Calls).toHaveLength(0);
 
@@ -87,8 +87,15 @@ describe("resolveHydrateProductMeta", () => {
     const { createSharedQueries } =
       await import("@/features/create-pages/create-shared/api/create-shared.queries");
     queryClient.setQueryData(
-      createSharedQueries.products(undefined, "CACHED", 1, "purchase", undefined, partnerCard)
-        .queryKey,
+      createSharedQueries.products(
+        undefined,
+        "CACHED",
+        1,
+        "purchase",
+        undefined,
+        partnerCard,
+        "hydrate",
+      ).queryKey,
       [product("CACHED", 15)],
     );
     const fetchQuery = vi.spyOn(queryClient, "fetchQuery");
@@ -114,8 +121,8 @@ describe("resolveHydrateProductMeta", () => {
         throw new Error("batch unavailable");
       }
       // products key includes search near warehouse / limit / type / cardCode
-      if (key.includes("products-v2")) {
-        const search = String(key[3] ?? "");
+      if (key.includes("products-v3")) {
+        const search = String(key[4] ?? "");
         return [product(search || "X")];
       }
       return [];
@@ -130,7 +137,7 @@ describe("resolveHydrateProductMeta", () => {
     expect(
       fetchQuery.mock.calls.some((call) => {
         const key = (call[0] as { queryKey: unknown[] }).queryKey;
-        return key.includes("products-v2");
+        return key.includes("products-v3");
       }),
     ).toBe(true);
 

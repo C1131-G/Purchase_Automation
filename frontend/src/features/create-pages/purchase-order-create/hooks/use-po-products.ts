@@ -89,6 +89,7 @@ export function usePoProducts({
       "purchase",
       undefined,
       partnerCardCode,
+      "purchase-order",
     ),
     enabled: productPopupOpen && vendorSelected && Boolean(partnerCardCode),
   });
@@ -111,14 +112,15 @@ export function usePoProducts({
     void queryClient.prefetchQuery(
       purchaseOrderCreateQueries.products(
         undefined,
-        normalizedProductSearch || undefined,
+        undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
         undefined,
         partnerCardCode,
+        "purchase-order",
       ),
     );
-  }, [vendorSelected, partnerCardCode, normalizedProductSearch, queryClient]);
+  }, [vendorSelected, partnerCardCode, queryClient]);
 
   useEffect(() => {
     if (!vendorSelected || !partnerCardCode) {
@@ -152,6 +154,7 @@ export function usePoProducts({
         "purchase",
         undefined,
         partnerCardCode,
+        "purchase-order",
       ),
     );
   }, [

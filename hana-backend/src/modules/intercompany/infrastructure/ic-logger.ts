@@ -36,6 +36,8 @@ export const icLog = {
 
 /** Stable scopes used across IC module. */
 export const IC_LOG_SCOPE = {
+  /** Portal update → partner DRAFT RFQ / A/R draft. Not Flow 1/2 create. */
+  EDIT: "ic.edit",
   FLOW1: "ic.flow1",
   FLOW1_CONVERT: "ic.flow1.convert",
   FLOW2: "ic.flow2",

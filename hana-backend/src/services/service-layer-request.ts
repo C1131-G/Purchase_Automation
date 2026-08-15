@@ -12,10 +12,16 @@ import { withSpan } from "@/core/observability/tracing";
 import { extractSessionId } from "@/core/utils/cookie-parser";
 import type { SLError, SLSessionInfo } from "@/services/types/service-layer.types";
 
+export type ServiceLayerSessionCredentials = {
+  companyDB: string;
+  username: string;
+  password: string;
+};
+
 export type ServiceLayerHost = {
   client: AxiosInstance | null;
   sessions: Map<string, SLSessionInfo>;
-  sessionCredentials: Map<string, { companyDB: string; username: string; password: string }>;
+  sessionCredentials: Map<string, ServiceLayerSessionCredentials>;
   refreshLocks: Map<string, Promise<void>>;
   destroyLocalSession: (sessionId: string, reason?: string) => void;
   request: <T>(
@@ -26,6 +32,8 @@ export type ServiceLayerHost = {
     allowUnauthorizedRetry?: boolean,
     customHeaders?: Record<string, string>,
   ) => Promise<T>;
+  /** Company SL account when in-memory login password is missing (process restart). */
+  resolveRefreshCredentials?: (sessionId: string) => Promise<ServiceLayerSessionCredentials | null>;
 };
 
 /** Join Service Layer baseURL + relative endpoint into an absolute URL for access logs. */
@@ -160,9 +168,16 @@ export async function refreshSessionAfterUnauthorized(host: ServiceLayerHost, se
 
   const refreshPromise = (async () => {
     const sessionInfo = host.sessions.get(sessionId);
-    const credentials = host.sessionCredentials.get(sessionId);
+    if (!sessionInfo) {
+      throw new Error("Cannot refresh SAP session: missing local session");
+    }
 
-    if (!sessionInfo || !credentials) {
+    let credentials = host.sessionCredentials.get(sessionId);
+    if (!credentials?.password && host.resolveRefreshCredentials) {
+      credentials = (await host.resolveRefreshCredentials(sessionId)) ?? undefined;
+    }
+
+    if (!credentials?.password) {
       throw new Error("Cannot refresh SAP session: missing local session or credentials");
     }
 
@@ -174,14 +189,18 @@ export async function refreshSessionAfterUnauthorized(host: ServiceLayerHost, se
     );
 
     sessionInfo.sessionId = sapLogin.sapSessionId;
+    sessionInfo.username = credentials.username;
     sessionInfo.cookies = sapLogin.cookies;
     sessionInfo.cookieString = sapLogin.cookieString;
     sessionInfo.loginTime = Date.now();
     sessionInfo.lastSapCall = Date.now();
+    host.sessionCredentials.set(sessionId, credentials);
 
     logger.info({
       msg: "Service Layer session refreshed after 401",
+      companyDB: credentials.companyDB,
       sessionId,
+      username: credentials.username,
     });
   })();
 

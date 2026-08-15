@@ -39,7 +39,7 @@ export function useGrpoProducts() {
         if (item.id !== rowId) {
           return item;
         }
-        return { ...item, quantity: Math.max(0, nextQuantity) };
+        return { ...item, quantity: Math.max(1, nextQuantity) };
       }),
     );
   };

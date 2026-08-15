@@ -6,7 +6,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { afterPqSaved, assertIcPqEditable } from "@/modules/intercompany";
+import { afterPqUpdated, assertIcPqEditable } from "@/modules/intercompany";
 import { toSapCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import type { IcHookResult } from "@/modules/intercompany";
 const normalizeSapDateValue = (value: unknown) => {
@@ -154,12 +154,12 @@ export const updatePurchaseQuotation = async (
           ? Number(line.RequiredQuantity)
           : hasRequiredQtyAlt
             ? Number(line.requiredQuantity)
-            : 0;
+            : 1;
         const docLine: Record<string, unknown> = {
           LineNum: line.LineNum !== undefined ? Number(line.LineNum) : undefined,
           ItemCode: line.ItemCode as string,
           Quantity: Number.isFinite(quotedQty) ? quotedQty : 0,
-          RequiredQuantity: Number.isFinite(requiredQty) ? requiredQty : 0,
+          RequiredQuantity: Number.isFinite(requiredQty) && requiredQty >= 1 ? requiredQty : 1,
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
@@ -218,25 +218,54 @@ export const updatePurchaseQuotation = async (
       purgeCache(`dashboard:overview:${companyDB}`);
     }
 
-    // Flow 1 IC: direct PQ only (not draft). Idempotent if RFQ already exists.
+    // IC edit sync only — never re-run Flow 1 create (1/18 PQ created).
     let intercompany: IcHookResult | undefined;
     if (!isDraft) {
       try {
+        let cardCode = String(payload.CardCode ?? sapPayload.CardCode ?? "").trim();
+        let cardName = payload.CardName != null ? String(payload.CardName) : null;
+        let docNum: number | null = null;
+        if (companyDB) {
+          try {
+            const pqRepo = await getTenantRepository(companyDB, PurchaseQuotationSchema);
+            const pqHeader = await pqRepo.findOne({
+              select: ["cardCode", "cardName", "docNum"],
+              where: { docEntry: Number(id) },
+            });
+            if (pqHeader) {
+              if (!cardCode) {
+                cardCode = String(pqHeader.cardCode ?? "").trim();
+              }
+              if (!cardName && pqHeader.cardName) {
+                cardName = String(pqHeader.cardName);
+              }
+              const headerDocNum = Number(pqHeader.docNum);
+              if (Number.isFinite(headerDocNum) && headerDocNum > 0) {
+                docNum = headerDocNum;
+              }
+            }
+          } catch (headerErr: unknown) {
+            logger.warn({
+              err: headerErr instanceof Error ? headerErr : new Error(String(headerErr)),
+              id,
+              msg: "PQ header lookup for IC edit sync failed; continuing with payload fields",
+            });
+          }
+        }
         const lines = Array.isArray(payload.DocumentLines)
           ? (payload.DocumentLines as Record<string, unknown>[])
           : [];
-        intercompany = await afterPqSaved({
+        intercompany = await afterPqUpdated({
           address: payload.Address != null ? String(payload.Address) : null,
           address2: payload.Address2 != null ? String(payload.Address2) : null,
-          cardCode: String(payload.CardCode ?? sapPayload.CardCode ?? ""),
-          cardName: payload.CardName != null ? String(payload.CardName) : null,
-          // Parent typed Comments from payload; if omitted, leave null (capture may skip if RFQ exists).
+          cardCode,
+          cardName,
           comments: payload.Comments != null ? String(payload.Comments) : null,
           dbName: companyDB,
           docDate: payload.DocDate,
           docDueDate: payload.DocDueDate,
           docEntry: Number(id),
-          docNum: null,
+          docNum,
           lines,
           numAtCard: payload.NumAtCard != null ? String(payload.NumAtCard) : null,
           requiredDate:
@@ -256,7 +285,7 @@ export const updatePurchaseQuotation = async (
       } catch (icErr: unknown) {
         logger.error({
           err: icErr instanceof Error ? icErr : new Error(String(icErr)),
-          msg: "afterPqSaved threw unexpectedly; PQ remains updated",
+          msg: "afterPqUpdated threw unexpectedly; PQ remains updated",
         });
         intercompany = {
           message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),

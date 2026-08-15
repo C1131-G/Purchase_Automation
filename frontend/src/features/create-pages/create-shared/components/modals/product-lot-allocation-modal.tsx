@@ -144,8 +144,8 @@ export function ProductLotAllocationModal({
           <p className="mt-1 text-xs text-neutral-500">{subtitle}</p>
           <p className="mt-1 text-xs text-neutral-500">
             {mode === "enter"
-              ? "Type new alphanumeric numbers (A–Z, a–z, 0–9). No spaces or symbols."
-              : "Select existing stock from SAP. Numbers must be alphanumeric."}
+              ? "Type letters, numbers, and hyphen (for example abc-1). No spaces."
+              : "Select existing stock from SAP. Numbers may use letters, digits, and hyphen."}
           </p>
         </div>
 

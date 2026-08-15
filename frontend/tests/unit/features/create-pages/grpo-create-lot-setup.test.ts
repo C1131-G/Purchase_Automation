@@ -48,7 +48,7 @@ describe("GRPO create batch/serial intercept", () => {
           isEditMode: false,
           rows: mixedCreateLines(),
         }),
-      ).toEqual({ path: "/purchase/grpo-lots/serials", type: "navigate" });
+      ).toEqual({ kind: "serials", rowId: "serial-1", type: "open-modal" });
     },
   );
 
@@ -62,7 +62,7 @@ describe("GRPO create batch/serial intercept", () => {
           isEditMode: false,
           rows: mixedCreateLines(),
         }),
-      ).toEqual({ path: "/purchase/grpo-lots/batches", type: "navigate" });
+      ).toEqual({ kind: "batches", rowId: "batch-1", type: "open-modal" });
     },
   );
 
@@ -111,7 +111,7 @@ describe("GRPO create lot OK chain", () => {
         kind: "serials",
         rows: mixedCreateLines(),
       }),
-    ).toEqual({ path: "/purchase/grpo-lots/batches", type: "next" });
+    ).toEqual({ kind: "batches", type: "next" });
   });
 
   it("batch OK continues the original create save", () => {
@@ -168,6 +168,29 @@ describe("GRPO create lot session keeps the save action", () => {
       expect(store.getState().batchesConfirmed).toBe(true);
     },
   );
+
+  it("keeps create-page vendor chrome when opening lots from a row click then save", () => {
+    const store = createGRPOLotSessionStoreInstance();
+    store.getState().setChrome({
+      attachments: [],
+      billToAddress: "Bill",
+      buyerInput: "Buyer",
+      shipToAddress: "Ship",
+      vendorCode: "V001",
+      vendorName: "Vendor",
+      warehouseInput: "S101",
+    });
+    store.getState().setReturnTo({ to: "/purchase/create-grpo" });
+    store.getState().start({
+      docLabel: "New",
+      pendingAction: "save-new",
+      returnTo: { search: { sourceDocNum: "100" }, to: "/purchase/create-grpo" },
+    });
+
+    expect(store.getState().chrome?.vendorCode).toBe("V001");
+    expect(store.getState().chrome?.vendorName).toBe("Vendor");
+    expect(store.getState().pendingAction).toBe("save-new");
+  });
 });
 
 describe("GRPO create lot payload after OK", () => {
@@ -175,17 +198,31 @@ describe("GRPO create lot payload after OK", () => {
     const line = row({ manBtchNum: "Y", productCode: "BAT-1", quantity: 10 });
     const batchNumbers = seedBatchAllocations(line, 0, "2026-08-14");
     expect(sapLotFieldsFromRow({ ...line, batchNumbers })).toEqual({
-      BatchNumbers: [{ BatchNumber: "B20260814001", Quantity: 10 }],
+      BatchNumbers: [{ BatchNumber: "14082026", Quantity: 10 }],
     });
   });
 
-  it("sends one serial per unit from the create page seed", () => {
+  it("seeds empty serial rows and only sends numbers the user entered", () => {
     const line = row({ manSerNum: "Y", productCode: "SER-1", quantity: 2 });
     const serialNumbers = seedSerialAllocations(line, 0, "2026-08-14");
+    expect(serialNumbers).toEqual([
+      { internalSerialNumber: "", quantity: 1 },
+      { internalSerialNumber: "", quantity: 1 },
+    ]);
     expect(sapLotFieldsFromRow({ ...line, serialNumbers })).toEqual({
       SerialNumbers: [
-        { InternalSerialNumber: "S20260814001001", Quantity: 1 },
-        { InternalSerialNumber: "S20260814001002", Quantity: 1 },
+        { InternalSerialNumber: "", Quantity: 1 },
+        { InternalSerialNumber: "", Quantity: 1 },
+      ],
+    });
+    const filled = [
+      { ...serialNumbers[0]!, internalSerialNumber: "SN-A" },
+      { ...serialNumbers[1]!, internalSerialNumber: "SN-B" },
+    ];
+    expect(sapLotFieldsFromRow({ ...line, serialNumbers: filled })).toEqual({
+      SerialNumbers: [
+        { InternalSerialNumber: "SN-A", Quantity: 1 },
+        { InternalSerialNumber: "SN-B", Quantity: 1 },
       ],
     });
   });

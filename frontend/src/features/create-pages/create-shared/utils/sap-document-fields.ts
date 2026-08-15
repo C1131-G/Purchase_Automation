@@ -30,8 +30,8 @@ export const SAP_FIELD_MAX = {
   warehouseCode: 8,
 } as const;
 
-/** Alphanumeric only — DistNumber / InternalSerialNumber (project + SAP lot IDs). */
-export const SAP_LOT_NUMBER_PATTERN = /^[A-Za-z0-9]+$/;
+/** Letters, digits, and hyphen — DistNumber / InternalSerialNumber. */
+export const SAP_LOT_NUMBER_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
 /** Cheque CheckNumber is an integer in PaymentChecks. */
 export const SAP_CHECK_NUMBER_PATTERN = /^\d+$/;

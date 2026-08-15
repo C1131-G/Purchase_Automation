@@ -8,10 +8,11 @@ IC runs after the portal has already saved the buyer document. It **never fails*
 
 Two companies trade as buyer/seller. Operators work only in the portal; IC posts partner-side SAP documents and keeps a cross-company map for relationship map, retries, and audit.
 
-| Flow       | Buyer action                               | Partner result                                                                                              |
-| ---------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Flow 1** | Create/update **real Purchase Quotation**  | Custom **RFQ** in common DB → seller fills prices → **update buyer PQ** + **create seller Sales Quotation** |
-| **Flow 2** | Create **real Purchase Order** (non-draft) | Partner **A/R Invoice Draft** via Service Layer `POST /Drafts` (`DocObjectCode` 13, based on seller SQ)     |
+| Flow          | Buyer action                                   | Partner result                                                                                                               |
+| ------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Flow 1**    | Create **real Purchase Quotation**             | Custom **RFQ** in common DB → seller fills prices → **update buyer PQ** + **create seller Sales Quotation**                  |
+| **Edit sync** | Update **PQ** (DRAFT RFQ) / **PO** (A/R draft) | Mirror buyer fields onto the existing partner DRAFT. Logs use `scope: ic.edit` / `check: ic_edit_sync` — not Flow 1/2 create |
+| **Flow 2**    | Create **real Purchase Order** (non-draft)     | Partner **A/R Invoice Draft** via Service Layer `POST /Drafts` (`DocObjectCode` 13, based on seller SQ)                      |
 
 Flows are **independent**: Flow 2 does not require a prior RFQ. Feature flags live in `IC_CONFIGURATION`.
 
@@ -40,14 +41,22 @@ Flows are **independent**: Flow 2 does not require a prior RFQ. Feature flags li
 **Only** export/import surface for other modules:
 
 ```ts
-import { afterPoCreated, afterPqSaved, icRoutes } from "@/modules/intercompany";
+import {
+  afterPoCreated,
+  afterPoUpdated,
+  afterPqSaved,
+  afterPqUpdated,
+  icRoutes,
+} from "@/modules/intercompany";
 ```
 
-| Export           | Role                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| `afterPqSaved`   | Flow 1 entry (real PQ create/update). Alias: `afterPqDraftSaved` (deprecated name) |
-| `afterPoCreated` | Flow 2 entry (non-draft PO)                                                        |
-| `icRoutes`       | Mounted at `/api/v1/ic/*`                                                          |
+| Export           | Role                                                                            |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `afterPqSaved`   | Flow 1 **create** entry (real PQ). Alias: `afterPqDraftSaved` (deprecated name) |
+| `afterPqUpdated` | IC **edit sync** (PQ update → DRAFT RFQ). Logs: `ic.edit` / `ic_edit_sync`      |
+| `afterPoCreated` | Flow 2 **create** entry (non-draft PO)                                          |
+| `afterPoUpdated` | IC **edit sync** (PO update → A/R draft). Logs: `ic.edit` / `ic_edit_sync`      |
+| `icRoutes`       | Mounted at `/api/v1/ic/*`                                                       |
 
 Do **not** deep-import flow internals, `ic-sql`, or domain services from purchase-order / purchase-quotation modules.
 

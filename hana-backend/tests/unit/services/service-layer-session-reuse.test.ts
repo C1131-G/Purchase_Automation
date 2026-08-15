@@ -95,4 +95,38 @@ describe("Service Layer session reuse (login path)", () => {
     expect(serviceLayerClient.isSessionValid("sess-restart")).toBe(true);
     expect(serviceLayerClient.getSession("sess-restart")?.cookieString).toBe("B1SESSION=keep-me");
   });
+
+  it("loads company Service Layer credentials for silent re-login after rehydrate", async () => {
+    vi.doMock("@/services/service-layer-request", () => ({
+      executeServiceLayerRequest: vi.fn(),
+      loginToSap: vi.fn(),
+      serviceLayerAbsoluteUrl: (base: string | undefined, path: string) => `${base ?? ""}${path}`,
+    }));
+    vi.doMock("@/services/credential.service", () => ({
+      getServiceLayerCredentials: vi.fn(async () => ({
+        companyName: "Ajax",
+        dbName: "AJAX_POS_DB",
+        dbServer: "hana",
+        serviceLayerPassword: "org-sl-secret",
+        serviceLayerUsername: "sl-manager",
+      })),
+    }));
+
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    serviceLayerClient.initialize("https://sap.example.com/b1s/v1", false);
+    serviceLayerClient.rehydrateFromPortalSession({
+      companyDB: "AJAX_POS_DB",
+      cookieString: "B1SESSION=expired",
+      sessionId: "sess-restart",
+      username: "manager",
+    });
+
+    const credentials = await serviceLayerClient.resolveRefreshCredentials("sess-restart");
+    expect(credentials).toEqual({
+      companyDB: "AJAX_POS_DB",
+      password: "org-sl-secret",
+      username: "sl-manager",
+    });
+    expect(serviceLayerClient.sessionCredentials.get("sess-restart")?.username).toBe("sl-manager");
+  });
 });

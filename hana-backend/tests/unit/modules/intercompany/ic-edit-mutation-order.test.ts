@@ -4,7 +4,7 @@ import AppError from "@/core/errors/app-error";
 
 const mocks = vi.hoisted(() => ({
   afterPoUpdated: vi.fn(async () => ({ status: "accepted" })),
-  afterPqSaved: vi.fn(async () => ({ status: "accepted" })),
+  afterPqUpdated: vi.fn(async () => ({ status: "accepted" })),
   assertIcPoEditable: vi.fn(async () => undefined),
   assertIcPqEditable: vi.fn(async () => undefined),
   assertIcSqEditable: vi.fn(async () => undefined),
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/modules/intercompany", () => ({
   afterPoUpdated: mocks.afterPoUpdated,
-  afterPqSaved: mocks.afterPqSaved,
+  afterPqUpdated: mocks.afterPqUpdated,
   assertIcPoEditable: mocks.assertIcPoEditable,
   assertIcPqEditable: mocks.assertIcPqEditable,
   assertIcSqEditable: mocks.assertIcSqEditable,

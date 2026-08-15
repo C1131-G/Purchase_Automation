@@ -145,7 +145,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     const requiredQty = Number(
       row.requiredQuantity !== undefined && row.requiredQuantity !== null
         ? row.requiredQuantity
-        : 0,
+        : 1,
     );
     const lineReqDate = String(row.requiredDate || fallbackRequiredDate || "")
       .trim()
@@ -159,7 +159,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       DiscountPercent: row.discountPercent,
       ItemCode: row.productCode,
       Quantity: Number.isFinite(quotedQty) ? quotedQty : 0,
-      RequiredQuantity: Number.isFinite(requiredQty) ? requiredQty : 0,
+      RequiredQuantity: Number.isFinite(requiredQty) && requiredQty >= 1 ? requiredQty : 1,
       ...(lineReqDate ? { ReqDate: lineReqDate } : {}),
       ...(lineQuotedDate ? { ShipDate: lineQuotedDate } : {}),
       UnitPrice: row.price,
@@ -193,7 +193,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ? sapRequiredQty
         : quantity > 0
           ? quantity
-          : 0;
+          : 1;
     const requiredDate = String(
       line.ReqDate ?? line.RequiredDate ?? lineData.ReqDate ?? fallbackRequiredDate ?? "",
     )
@@ -1078,6 +1078,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ? {
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
+            CardCode: (header.vendorCode || lookups.codeInput).trim() || undefined,
             ...sapCommentsField(header.comments),
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,

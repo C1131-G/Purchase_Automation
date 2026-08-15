@@ -1,19 +1,24 @@
 import { createAppStore } from "@/store/lib/create-store";
 import type {
+  GrpoCreateFormChrome,
   GrpoLotPendingAction,
   LotSetupReturnTo,
 } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
 
 export interface GrpoLotSessionState {
   batchesConfirmed: boolean;
+  chrome: GrpoCreateFormChrome | null;
   continueSubmit: boolean;
   docLabel: string;
   pendingAction: GrpoLotPendingAction | null;
   reset: () => void;
   returnTo: LotSetupReturnTo | null;
   serialsConfirmed: boolean;
+  setChrome: (chrome: GrpoCreateFormChrome) => void;
+  setDocLabel: (docLabel: string) => void;
   setReturnTo: (returnTo: LotSetupReturnTo) => void;
   start: (input: {
+    chrome?: GrpoCreateFormChrome;
     docLabel: string;
     pendingAction: GrpoLotPendingAction;
     returnTo: LotSetupReturnTo;
@@ -28,6 +33,7 @@ export interface GrpoLotSessionState {
 
 const emptySession = {
   batchesConfirmed: false,
+  chrome: null,
   continueSubmit: false,
   docLabel: "New",
   pendingAction: null,
@@ -48,15 +54,18 @@ const storeApi = createAppStore<GrpoLotSessionState>({ name: "grpo-lot-session" 
   invalidateSerials: () =>
     set({ serialsConfirmed: false }, false, "grpo-lot-session/invalidateSerials"),
   reset: () => set({ ...emptySession }, false, "grpo-lot-session/reset"),
+  setChrome: (chrome) => set({ chrome }, false, "grpo-lot-session/setChrome"),
+  setDocLabel: (docLabel) => set({ docLabel }, false, "grpo-lot-session/setDocLabel"),
   setReturnTo: (returnTo) => set({ returnTo }, false, "grpo-lot-session/setReturnTo"),
-  start: ({ docLabel, pendingAction, returnTo }) =>
+  start: ({ chrome, docLabel, pendingAction, returnTo }) =>
     set(
-      {
+      (prev) => ({
         continueSubmit: false,
         docLabel,
         pendingAction,
         returnTo,
-      },
+        chrome: chrome ?? prev.chrome,
+      }),
       false,
       "grpo-lot-session/start",
     ),

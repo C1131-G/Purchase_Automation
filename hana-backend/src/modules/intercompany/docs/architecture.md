@@ -10,7 +10,12 @@ frontend/src/features/intercompany/      ← notifications, RFQ UI shell, client
 Other document modules (`purchase-order`, `purchase-quotation`, …) call IC **only** through the public wall:
 
 ```ts
-import { afterPoCreated, afterPqSaved } from "@/modules/intercompany";
+import {
+  afterPoCreated,
+  afterPoUpdated,
+  afterPqSaved,
+  afterPqUpdated,
+} from "@/modules/intercompany";
 ```
 
 ## Layer map
@@ -36,8 +41,13 @@ Portal create PQ/PO
       → return { status: "accepted" }
   → HTTP response (document already saved)
 
+Portal update PQ/PO
+  → afterPqUpdated / afterPoUpdated
+      → IC edit sync (scope ic.edit, check ic_edit_sync)
+      → never Flow 1 [1/18] or Flow 2 [1/9] create logs
+
 Background task
-  → Flow1/Flow2 orchestrator
+  → Flow1/Flow2 orchestrator (create) or edit sync (update)
   → domain + SL + map + notify
   → on failure: retry queue + notification (never rolls back portal doc)
 ```

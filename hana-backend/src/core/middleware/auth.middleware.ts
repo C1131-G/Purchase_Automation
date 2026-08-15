@@ -42,8 +42,8 @@ export const validateSession: RequestHandler = async (
   const authedLog = req.log || log;
 
   // After a backend restart the Express session can still be on disk while the
-  // in-memory SAP map is empty. Reattach the saved B1SESSION cookie — do not
-  // log in again with a stored password.
+  // in-memory SAP map is empty. Reattach the saved B1SESSION cookie, then load
+  // company SL credentials so an expired SAP cookie can silent-login.
   if (!serviceLayerClient.isSessionValid(session.sessionId)) {
     const sapCookie = session.sapCookie?.trim() ?? "";
     const slUsername = (session.slUsername || session.user.userName || "").trim();
@@ -75,6 +75,10 @@ export const validateSession: RequestHandler = async (
     }
   }
 
+  await serviceLayerClient.ensureSessionCredentials(session.sessionId);
+  persistLiveSapCookie(session);
+  attachSapCookieSync(res, session);
+
   // Hydrate the Request object with user metadata for downstream business logic (permission checks, tenant identification).
   req.user = {
     ...session.user,
@@ -83,13 +87,27 @@ export const validateSession: RequestHandler = async (
     sessionId: session.sessionId,
   };
 
-  if (!session.sapCookie) {
-    const live = serviceLayerClient.getSession(session.sessionId);
-    if (live?.cookieString) {
-      session.sapCookie = live.cookieString;
-      session.slUsername = live.username;
-    }
-  }
-
   next();
 };
+
+function persistLiveSapCookie(session: Request["session"]): void {
+  const live = serviceLayerClient.getSession(session.sessionId);
+  if (!live?.cookieString) {
+    return;
+  }
+  if (live.cookieString !== session.sapCookie) {
+    session.sapCookie = live.cookieString;
+  }
+  if (live.username) {
+    session.slUsername = live.username;
+  }
+}
+
+/** Runs before express-session saves so a silent SL re-login persists the new cookie. */
+function attachSapCookieSync(res: Response, session: Request["session"]): void {
+  const originalEnd = res.end.bind(res);
+  res.end = ((...args: Parameters<Response["end"]>) => {
+    persistLiveSapCookie(session);
+    return originalEnd(...args);
+  }) as Response["end"];
+}

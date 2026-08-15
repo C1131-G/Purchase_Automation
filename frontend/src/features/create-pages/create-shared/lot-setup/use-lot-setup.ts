@@ -1,23 +1,33 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { LotSetupKind } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
 import {
   addBatchSplitRow,
+  addSerialSplitRow,
+  applySerialAutoFill,
+  buildSerialAutoFillNumbers,
   createdQtyForKind,
+  lineNeededQty,
   lotManagedRows,
   lotSetupRowError,
-  openQtyForKind,
+  rebalanceBatchQuantities,
+  sameBatchAllocations,
   seedBatchAllocations,
   seedSerialAllocations,
+  type SerialAutoFillInput,
 } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
 import type {
   ProductBatchAllocation,
   ProductRow,
   ProductSerialAllocation,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { sanitizeLotNumberInput } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import {
+  isBatchManaged,
+  isSerialManaged,
+  sanitizeLotNumberInput,
+} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import {
   useGRPOHeader,
   useGRPOLines,
@@ -38,7 +48,6 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   const [activeRowId, setActiveRowId] = useState<string | null>(
     selectedRowId || documentRows[0]?.id || null,
   );
-  const seededRef = useRef(false);
 
   useEffect(() => {
     if (selectedRowId && documentRows.some((row) => row.id === selectedRowId)) {
@@ -58,10 +67,14 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     return enabled;
   }, [warehousesQuery.data]);
 
-  const warehouseNameByCode = useMemo(() => {
-    const names = new Map<string, string>();
+  const warehouseNames = useMemo(() => {
+    const names: Record<string, string> = {};
     for (const warehouse of warehousesQuery.data ?? []) {
-      names.set(String(warehouse.code), warehouse.name);
+      const code = String(warehouse.code).trim();
+      const name = String(warehouse.name ?? "").trim();
+      if (code) {
+        names[code] = name || code;
+      }
     }
     return names;
   }, [warehousesQuery.data]);
@@ -76,14 +89,11 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
       if (!itemCode || !warehouseCode || seen.has(key)) {
         continue;
       }
-      if (!warehouseBinEnabled.get(warehouseCode)) {
-        continue;
-      }
       seen.add(key);
       pairs.push({ itemCode, warehouseCode });
     }
     return pairs;
-  }, [documentRows, warehouseBinEnabled]);
+  }, [documentRows]);
 
   const defaultBinQueries = useQueries({
     queries: defaultBinPairs.map((pair) =>
@@ -104,70 +114,44 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   }, [defaultBinPairs, defaultBinQueries]);
 
   useEffect(() => {
-    if (seededRef.current || documentRows.length === 0) {
-      return;
-    }
-    seededRef.current = true;
-    const docDate = header.docDate;
-    setLines((prev) =>
-      prev.map((row) => {
-        const lineIndex = prev.findIndex((item) => item.id === row.id);
-        const defaultBin = defaultBinByKey.get(binKey(row.productCode, row.warehouseCode));
-        if (kind === "batches" && row.manBtchNum === "Y") {
-          return {
-            ...row,
-            batchNumbers: seedBatchAllocations(row, lineIndex, docDate, defaultBin),
-          };
-        }
-        if (kind === "serials" && row.manSerNum === "Y") {
-          return {
-            ...row,
-            serialNumbers: seedSerialAllocations(row, lineIndex, docDate, defaultBin),
-          };
-        }
-        return row;
-      }),
-    );
-  }, [defaultBinByKey, documentRows.length, header.docDate, kind, setLines]);
-
-  useEffect(() => {
-    if (defaultBinByKey.size === 0) {
-      return;
-    }
     setLines((prev) => {
       let changed = false;
-      const next = prev.map((row) => {
+      const next = prev.map((row, lineIndex) => {
         const defaultBin = defaultBinByKey.get(binKey(row.productCode, row.warehouseCode));
-        if (!defaultBin) {
-          return row;
+        if (kind === "batches" && isBatchManaged(row) && lineNeededQty(row) > 0) {
+          const nextBatches = seedBatchAllocations(row, lineIndex, header.docDate, defaultBin);
+          if (!sameBatchAllocations(row.batchNumbers, nextBatches)) {
+            changed = true;
+            return { ...row, batchNumbers: nextBatches };
+          }
         }
-        if (kind === "batches" && row.batchNumbers?.some((batch) => !batch.binAbsEntry)) {
-          changed = true;
-          return {
-            ...row,
-            batchNumbers: row.batchNumbers.map((batch) =>
-              batch.binAbsEntry
-                ? batch
-                : { ...batch, binAbsEntry: defaultBin.binAbsEntry, binCode: defaultBin.binCode },
-            ),
-          };
-        }
-        if (kind === "serials" && row.serialNumbers?.some((serial) => !serial.binAbsEntry)) {
-          changed = true;
-          return {
-            ...row,
-            serialNumbers: row.serialNumbers.map((serial) =>
-              serial.binAbsEntry
-                ? serial
-                : { ...serial, binAbsEntry: defaultBin.binAbsEntry, binCode: defaultBin.binCode },
-            ),
-          };
+        if (kind === "serials" && isSerialManaged(row)) {
+          const needed = Math.max(0, Math.trunc(lineNeededQty(row)));
+          const count = row.serialNumbers?.length ?? 0;
+          if (count !== needed && needed > 0) {
+            changed = true;
+            return {
+              ...row,
+              serialNumbers: seedSerialAllocations(row, lineIndex, header.docDate, defaultBin),
+            };
+          }
+          if (defaultBin && row.serialNumbers?.some((serial) => !serial.binAbsEntry)) {
+            changed = true;
+            return {
+              ...row,
+              serialNumbers: row.serialNumbers.map((serial) =>
+                serial.binAbsEntry
+                  ? serial
+                  : { ...serial, binAbsEntry: defaultBin.binAbsEntry, binCode: defaultBin.binCode },
+              ),
+            };
+          }
         }
         return row;
       });
       return changed ? next : prev;
     });
-  }, [defaultBinByKey, kind, setLines]);
+  }, [defaultBinByKey, header.docDate, kind, setLines]);
 
   const activeRow = documentRows.find((row) => row.id === activeRowId) ?? null;
   const binRequired = activeRow
@@ -183,18 +167,21 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
           }
           const next = { ...row, ...patch };
           if (patch.quantity !== undefined) {
-            next.quantity = Math.max(0, Number(patch.quantity) || 0);
+            next.quantity = Math.max(1, Number(patch.quantity) || 1);
             const lineIndex = prev.findIndex((item) => item.id === rowId);
             const defaultBin = defaultBinByKey.get(binKey(next.productCode, next.warehouseCode));
-            if (kind === "batches") {
+            if (kind === "batches" && isBatchManaged(next)) {
               next.batchNumbers = seedBatchAllocations(next, lineIndex, header.docDate, defaultBin);
-            } else {
-              next.serialNumbers = seedSerialAllocations(
-                next,
-                lineIndex,
-                header.docDate,
-                defaultBin,
-              );
+            } else if (kind === "serials" && isSerialManaged(next)) {
+              const hasSerials = (row.serialNumbers?.length ?? 0) > 0;
+              if (hasSerials) {
+                next.serialNumbers = seedSerialAllocations(
+                  next,
+                  lineIndex,
+                  header.docDate,
+                  defaultBin,
+                );
+              }
             }
           }
           return next;
@@ -207,7 +194,12 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   const setBatches = useCallback(
     (rowId: string, batches: ProductBatchAllocation[]) => {
       setLines((prev) =>
-        prev.map((row) => (row.id === rowId ? { ...row, batchNumbers: batches } : row)),
+        prev.map((row) => {
+          if (row.id !== rowId) {
+            return row;
+          }
+          return { ...row, batchNumbers: batches };
+        }),
       );
     },
     [setLines],
@@ -216,10 +208,20 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   const setSerials = useCallback(
     (rowId: string, serials: ProductSerialAllocation[]) => {
       setLines((prev) =>
-        prev.map((row) => (row.id === rowId ? { ...row, serialNumbers: serials } : row)),
+        prev.map((row) => {
+          if (row.id !== rowId) {
+            return row;
+          }
+          return { ...row, serialNumbers: serials };
+        }),
       );
     },
     [setLines],
+  );
+
+  const defaultBinFor = useCallback(
+    (row: ProductRow) => defaultBinByKey.get(binKey(row.productCode, row.warehouseCode)),
+    [defaultBinByKey],
   );
 
   const splitActiveBatch = useCallback(() => {
@@ -227,12 +229,30 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
       return;
     }
     const lineIndex = lines.findIndex((row) => row.id === activeRow.id);
-    const defaultBin = defaultBinByKey.get(binKey(activeRow.productCode, activeRow.warehouseCode));
-    setBatches(
-      activeRow.id,
-      addBatchSplitRow(activeRow.batchNumbers ?? [], lineIndex, header.docDate, defaultBin),
+    const next = addBatchSplitRow(
+      activeRow.batchNumbers ?? [],
+      lineNeededQty(activeRow),
+      lineIndex,
+      header.docDate,
+      defaultBinFor(activeRow),
     );
-  }, [activeRow, defaultBinByKey, header.docDate, lines, setBatches]);
+    setBatches(activeRow.id, next);
+  }, [activeRow, defaultBinFor, header.docDate, lines, setBatches]);
+
+  const splitActiveSerial = useCallback(() => {
+    if (!activeRow) {
+      return;
+    }
+    const lineIndex = lines.findIndex((row) => row.id === activeRow.id);
+    const next = addSerialSplitRow(
+      activeRow.serialNumbers ?? [],
+      lineIndex,
+      header.docDate,
+      defaultBinFor(activeRow),
+      lineNeededQty(activeRow),
+    );
+    setSerials(activeRow.id, next);
+  }, [activeRow, defaultBinFor, header.docDate, lines, setSerials]);
 
   const updateActiveBatch = useCallback(
     (index: number, patch: Partial<ProductBatchAllocation>) => {
@@ -251,7 +271,11 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
             : {}),
         };
       });
-      setBatches(activeRow.id, next);
+      const balanced =
+        patch.quantity === undefined
+          ? next
+          : rebalanceBatchQuantities(next, lineNeededQty(activeRow), index);
+      setBatches(activeRow.id, balanced);
     },
     [activeRow, setBatches],
   );
@@ -261,12 +285,20 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
       if (!activeRow) {
         return;
       }
-      setBatches(
-        activeRow.id,
-        (activeRow.batchNumbers ?? []).filter((_, batchIndex) => batchIndex !== index),
+      const remaining = (activeRow.batchNumbers ?? []).filter(
+        (_, batchIndex) => batchIndex !== index,
       );
+      if (remaining.length === 0) {
+        const lineIndex = lines.findIndex((row) => row.id === activeRow.id);
+        setBatches(
+          activeRow.id,
+          seedBatchAllocations(activeRow, lineIndex, header.docDate, defaultBinFor(activeRow)),
+        );
+        return;
+      }
+      setBatches(activeRow.id, rebalanceBatchQuantities(remaining, lineNeededQty(activeRow)));
     },
-    [activeRow, setBatches],
+    [activeRow, defaultBinFor, header.docDate, lines, setBatches],
   );
 
   const updateActiveSerial = useCallback(
@@ -292,6 +324,35 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setSerials],
   );
 
+  const removeActiveSerial = useCallback(
+    (index: number) => {
+      if (!activeRow) {
+        return;
+      }
+      const remaining = (activeRow.serialNumbers ?? []).filter(
+        (_, serialIndex) => serialIndex !== index,
+      );
+      setSerials(activeRow.id, remaining);
+    },
+    [activeRow, setSerials],
+  );
+
+  const applyActiveSerialAutoFill = useCallback(
+    (input: Omit<SerialAutoFillInput, "count">) => {
+      if (!activeRow) {
+        return false;
+      }
+      const serials = activeRow.serialNumbers ?? [];
+      const numbers = buildSerialAutoFillNumbers({ ...input, count: serials.length });
+      if (numbers.length !== serials.length) {
+        return false;
+      }
+      setSerials(activeRow.id, applySerialAutoFill(serials, numbers));
+      return true;
+    },
+    [activeRow, setSerials],
+  );
+
   const pageError = useMemo(() => {
     for (const row of documentRows) {
       const required = warehouseBinEnabled.get(row.warehouseCode.trim()) === true;
@@ -312,19 +373,21 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   return {
     activeRow,
     activeRowId,
+    applyActiveSerialAutoFill,
     binRequired,
     docLabel: docLabel || "New",
     documentRows,
     footerCreatedCount,
     footerCreatedQty,
-    openQty: activeRow ? openQtyForKind(activeRow, kind) : 0,
     pageError,
     patchRow,
     removeActiveBatch,
+    removeActiveSerial,
     setActiveRowId,
     splitActiveBatch,
+    splitActiveSerial,
     updateActiveBatch,
     updateActiveSerial,
-    warehouseNameByCode,
+    warehouseNames,
   };
 }

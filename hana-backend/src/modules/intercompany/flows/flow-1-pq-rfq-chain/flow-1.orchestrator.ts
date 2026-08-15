@@ -16,6 +16,7 @@ import {
   FLOW1_SCOPE,
   FLOW1_STEPS,
   logFlowStep,
+  logIcEditSync,
   summarizeIcLines,
   summarizePartner,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
@@ -171,7 +172,25 @@ export const createFlow1Orchestrator = (deps?: {
         }
 
         if (captured.kind === "proceed_update") {
+          logIcEditSync({
+            ctx: { ...logCtx, flow: "edit" },
+            detail: {
+              hook: "afterPqSaved",
+              rfqId: captured.rfqId,
+              source: "flow1_existing_rfq",
+            },
+            phase: "apply buyer fields",
+          });
           await updateRfq.update({ purchaseQuotation: input, rfqId: captured.rfqId });
+          logIcEditSync({
+            ctx: { ...logCtx, flow: "edit" },
+            detail: {
+              durationMs: Date.now() - startedAt,
+              rfqId: captured.rfqId,
+              status: "success",
+            },
+            phase: "done",
+          });
           return {
             status: "success",
             targetDoc: { entry: captured.rfqId, type: IC_OBJECT.RFQ },

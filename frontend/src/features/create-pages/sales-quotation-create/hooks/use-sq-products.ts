@@ -84,6 +84,7 @@ export function useSqProducts({
       "sales",
       undefined,
       partnerCardCode,
+      "sales-quotation",
     ),
     enabled: productPopupOpen && customerSelected && Boolean(partnerCardCode),
   });
@@ -102,30 +103,18 @@ export function useSqProducts({
     if (!customerSelected || !partnerCardCode) {
       return;
     }
-    const search = normalizedProductSearch || undefined;
     void queryClient.prefetchQuery(
       salesQuotationCreateQueries.products(
         undefined,
-        search,
-        search ? BROWSE_PRODUCT_LIMIT : QUICK_PRODUCT_LIMIT,
+        undefined,
+        QUICK_PRODUCT_LIMIT,
         "sales",
         undefined,
         partnerCardCode,
+        "sales-quotation",
       ),
     );
-    if (!search) {
-      void queryClient.prefetchQuery(
-        salesQuotationCreateQueries.products(
-          undefined,
-          undefined,
-          BROWSE_PRODUCT_LIMIT,
-          "sales",
-          undefined,
-          partnerCardCode,
-        ),
-      );
-    }
-  }, [customerSelected, partnerCardCode, normalizedProductSearch, queryClient]);
+  }, [customerSelected, partnerCardCode, queryClient]);
 
   useEffect(() => {
     if (!customerSelected || !partnerCardCode) {
@@ -158,6 +147,7 @@ export function useSqProducts({
         "sales",
         undefined,
         partnerCardCode,
+        "sales-quotation",
       ),
     );
   }, [

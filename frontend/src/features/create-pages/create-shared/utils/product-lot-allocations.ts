@@ -5,7 +5,8 @@ import type {
   ProductSerialAllocation,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 
-export const LOT_NUMBER_PATTERN = /^[A-Za-z0-9]+$/;
+/** Letters, digits, and hyphen (e.g. abc-1). */
+export const LOT_NUMBER_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
 export type LotAllocationMode = "enter" | "select";
 
@@ -37,7 +38,7 @@ export const isAlphanumericLotNumber = (value: string): boolean =>
   LOT_NUMBER_PATTERN.test(value.trim());
 
 export const sanitizeLotNumberInput = (value: string): string =>
-  value.replaceAll(/[^A-Za-z0-9]/g, "").slice(0, 36);
+  value.replaceAll(/[^A-Za-z0-9-]/g, "").slice(0, 36);
 
 export const isBatchManaged = (row: Pick<ProductRow, "manBtchNum">): boolean =>
   String(row.manBtchNum ?? "").toUpperCase() === "Y";
@@ -107,7 +108,7 @@ export const lotAllocationError = (row: ProductRow, required: boolean): string |
         return `Batch number is required for ${productLabel}.`;
       }
       if (!isAlphanumericLotNumber(number)) {
-        return `Batch ${number} on ${productLabel} must be alphanumeric.`;
+        return `Batch ${number} on ${productLabel} may use letters, numbers, and hyphen.`;
       }
       const qty = Number(batch.quantity);
       if (!Number.isFinite(qty) || qty <= 0) {
@@ -132,7 +133,7 @@ export const lotAllocationError = (row: ProductRow, required: boolean): string |
       return `Serial number is required for ${productLabel}.`;
     }
     if (!isAlphanumericLotNumber(number)) {
-      return `Serial ${number} on ${productLabel} must be alphanumeric.`;
+      return `Serial ${number} on ${productLabel} may use letters, numbers, and hyphen.`;
     }
     if (seen.has(number)) {
       return `Serial ${number} is duplicated on ${productLabel}.`;
@@ -140,7 +141,7 @@ export const lotAllocationError = (row: ProductRow, required: boolean): string |
     seen.add(number);
     const manufacturer = serial.manufacturerSerialNumber?.trim() ?? "";
     if (manufacturer && !isAlphanumericLotNumber(manufacturer)) {
-      return `Manufacturer serial on ${productLabel} must be alphanumeric.`;
+      return `Manufacturer serial on ${productLabel} may use letters, numbers, and hyphen.`;
     }
   }
   if (expectedQty > 0 && allocatedSerialCount(serials) !== expectedQty) {

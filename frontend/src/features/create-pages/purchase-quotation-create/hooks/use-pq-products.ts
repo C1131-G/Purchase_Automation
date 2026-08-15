@@ -81,6 +81,7 @@ export function usePqProducts({
       "purchase",
       undefined,
       partnerCardCode,
+      "purchase-quotation",
     ),
     enabled: productPopupOpen && vendorSelected && Boolean(partnerCardCode),
   });
@@ -102,14 +103,15 @@ export function usePqProducts({
     void queryClient.prefetchQuery(
       purchaseQuotationCreateQueries.products(
         undefined,
-        normalizedProductSearch || undefined,
+        undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
         undefined,
         partnerCardCode,
+        "purchase-quotation",
       ),
     );
-  }, [vendorSelected, partnerCardCode, normalizedProductSearch, queryClient]);
+  }, [vendorSelected, partnerCardCode, queryClient]);
 
   useEffect(() => {
     if (!vendorSelected || !partnerCardCode) {
@@ -142,6 +144,7 @@ export function usePqProducts({
         "purchase",
         undefined,
         partnerCardCode,
+        "purchase-quotation",
       ),
     );
   }, [

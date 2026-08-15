@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "start": "node --import ./dist/core/observability/register.js dist/server.js",
-    "dev": "tsx --watch --watch-path ./src --watch-preserve-output --import ./src/core/observability/register.ts src/server.ts",
+    "dev": "tsx watch --clear-screen=false --exclude \"./src/modules/intercompany/docs/**\" --exclude \"./src/modules/intercompany/ops/**\" --exclude \"./src/modules/intercompany/testing/**\" --exclude \"./src/modules/intercompany/db/**\" --exclude \"**/*.md\" --exclude \"**/*.sql\" --import ./src/core/observability/register.ts src/server.ts",
     "worker:ic": "tsx --import ./src/core/observability/register.ts src/modules/intercompany/background/worker.entry.ts",
     "worker:ic:once": "tsx --import ./src/core/observability/register.ts src/modules/intercompany/background/worker.entry.ts --once",
     "typecheck": "tsc --noEmit",

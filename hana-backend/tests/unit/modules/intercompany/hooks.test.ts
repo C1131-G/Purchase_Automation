@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { afterPoCreated } from "@/modules/intercompany/api/hooks/after-po-created.hook";
+import { afterPoUpdated } from "@/modules/intercompany/api/hooks/after-po-updated.hook";
 import { afterPqDraftSaved } from "@/modules/intercompany/api/hooks/after-pq-saved.hook";
+import { afterPqUpdated } from "@/modules/intercompany/api/hooks/after-pq-updated.hook";
 import { getIcHealth } from "@/modules/intercompany/api/ic.controller";
 import type { Request, Response } from "express";
 
@@ -9,6 +11,16 @@ describe("IC hooks + health", () => {
   it("afterPqDraftSaved accepts immediately (IC background; never throws)", async () => {
     const result = await afterPqDraftSaved({ cardCode: "V", dbName: "DB_A", docEntry: 1 });
     expect(result).toMatchObject({ flow: "flow1", status: "accepted" });
+  });
+
+  it("afterPqUpdated accepts immediately as edit sync (not Flow 1)", async () => {
+    const result = await afterPqUpdated({ cardCode: "V", dbName: "DB_A", docEntry: 1 });
+    expect(result).toMatchObject({ flow: "edit", status: "accepted" });
+  });
+
+  it("afterPoUpdated accepts immediately as edit sync (not Flow 2)", async () => {
+    const result = await afterPoUpdated({ cardCode: "V", dbName: "DB_A", docEntry: 1 });
+    expect(result).toMatchObject({ flow: "edit", status: "accepted" });
   });
 
   it("afterPoCreated draft still runs via background accept (never throws)", async () => {

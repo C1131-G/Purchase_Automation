@@ -1,36 +1,34 @@
 import { logger } from "@/core/logger/pino-logger";
 import {
-  createFlow1Orchestrator,
-  type Flow1Orchestrator,
-} from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/flow-1.orchestrator";
+  createPqEditSyncService,
+  type PqEditSyncService,
+} from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/01-pq-capture/pq-edit-sync.service";
 import { acceptedResult, type IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
 import type { IcPqDraftHookInput } from "@/modules/intercompany/flows/shared/flow.types";
 import { scheduleIcBackground } from "@/modules/intercompany/infrastructure/schedule-ic-background";
 
-export type AfterPqSavedOptions = {
+export type AfterPqUpdatedOptions = {
   /**
-   * When true (default), schedule Flow 1 off the request so PQ create/update
-   * returns as soon as SAP save succeeds. Set false in unit tests that assert
-   * the orchestrator outcome synchronously.
+   * When true (default), schedule IC edit sync off the request so PQ update
+   * returns as soon as SAP save succeeds. Set false in unit tests.
    */
   runInBackground?: boolean;
 };
 
 /**
- * Flow 1 entry after real PQ create (not SAP ODRF draft; updates use afterPqUpdated).
- * Never throws — portal PQ save must remain successful when IC fails.
- * By default IC completes in the background after the main document response.
+ * IC edit sync after real PQ update. Not Flow 1 create.
+ * Never throws — portal PQ update must remain successful when IC fails.
  */
-export const createAfterPqSaved = (
-  orchestrator: Flow1Orchestrator = createFlow1Orchestrator(),
-  options: AfterPqSavedOptions = {},
+export const createAfterPqUpdated = (
+  sync: PqEditSyncService = createPqEditSyncService(),
+  options: AfterPqUpdatedOptions = {},
 ) => {
   const runInBackground = options.runInBackground !== false;
 
   return async (input: IcPqDraftHookInput): Promise<IcHookResult> => {
     if (!runInBackground) {
       try {
-        return await orchestrator.run(input);
+        return await sync.sync(input);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         logger.error({
@@ -38,8 +36,8 @@ export const createAfterPqSaved = (
           dbName: input.dbName,
           docEntry: input.docEntry,
           err: err instanceof Error ? err : new Error(message),
-          msg: "afterPqSaved unexpected throw; swallowed",
-          scope: "ic.hook.after_pq_saved",
+          msg: "afterPqUpdated unexpected throw; swallowed",
+          scope: "ic.hook.after_pq_updated",
         });
         return {
           message: message.slice(0, 2000),
@@ -54,12 +52,12 @@ export const createAfterPqSaved = (
         dbName: input.dbName,
         docEntry: input.docEntry,
         docNum: input.docNum,
-        flow: "flow1",
-        hook: "afterPqSaved",
+        flow: "edit",
+        hook: "afterPqUpdated",
       },
       async () => {
         try {
-          return await orchestrator.run(input);
+          return await sync.sync(input);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           logger.error({
@@ -67,8 +65,8 @@ export const createAfterPqSaved = (
             dbName: input.dbName,
             docEntry: input.docEntry,
             err: err instanceof Error ? err : new Error(message),
-            msg: "afterPqSaved background unexpected throw; swallowed",
-            scope: "ic.hook.after_pq_saved",
+            msg: "afterPqUpdated background unexpected throw; swallowed",
+            scope: "ic.hook.after_pq_updated",
           });
           return {
             message: message.slice(0, 2000),
@@ -78,11 +76,8 @@ export const createAfterPqSaved = (
       },
     );
 
-    return acceptedResult("flow1");
+    return acceptedResult("edit", "Intercompany edit sync started in background");
   };
 };
 
-export const afterPqSaved = createAfterPqSaved();
-
-/** @deprecated Prefer `afterPqSaved` — same hook (real PQ path, not ODRF). */
-export const afterPqDraftSaved = afterPqSaved;
+export const afterPqUpdated = createAfterPqUpdated();

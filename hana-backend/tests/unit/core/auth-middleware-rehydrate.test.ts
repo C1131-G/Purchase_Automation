@@ -3,11 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const isSessionValid = vi.fn();
 const rehydrateFromPortalSession = vi.fn();
+const ensureSessionCredentials = vi.fn();
+const getSession = vi.fn();
 
 vi.mock("@/services/service-layer.service", () => ({
   serviceLayerClient: {
     isSessionValid,
     rehydrateFromPortalSession,
+    ensureSessionCredentials,
+    getSession,
   },
 }));
 
@@ -21,6 +25,10 @@ describe("validateSession SAP rehydrate", () => {
     vi.resetModules();
     isSessionValid.mockReset();
     rehydrateFromPortalSession.mockReset();
+    ensureSessionCredentials.mockReset();
+    getSession.mockReset();
+    ensureSessionCredentials.mockResolvedValue(undefined);
+    getSession.mockReturnValue(null);
   });
 
   const run = async () => {
@@ -41,9 +49,9 @@ describe("validateSession SAP rehydrate", () => {
         user: { dbName: "AJAX_POS_DB", userName: "Ajax User" },
       },
     } as unknown as Request;
-    const res = { clearCookie, json, status } as unknown as Response;
+    const res = { clearCookie, end: vi.fn(), json, status } as unknown as Response;
     await validateSession(req, res, next);
-    return { clearCookie, destroy, json, next, req, status };
+    return { clearCookie, destroy, json, next, req, res, status };
   };
 
   it("rehydrates the SAP cookie instead of logging the user out", async () => {
@@ -60,6 +68,7 @@ describe("validateSession SAP rehydrate", () => {
     });
     expect(destroy).not.toHaveBeenCalled();
     expect(status).not.toHaveBeenCalled();
+    expect(ensureSessionCredentials).toHaveBeenCalledWith("sap-1");
     expect(next).toHaveBeenCalledOnce();
   });
 
@@ -73,5 +82,25 @@ describe("validateSession SAP rehydrate", () => {
     expect(clearCookie).toHaveBeenCalledWith("vendorportal.sid");
     expect(status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it("writes a refreshed SAP cookie back onto the Express session before the response ends", async () => {
+    isSessionValid.mockReturnValue(true);
+    getSession.mockReturnValue({
+      cookieString: "B1SESSION=fresh",
+      username: "sl-manager",
+    });
+
+    const { next, req, res } = await run();
+    expect(next).toHaveBeenCalledOnce();
+    expect(req.session.sapCookie).toBe("B1SESSION=fresh");
+    expect(req.session.slUsername).toBe("sl-manager");
+
+    getSession.mockReturnValue({
+      cookieString: "B1SESSION=after-refresh",
+      username: "sl-manager",
+    });
+    (res.end as unknown as () => void)();
+    expect(req.session.sapCookie).toBe("B1SESSION=after-refresh");
   });
 });

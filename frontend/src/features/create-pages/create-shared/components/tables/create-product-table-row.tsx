@@ -33,6 +33,7 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { parseDocumentLineQuantity } from "@/features/create-pages/create-shared/utils/document-line-quantity";
 
 type CalendarWithBoundsProps = ComponentProps<typeof Calendar> & {
   minDate?: Date | undefined;
@@ -234,7 +235,6 @@ export function CreateProductTableRow({
   showReturnReason = false,
   nativeReturnReason = false,
   maxQuantity,
-  linkedRow = false,
   warehouseError,
   showUom = false,
   uoms = [],
@@ -432,13 +432,6 @@ export function CreateProductTableRow({
     }
     return maxQuantity;
   }, [maxQuantity, row]);
-
-  const effectiveLinkedRow = React.useMemo(() => {
-    if (typeof linkedRow === "function") {
-      return linkedRow(row);
-    }
-    return linkedRow;
-  }, [linkedRow, row]);
 
   const syncDropdownPosition = React.useCallback(() => {
     const rect = warehouseInputRef.current?.getBoundingClientRect();
@@ -1154,12 +1147,16 @@ export function CreateProductTableRow({
           <td className="min-w-0 px-2 py-2">
             <input
               type="number"
-              min={0}
+              min={1}
               step={1}
               value={
                 rowDraft?.requiredQuantity !== undefined
                   ? rowDraft.requiredQuantity
-                  : String(row.requiredQuantity ?? 0)
+                  : String(
+                      parseDocumentLineQuantity(String(row.requiredQuantity ?? 1), {
+                        integer: true,
+                      }),
+                    )
               }
               readOnly={snapshotLocked}
               onClick={() => {
@@ -1177,8 +1174,7 @@ export function CreateProductTableRow({
                 if (snapshotLocked) {
                   return;
                 }
-                const rawValue = event.target.value.trim();
-                const next = rawValue === "" ? 0 : Math.max(0, Math.trunc(Number(rawValue) || 0));
+                const next = parseDocumentLineQuantity(event.target.value, { integer: true });
                 updateProductRow(row.id, { requiredQuantity: next });
                 clearProductRowDraft(row.id, "requiredQuantity");
               }}
@@ -1190,9 +1186,9 @@ export function CreateProductTableRow({
             {sellerFieldEditable ? (
               <input
                 type="number"
-                min={0}
+                min={1}
                 step="any"
-                placeholder="0"
+                placeholder="1"
                 aria-invalid={lineFieldInvalid?.quantity === true}
                 value={
                   rowDraft?.quantity !== undefined
@@ -1205,8 +1201,7 @@ export function CreateProductTableRow({
                   setProductRowDraft(row.id, "quantity", event.target.value);
                 }}
                 onBlur={(event) => {
-                  const rawValue = event.target.value.trim();
-                  const next = rawValue === "" ? 0 : Math.max(0, Number(rawValue) || 0);
+                  const next = parseDocumentLineQuantity(event.target.value);
                   const newGross = row.price * next;
                   const newDiscountAmount =
                     Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
@@ -1223,9 +1218,9 @@ export function CreateProductTableRow({
             ) : (
               <input
                 type="number"
-                min={0}
+                min={1}
                 step={1}
-                placeholder="0"
+                placeholder="1"
                 value={row.quantity > 0 ? String(row.quantity) : ""}
                 disabled
                 readOnly
@@ -1250,7 +1245,11 @@ export function CreateProductTableRow({
                 min={1}
                 step={1}
                 value={
-                  rowDraft?.quantity !== undefined ? rowDraft.quantity : String(row.quantity ?? 0)
+                  rowDraft?.quantity !== undefined
+                    ? rowDraft.quantity
+                    : String(
+                        parseDocumentLineQuantity(String(row.quantity ?? 1), { integer: true }),
+                      )
                 }
                 readOnly={effectiveDisableInputs}
                 onClick={() => {
@@ -1269,31 +1268,9 @@ export function CreateProductTableRow({
                     return;
                   }
                   const rawValue = event.target.value.trim();
-
-                  if (rawValue === "") {
-                    if (effectiveLinkedRow) {
-                      updateProductRow(row.id, { quantity: 1 });
-                      clearProductRowDraft(row.id, "quantity");
-                      return;
-                    }
-                    updateProductRow(row.id, { quantity: 0 });
-                    clearProductRowDraft(row.id, "quantity");
-                    return;
-                  }
-
-                  const typedQuantity = Number(rawValue);
-                  if (
-                    effectiveLinkedRow &&
-                    (typedQuantity === 0 || !Number.isFinite(typedQuantity))
-                  ) {
-                    updateProductRow(row.id, { quantity: 1 });
-                    clearProductRowDraft(row.id, "quantity");
-                    return;
-                  }
-
-                  const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
+                  const typedQuantityVal = parseDocumentLineQuantity(rawValue, { integer: true });
                   const clamped = row.warehouseCode
-                    ? Math.min(maxAllowed, typedQuantityVal)
+                    ? Math.max(1, Math.min(maxAllowed, typedQuantityVal))
                     : typedQuantityVal;
 
                   if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
@@ -1321,7 +1298,9 @@ export function CreateProductTableRow({
               min={1}
               step={1}
               value={
-                rowDraft?.quantity !== undefined ? rowDraft.quantity : String(row.quantity ?? 0)
+                rowDraft?.quantity !== undefined
+                  ? rowDraft.quantity
+                  : String(parseDocumentLineQuantity(String(row.quantity ?? 1), { integer: true }))
               }
               readOnly={effectiveDisableInputs}
               onClick={() => {
@@ -1339,30 +1318,9 @@ export function CreateProductTableRow({
                 if (effectiveDisableInputs) {
                   return;
                 }
-                const rawValue = event.target.value.trim();
-
-                if (rawValue === "") {
-                  if (effectiveLinkedRow) {
-                    updateProductRow(row.id, { quantity: 1 });
-                    clearProductRowDraft(row.id, "quantity");
-                    return;
-                  }
-                  updateProductRow(row.id, { quantity: 0 });
-                  clearProductRowDraft(row.id, "quantity");
-                  return;
-                }
-
-                const typedQuantity = Number(rawValue);
-                if (
-                  effectiveLinkedRow &&
-                  (typedQuantity === 0 || !Number.isFinite(typedQuantity))
-                ) {
-                  updateProductRow(row.id, { quantity: 1 });
-                  clearProductRowDraft(row.id, "quantity");
-                  return;
-                }
-
-                const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
+                const typedQuantityVal = parseDocumentLineQuantity(event.target.value, {
+                  integer: true,
+                });
 
                 if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
                   updateProductRow(row.id, { quantity: effectiveMaxQuantity });
@@ -1378,6 +1336,7 @@ export function CreateProductTableRow({
                   quantity: typedQuantityVal,
                   discountAmount: newDiscountAmount,
                 });
+                clearProductRowDraft(row.id, "quantity");
               }}
               className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
             />
@@ -1738,14 +1697,14 @@ export function CreateProductTableRow({
                   }
                   onOpenLotAllocation();
                 }}
-                className={`inline-flex h-9 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition ${
+                className={`inline-flex h-10 min-w-[6.5rem] items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition ${
                   lotAllocationError(row, lotRequired)
                     ? "border-red-300 bg-red-50 text-red-700"
                     : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50"
                 } ${effectiveDisableInputs ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
                 aria-label={`${lotButtonLabel(row)} numbers`}
               >
-                <Layers className="h-3.5 w-3.5" />
+                <Layers className="h-4 w-4" />
                 {lotButtonLabel(row)}
               </button>
             </Tooltip>
