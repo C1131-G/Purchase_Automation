@@ -68,6 +68,9 @@ import {
 } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
 import {
   firstRequiredLotError,
+  hydrateRowLotFields,
+  isLotManaged,
+  lotAllocationsSnapshot,
   lotFieldsFromProduct,
   sapLotFieldsFromRow,
 } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
@@ -263,10 +266,13 @@ export function useGRPOCreate({
   const persistLotNavigation = useCallback(() => {
     const lotSession = useGRPOLotSessionStore.getState();
     lotSession.setChrome(captureLotChrome());
-    lotSession.setDocLabel(grpoLotDocLabel({ draftDocNum }));
+    lotSession.setDocLabel(grpoLotDocLabel({ docNum: editDocNum, draftDocNum }));
     lotSession.setReturnTo({
       search: pickGrpoCreateSearch(locationSearch),
-      to: "/purchase/create-grpo",
+      to:
+        isEditMode && editDocNum
+          ? `/purchase/grpo/${encodeURIComponent(editDocNum)}/update`
+          : "/purchase/create-grpo",
     });
     setHeader({
       vendorCode: vendorCodeInput,
@@ -277,6 +283,8 @@ export function useGRPOCreate({
     billToAddress,
     buyerInput,
     draftDocNum,
+    editDocNum,
+    isEditMode,
     locationSearch,
     setHeader,
     shipToAddress,
@@ -548,6 +556,7 @@ export function useGRPOCreate({
         fileName: att.fileName,
         freeText: att.freeText || "",
       })),
+      lots: lotAllocationsSnapshot(rows),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
@@ -559,6 +568,7 @@ export function useGRPOCreate({
     billToAddress,
     shipToAddress,
     attachments,
+    rows,
   ]);
 
   const submitDisabled = isEditMode || Boolean(draftDocNum) ? !isDirty : false;
@@ -755,12 +765,19 @@ export function useGRPOCreate({
             selected: false,
           };
         });
-        setLines(
-          mappedLines.map((row) => {
-            const meta = productByCode.get(row.productCode);
-            return meta ? { ...row, ...lotFieldsFromProduct(meta) } : row;
-          }),
-        );
+        const hydratedRows = mappedLines.map((row, index) => {
+          const sapLine = detail.DocumentLines?.[index];
+          const lineNum = Number(sapLine?.LineNum);
+          return hydrateRowLotFields(
+            {
+              ...row,
+              lineNum: Number.isFinite(lineNum) ? lineNum : index,
+            },
+            productByCode.get(row.productCode),
+            sapLine,
+          );
+        });
+        setLines(hydratedRows);
         scheduleHydrateWarehouseStocks(
           queryClient,
           uniqueItemCodes,
@@ -816,6 +833,7 @@ export function useGRPOCreate({
             fileName: item.fileName,
             freeText: item.freeText || item.remarks || "",
           })),
+          lots: lotAllocationsSnapshot(hydratedRows),
         });
         setHydratedDocNum(currentDocNum);
       } finally {
@@ -997,12 +1015,19 @@ export function useGRPOCreate({
             selected: false,
           };
         });
-        setLines(
-          mappedLines.map((row) => {
-            const meta = productByCode.get(row.productCode);
-            return meta ? { ...row, ...lotFieldsFromProduct(meta) } : row;
-          }),
-        );
+        const hydratedRows = mappedLines.map((row, index) => {
+          const sapLine = detail.DocumentLines?.[index];
+          const lineNum = Number(sapLine?.LineNum);
+          return hydrateRowLotFields(
+            {
+              ...row,
+              lineNum: Number.isFinite(lineNum) ? lineNum : index,
+            },
+            productByCode.get(row.productCode),
+            sapLine,
+          );
+        });
+        setLines(hydratedRows);
         scheduleHydrateWarehouseStocks(
           queryClient,
           uniqueItemCodes,
@@ -1054,6 +1079,7 @@ export function useGRPOCreate({
             fileName: item.fileName,
             freeText: item.freeText || item.remarks || "",
           })),
+          lots: lotAllocationsSnapshot(hydratedRows),
         });
 
         if (isMetadataLoaded) {
@@ -2183,6 +2209,31 @@ export function useGRPOCreate({
             freeText: att.freeText || "",
             attachmentDate: att.attachmentDate || "",
           })),
+          ...(filteredRows.some((row) => isLotManaged(row))
+            ? {
+                DocumentLines: filteredRows.map((row) => ({
+                  LineNum: row.lineNum,
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: row.quantity,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                  ...(Number.isFinite(row.baseEntry) &&
+                  Number.isFinite(row.baseLine) &&
+                  Number.isFinite(row.baseType)
+                    ? {
+                        BaseEntry: row.baseEntry,
+                        BaseLine: row.baseLine,
+                        BaseType: row.baseType,
+                      }
+                    : {}),
+                  ...sapLotFieldsFromRow(row),
+                })),
+              }
+            : {}),
         }
       : {
           Address: billToAddress.trim() || undefined,
@@ -2320,7 +2371,7 @@ export function useGRPOCreate({
         return;
       }
 
-      if (isEditMode && !isDirty && !continueSubmit) {
+      if (isEditMode && !isDirty && !continueSubmit && !firstRequiredLotError(filteredRows)) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
         return;
@@ -2342,11 +2393,14 @@ export function useGRPOCreate({
     if (lotIntercept.type === "open-modal") {
       lotSession.start({
         chrome: captureLotChrome(),
-        docLabel: grpoLotDocLabel({ draftDocNum }),
+        docLabel: grpoLotDocLabel({ docNum: editDocNum, draftDocNum }),
         pendingAction: action,
         returnTo: {
           search: pickGrpoCreateSearch(locationSearch),
-          to: "/purchase/create-grpo",
+          to:
+            isEditMode && editDocNum
+              ? `/purchase/grpo/${encodeURIComponent(editDocNum)}/update`
+              : "/purchase/create-grpo",
         },
       });
       setHeader({
@@ -2465,6 +2519,7 @@ export function useGRPOCreate({
               fileName: item.fileName,
               freeText: item.freeText || item.remarks || "",
             })),
+            lots: lotAllocationsSnapshot(rows),
           });
         }
       } else {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { attachSapLotCollections } from "@/services/sap-line-lots";
+import { attachSapLotCollections, pickSapLotCollections } from "@/services/sap-line-lots";
 
 describe("attachSapLotCollections", () => {
   it("copies batch and serial collections onto the Service Layer line", () => {
@@ -31,5 +31,19 @@ describe("attachSapLotCollections", () => {
     attachSapLotCollections(docLine, { BatchNumbers: [], SerialNumbers: [] });
     expect(docLine.BatchNumbers).toBeUndefined();
     expect(docLine.SerialNumbers).toBeUndefined();
+  });
+});
+
+describe("pickSapLotCollections", () => {
+  it("returns only nonempty lot collections from a Service Layer line", () => {
+    expect(
+      pickSapLotCollections({
+        ItemCode: "SKU-1",
+        BatchNumbers: [{ BatchNumber: "B01", Quantity: 2 }],
+        SerialNumbers: [],
+      }),
+    ).toEqual({
+      BatchNumbers: [{ BatchNumber: "B01", Quantity: 2 }],
+    });
   });
 });

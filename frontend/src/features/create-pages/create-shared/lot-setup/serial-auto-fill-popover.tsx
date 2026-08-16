@@ -26,6 +26,7 @@ interface SerialAutoFillPopoverProps {
   count: number;
   disabled?: boolean;
   onFill: (input: SerialAutoFillForm) => boolean;
+  title?: string;
 }
 
 function panelStyleFromRect(rect: DOMRect, height: number): CSSProperties {
@@ -130,6 +131,7 @@ export function SerialAutoFillPopover({
   count,
   disabled = false,
   onFill,
+  title = "Auto fill serials",
 }: SerialAutoFillPopoverProps) {
   const titleId = useId();
   const dialogId = useId();
@@ -265,7 +267,7 @@ export function SerialAutoFillPopover({
               style={panelStyle}
             >
               <h2 className="text-sm font-semibold text-ink-900" id={titleId}>
-                Auto fill serials
+                {title}
               </h2>
               <div className="mt-3 flex flex-col gap-2.5">
                 {parts.map((part, index) => (

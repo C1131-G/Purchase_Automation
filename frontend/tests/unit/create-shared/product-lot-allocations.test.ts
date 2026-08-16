@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
   firstRequiredLotError,
+  hydrateRowLotFields,
   isAlphanumericLotNumber,
   lotAllocationError,
+  lotAllocationsFromSapLine,
   lotFieldsFromProduct,
   sanitizeLotNumberInput,
   sapLotFieldsFromRow,
@@ -132,5 +134,45 @@ describe("firstRequiredLotError", () => {
         baseRow({ id: "row-2", manBtchNum: "Y" }),
       ]),
     ).toMatch(/Enter batch numbers/);
+  });
+});
+
+describe("lotAllocationsFromSapLine", () => {
+  it("maps SAP batch and serial collections onto row allocations", () => {
+    expect(
+      lotAllocationsFromSapLine({
+        BatchNumbers: [{ BatchNumber: "B-01", Quantity: 4, ExpiryDate: "2026-12-31T00:00:00Z" }],
+        DocumentLinesBinAllocations: [
+          { BinAbsEntry: 12, Quantity: 4, SerialAndBatchNumbersBaseLine: 0 },
+        ],
+      }),
+    ).toEqual({
+      batchNumbers: [
+        { batchNumber: "B-01", binAbsEntry: 12, expiryDate: "2026-12-31", quantity: 4 },
+      ],
+      serialNumbers: [],
+    });
+    expect(
+      lotAllocationsFromSapLine({
+        SerialNumbers: [{ InternalSerialNumber: "SN-1", ManufacturerSerialNumber: "M-1" }],
+      }),
+    ).toEqual({
+      batchNumbers: [],
+      serialNumbers: [
+        { internalSerialNumber: "SN-1", manufacturerSerialNumber: "M-1", quantity: 1 },
+      ],
+    });
+  });
+});
+
+describe("hydrateRowLotFields", () => {
+  it("keeps SAP lots and product batch/serial flags", () => {
+    const hydrated = hydrateRowLotFields(
+      baseRow({ productCode: "BAT-1" }),
+      { manBtchNum: "Y", manSerNum: "N" },
+      { BatchNumbers: [{ BatchNumber: "14082026", Quantity: 2 }] },
+    );
+    expect(hydrated.manBtchNum).toBe("Y");
+    expect(hydrated.batchNumbers).toEqual([{ batchNumber: "14082026", quantity: 2 }]);
   });
 });

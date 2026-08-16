@@ -190,8 +190,8 @@ export function GRPOProductSection({
           showExplicitZeroDiscount={true}
           showTaxCode
           taxSide="purchase"
-          lotRequired={!isEditMode}
-          {...(!isEditMode && onOpenLotPage ? { onOpenLotPage } : {})}
+          lotRequired={true}
+          {...(onOpenLotPage ? { onOpenLotPage } : {})}
           warehouseErrors={warehouseErrors}
           showUom={true}
         />

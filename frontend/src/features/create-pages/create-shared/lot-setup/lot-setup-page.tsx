@@ -127,6 +127,7 @@ export function LotSetupPage({ kind, selectedRowId }: LotSetupPageProps) {
             <CreatedBatchesTable
               binRequired={setup.binRequired}
               onAddSplit={setup.splitActiveBatch}
+              onAutoFill={setup.applyActiveBatchAutoFill}
               onChange={setup.updateActiveBatch}
               onRemove={setup.removeActiveBatch}
               row={setup.activeRow}

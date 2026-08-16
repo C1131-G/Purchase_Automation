@@ -129,6 +129,7 @@ const GRPOLineItemSchema = z.object({
   BaseType: z.number().optional(), // SAP Object Type (e.g., 22 for PO).
   DiscountPercent: z.number().min(0).max(100).optional(),
   ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
+  LineNum: z.coerce.number().int().nonnegative().optional(),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(),
   UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),

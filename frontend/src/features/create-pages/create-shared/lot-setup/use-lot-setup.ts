@@ -6,6 +6,7 @@ import type { LotSetupKind } from "@/features/create-pages/create-shared/lot-set
 import {
   addBatchSplitRow,
   addSerialSplitRow,
+  applyBatchAutoFill,
   applySerialAutoFill,
   buildSerialAutoFillNumbers,
   createdQtyForKind,
@@ -353,6 +354,22 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setSerials],
   );
 
+  const applyActiveBatchAutoFill = useCallback(
+    (input: Omit<SerialAutoFillInput, "count">) => {
+      if (!activeRow) {
+        return false;
+      }
+      const batches = activeRow.batchNumbers ?? [];
+      const numbers = buildSerialAutoFillNumbers({ ...input, count: batches.length });
+      if (numbers.length !== batches.length) {
+        return false;
+      }
+      setBatches(activeRow.id, applyBatchAutoFill(batches, numbers));
+      return true;
+    },
+    [activeRow, setBatches],
+  );
+
   const pageError = useMemo(() => {
     for (const row of documentRows) {
       const required = warehouseBinEnabled.get(row.warehouseCode.trim()) === true;
@@ -373,6 +390,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   return {
     activeRow,
     activeRowId,
+    applyActiveBatchAutoFill,
     applyActiveSerialAutoFill,
     binRequired,
     docLabel: docLabel || "New",

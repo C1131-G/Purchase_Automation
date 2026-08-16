@@ -3,7 +3,11 @@ import { Plus, Split, Trash2 } from "lucide-react";
 import { LotBinCell } from "@/features/create-pages/create-shared/lot-setup/lot-bin-cell";
 import { LotExpiryDateCell } from "@/features/create-pages/create-shared/lot-setup/lot-expiry-date-cell";
 import { LotQtyInput } from "@/features/create-pages/create-shared/lot-setup/lot-qty-input";
-import { lineNeededQty } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
+import {
+  lineNeededQty,
+  type SerialAutoFillInput,
+} from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
+import { SerialAutoFillPopover } from "@/features/create-pages/create-shared/lot-setup/serial-auto-fill-popover";
 import type {
   ProductBatchAllocation,
   ProductRow,
@@ -13,6 +17,7 @@ import { allocatedBatchQuantity } from "@/features/create-pages/create-shared/ut
 interface CreatedBatchesTableProps {
   binRequired: boolean;
   onAddSplit: () => void;
+  onAutoFill: (input: Omit<SerialAutoFillInput, "count">) => boolean;
   onChange: (index: number, patch: Partial<ProductBatchAllocation>) => void;
   onRemove: (index: number) => void;
   row: ProductRow | null;
@@ -21,6 +26,7 @@ interface CreatedBatchesTableProps {
 export function CreatedBatchesTable({
   binRequired,
   onAddSplit,
+  onAutoFill,
   onChange,
   onRemove,
   row,
@@ -139,20 +145,28 @@ export function CreatedBatchesTable({
                 ? `${remaining} still open — split to add`
                 : null}
         </p>
-        <button
-          aria-label={splitLabel}
-          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-3 text-xs font-semibold text-teal-800 shadow-sm transition hover:border-teal-400 hover:bg-teal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:border-linen-200 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none"
-          disabled={!canSplit}
-          onClick={onAddSplit}
-          type="button"
-        >
-          {batches.length === 0 ? (
-            <Plus aria-hidden className="h-3.5 w-3.5" />
-          ) : (
-            <Split aria-hidden className="h-3.5 w-3.5" />
-          )}
-          {splitLabel}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <SerialAutoFillPopover
+            count={batches.length}
+            disabled={!row || batches.length === 0}
+            onFill={onAutoFill}
+            title="Auto fill batches"
+          />
+          <button
+            aria-label={splitLabel}
+            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-3 text-xs font-semibold text-teal-800 shadow-sm transition hover:border-teal-400 hover:bg-teal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:border-linen-200 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none"
+            disabled={!canSplit}
+            onClick={onAddSplit}
+            type="button"
+          >
+            {batches.length === 0 ? (
+              <Plus aria-hidden className="h-3.5 w-3.5" />
+            ) : (
+              <Split aria-hidden className="h-3.5 w-3.5" />
+            )}
+            {splitLabel}
+          </button>
+        </div>
       </div>
     </div>
   );

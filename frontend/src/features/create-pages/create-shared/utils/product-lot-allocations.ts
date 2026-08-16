@@ -232,3 +232,147 @@ export const lotButtonLabel = (row: Pick<ProductRow, "manBtchNum" | "manSerNum">
   }
   return "";
 };
+
+const sapIsoDate = (value: unknown): string | undefined => {
+  const text = String(value ?? "")
+    .trim()
+    .slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : undefined;
+};
+
+const sapBinByIndex = (
+  line: Record<string, unknown>,
+): Map<number, { binAbsEntry: number; quantity: number }> => {
+  const raw = line.DocumentLinesBinAllocations;
+  const bins = new Map<number, { binAbsEntry: number; quantity: number }>();
+  if (!Array.isArray(raw)) {
+    return bins;
+  }
+  for (const item of raw) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const index = Number(record.SerialAndBatchNumbersBaseLine);
+    const binAbsEntry = Number(record.BinAbsEntry);
+    const quantity = Number(record.Quantity);
+    if (!Number.isFinite(index) || index < 0) {
+      continue;
+    }
+    if (!Number.isFinite(binAbsEntry) || binAbsEntry <= 0) {
+      continue;
+    }
+    bins.set(index, {
+      binAbsEntry: Math.trunc(binAbsEntry),
+      quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+    });
+  }
+  return bins;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+
+/** Map Service Layer batch/serial collections onto create-page allocations. */
+export const lotAllocationsFromSapLine = (
+  line: unknown,
+): {
+  batchNumbers: ProductBatchAllocation[];
+  serialNumbers: ProductSerialAllocation[];
+} => {
+  const record = asRecord(line);
+  if (!record) {
+    return { batchNumbers: [], serialNumbers: [] };
+  }
+  const bins = sapBinByIndex(record);
+  const rawBatches = record.BatchNumbers;
+  const batchNumbers: ProductBatchAllocation[] = [];
+  if (Array.isArray(rawBatches)) {
+    for (const [index, item] of rawBatches.entries()) {
+      const batch = asRecord(item);
+      if (!batch) {
+        continue;
+      }
+      const batchNumber = String(batch.BatchNumber ?? batch.batchNumber ?? "").trim();
+      const quantity = Number(batch.Quantity ?? batch.quantity);
+      if (!batchNumber || !Number.isFinite(quantity) || quantity <= 0) {
+        continue;
+      }
+      const bin = bins.get(index);
+      const admissionDate = sapIsoDate(batch.AddmisionDate ?? batch.AdmissionDate);
+      const expiryDate = sapIsoDate(batch.ExpiryDate);
+      const manufacturingDate = sapIsoDate(batch.ManufacturingDate);
+      const notes = String(batch.Notes ?? "").trim();
+      batchNumbers.push({
+        batchNumber,
+        quantity,
+        ...(bin ? { binAbsEntry: bin.binAbsEntry } : {}),
+        ...(admissionDate ? { admissionDate } : {}),
+        ...(expiryDate ? { expiryDate } : {}),
+        ...(manufacturingDate ? { manufacturingDate } : {}),
+        ...(notes ? { notes } : {}),
+      });
+    }
+  }
+
+  const rawSerials = record.SerialNumbers;
+  const serialNumbers: ProductSerialAllocation[] = [];
+  if (Array.isArray(rawSerials)) {
+    for (const [index, item] of rawSerials.entries()) {
+      const serial = asRecord(item);
+      if (!serial) {
+        continue;
+      }
+      const internalSerialNumber = String(
+        serial.InternalSerialNumber ?? serial.internalSerialNumber ?? "",
+      ).trim();
+      if (!internalSerialNumber) {
+        continue;
+      }
+      const bin = bins.get(index);
+      const manufacturer = String(
+        serial.ManufacturerSerialNumber ?? serial.manufacturerSerialNumber ?? "",
+      ).trim();
+      serialNumbers.push({
+        internalSerialNumber,
+        quantity: 1,
+        ...(bin ? { binAbsEntry: bin.binAbsEntry } : {}),
+        ...(sapIsoDate(serial.ExpiryDate) ? { expiryDate: sapIsoDate(serial.ExpiryDate) } : {}),
+        ...(manufacturer ? { manufacturerSerialNumber: manufacturer } : {}),
+      });
+    }
+  }
+
+  return { batchNumbers, serialNumbers };
+};
+
+export const hydrateRowLotFields = (
+  row: ProductRow,
+  product: Pick<ProductLookupItem, "manBtchNum" | "manSerNum"> | undefined,
+  sapLine?: unknown,
+): ProductRow => {
+  const flags = product
+    ? lotFieldsFromProduct(product)
+    : {
+        batchNumbers: row.batchNumbers ?? [],
+        manBtchNum: row.manBtchNum,
+        manSerNum: row.manSerNum,
+        serialNumbers: row.serialNumbers ?? [],
+      };
+  const fromSap = lotAllocationsFromSapLine(sapLine);
+  return {
+    ...row,
+    ...flags,
+    batchNumbers: fromSap.batchNumbers.length > 0 ? fromSap.batchNumbers : flags.batchNumbers,
+    serialNumbers: fromSap.serialNumbers.length > 0 ? fromSap.serialNumbers : flags.serialNumbers,
+  };
+};
+
+export const lotAllocationsSnapshot = (rows: ProductRow[]): string =>
+  JSON.stringify(
+    rows.map((row) => ({
+      batchNumbers: row.batchNumbers ?? [],
+      id: row.id,
+      serialNumbers: row.serialNumbers ?? [],
+    })),
+  );

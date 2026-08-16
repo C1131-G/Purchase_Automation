@@ -98,6 +98,9 @@ export interface GRPODetailLine {
   BaseLine?: number;
   BaseType?: number;
   LineNum?: number;
+  BatchNumbers?: Array<Record<string, unknown>>;
+  SerialNumbers?: Array<Record<string, unknown>>;
+  DocumentLinesBinAllocations?: Array<Record<string, unknown>>;
 }
 
 export interface GRPODetail {

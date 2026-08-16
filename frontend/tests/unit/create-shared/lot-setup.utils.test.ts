@@ -4,6 +4,7 @@ import type { ProductRow } from "@/features/create-pages/create-shared/utils/cre
 import {
   addBatchSplitRow,
   addSerialSplitRow,
+  applyBatchAutoFill,
   applySerialAutoFill,
   buildSerialAutoFillNumbers,
   compactDateStamp,
@@ -217,6 +218,16 @@ describe("serial seed", () => {
     expect(filled.every((item) => item.quantity === 1)).toBe(true);
   });
 
+  it("writes auto-fill numbers onto existing batch rows without changing qty", () => {
+    const batches = [
+      { batchNumber: "14082026", quantity: 6 },
+      { batchNumber: "14082026B2", quantity: 4 },
+    ];
+    const filled = applyBatchAutoFill(batches, ["abc-1", "abc-2"]);
+    expect(filled.map((item) => item.batchNumber)).toEqual(["abc-1", "abc-2"]);
+    expect(filled.map((item) => item.quantity)).toEqual([6, 4]);
+  });
+
   it("adds one empty serial only when below needed qty", () => {
     const first = seedSerialAllocations(row({ manSerNum: "Y", quantity: 2 }), 0, "2026-08-14");
     expect(addSerialSplitRow(first, 0, "2026-08-14", null, 2)).toHaveLength(2);
@@ -351,13 +362,13 @@ describe("lot page routing", () => {
 });
 
 describe("GRPO create save actions open lot setup", () => {
-  it("Save New, View, Close, and Draft trigger lot setup on create only", () => {
+  it("Save New, View, Close, Draft, and Update can open lot setup on create and edit", () => {
     expect(GRPO_CREATE_LOT_ACTIONS).toEqual(["save-new", "view", "close", "draft"]);
     for (const action of GRPO_CREATE_LOT_ACTIONS) {
       expect(shouldOpenGrpoLotSetup(false, action)).toBe(true);
-      expect(shouldOpenGrpoLotSetup(true, action)).toBe(false);
+      expect(shouldOpenGrpoLotSetup(true, action)).toBe(true);
     }
-    expect(shouldOpenGrpoLotSetup(false, "update")).toBe(false);
-    expect(shouldOpenGrpoLotSetup(true, "update")).toBe(false);
+    expect(shouldOpenGrpoLotSetup(false, "update")).toBe(true);
+    expect(shouldOpenGrpoLotSetup(true, "update")).toBe(true);
   });
 });

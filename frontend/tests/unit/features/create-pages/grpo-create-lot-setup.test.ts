@@ -77,7 +77,7 @@ describe("GRPO create batch/serial intercept", () => {
     ).toEqual({ type: "submit" });
   });
 
-  it("does not open lot setup on GRPO edit Update", () => {
+  it("opens lot setup on GRPO edit when batch or serial numbers are missing", () => {
     expect(
       resolveGrpoLotIntercept({
         action: "update",
@@ -85,20 +85,36 @@ describe("GRPO create batch/serial intercept", () => {
         isEditMode: true,
         rows: mixedCreateLines(),
       }),
-    ).toEqual({ type: "submit" });
+    ).toEqual({ kind: "serials", rowId: "serial-1", type: "open-modal" });
   });
 
-  it("does not open lot setup on edit even if a create action name is passed", () => {
-    for (const action of GRPO_CREATE_LOT_ACTIONS) {
-      expect(
-        resolveGrpoLotIntercept({
-          action,
-          confirmed: noneConfirmed,
-          isEditMode: true,
-          rows: mixedCreateLines(),
-        }),
-      ).toEqual({ type: "submit" });
-    }
+  it("submits GRPO edit Update when existing lots are already valid", () => {
+    expect(
+      resolveGrpoLotIntercept({
+        action: "update",
+        confirmed: noneConfirmed,
+        isEditMode: true,
+        rows: [
+          row({
+            id: "serial-1",
+            manSerNum: "Y",
+            productCode: "SER-1",
+            quantity: 2,
+            serialNumbers: [
+              { internalSerialNumber: "SN-1", quantity: 1 },
+              { internalSerialNumber: "SN-2", quantity: 1 },
+            ],
+          }),
+          row({
+            id: "batch-1",
+            manBtchNum: "Y",
+            productCode: "BAT-1",
+            quantity: 10,
+            batchNumbers: [{ batchNumber: "14082026", quantity: 10 }],
+          }),
+        ],
+      }),
+    ).toEqual({ type: "submit" });
   });
 });
 

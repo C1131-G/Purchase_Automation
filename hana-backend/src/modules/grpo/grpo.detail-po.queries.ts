@@ -8,6 +8,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { pickSapLotCollections } from "@/services/sap-line-lots";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
@@ -142,6 +143,7 @@ export const getGRPO = async (sessionId: string, id: string, isDraft = false) =>
 
       return {
         ...normalized,
+        ...pickSapLotCollections(lineData),
         OpenQty: Number(
           lineData.OpenQuantity ??
             lineData.RemainingOpenQuantity ??

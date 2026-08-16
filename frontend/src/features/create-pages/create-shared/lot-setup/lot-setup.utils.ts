@@ -6,6 +6,7 @@ import type {
 import {
   allocatedBatchQuantity,
   allocatedSerialCount,
+  firstRequiredLotError,
   isBatchManaged,
   isSerialManaged,
   lotAllocationError,
@@ -422,6 +423,18 @@ export const applySerialAutoFill = (
     return { ...serial, internalSerialNumber: number, quantity: 1 };
   });
 
+export const applyBatchAutoFill = (
+  batches: ProductBatchAllocation[],
+  numbers: string[],
+): ProductBatchAllocation[] =>
+  batches.map((batch, index) => {
+    const number = numbers[index];
+    if (!number) {
+      return batch;
+    }
+    return { ...batch, batchNumber: number };
+  });
+
 export const addSerialSplitRow = (
   serials: ProductSerialAllocation[],
   _lineIndex: number,
@@ -544,10 +557,13 @@ export const grpoCreateReturnTarget = (
   to: "/purchase/create-grpo",
 });
 
-export const grpoLotDocLabel = (input: { draftDocNum?: string | undefined }): string => {
-  const draft = String(input.draftDocNum ?? "").trim();
-  if (draft) {
-    return draft;
+export const grpoLotDocLabel = (input: {
+  docNum?: string | undefined;
+  draftDocNum?: string | undefined;
+}): string => {
+  const labeled = String(input.docNum ?? input.draftDocNum ?? "").trim();
+  if (labeled) {
+    return labeled;
   }
   return "New";
 };
@@ -577,8 +593,8 @@ export const shouldPreserveGrpoCreateDraft = (input: {
 
 export const GRPO_CREATE_LOT_ACTIONS = ["save-new", "view", "close", "draft"] as const;
 
-export const shouldOpenGrpoLotSetup = (isEditMode: boolean, action: string): boolean =>
-  !isEditMode && (GRPO_CREATE_LOT_ACTIONS as readonly string[]).includes(action);
+export const shouldOpenGrpoLotSetup = (_isEditMode: boolean, action: string): boolean =>
+  (GRPO_CREATE_LOT_ACTIONS as readonly string[]).includes(action) || action === "update";
 
 export const resolveGrpoLotIntercept = (input: {
   action: string;
@@ -587,6 +603,9 @@ export const resolveGrpoLotIntercept = (input: {
   rows: ProductRow[];
 }): { kind: LotSetupKind; rowId?: string | undefined; type: "open-modal" } | { type: "submit" } => {
   if (!shouldOpenGrpoLotSetup(input.isEditMode, input.action)) {
+    return { type: "submit" };
+  }
+  if (input.isEditMode && firstRequiredLotError(input.rows) === null) {
     return { type: "submit" };
   }
   const step = resolveLotSetupStep(input.rows, input.confirmed);
