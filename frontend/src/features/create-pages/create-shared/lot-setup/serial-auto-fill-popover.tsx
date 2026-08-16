@@ -122,8 +122,8 @@ function SerialKindSelect({
 
 function defaultParts(): SerialAutoFillPart[] {
   return [
-    { kind: "string", value: "abc" },
-    { kind: "number", value: "1" },
+    { kind: "string", value: "" },
+    { kind: "number", value: "" },
   ];
 }
 
@@ -275,8 +275,8 @@ export function SerialAutoFillPopover({
                     <SerialKindSelect
                       ariaLabel={`Part ${index + 1} type`}
                       onChange={(kind) => {
-                        if (kind === "number" && !/^\d+$/.test(part.value.trim())) {
-                          updatePart(index, { kind, value: "1" });
+                        if (kind === "number" && !/^\d*$/.test(part.value.trim())) {
+                          updatePart(index, { kind, value: "" });
                           return;
                         }
                         updatePart(index, { kind });
@@ -300,7 +300,6 @@ export function SerialAutoFillPopover({
                             : event.target.value;
                         updatePart(index, { value: next });
                       }}
-                      placeholder={part.kind === "number" ? "1" : "abc"}
                       value={part.value}
                     />
                     <button
