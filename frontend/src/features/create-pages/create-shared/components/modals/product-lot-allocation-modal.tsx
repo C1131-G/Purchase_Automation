@@ -252,7 +252,7 @@ function EnterBatchTable({
                       setBatches(next);
                     }}
                     maxLength={36}
-                    className="h-9 w-full rounded-lg border border-linen-200 bg-surface px-2 outline-none focus:border-teal-400"
+                    className="h-9 w-full appearance-none rounded-lg border border-linen-200 bg-field-silver px-2 text-ink-900 outline-none transition placeholder:text-neutral-300 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                   />
                 </td>
                 <td className="px-3 py-2">
@@ -266,7 +266,7 @@ function EnterBatchTable({
                       next[index] = { ...batch, quantity: Number(event.target.value) || 0 };
                       setBatches(next);
                     }}
-                    className="h-9 w-full rounded-lg border border-linen-200 bg-surface px-2 outline-none focus:border-teal-400"
+                    className="h-9 w-full appearance-none rounded-lg border border-linen-200 bg-field-silver px-2 text-ink-900 outline-none transition placeholder:text-neutral-300 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                   />
                 </td>
                 <td className="px-2 py-2">
@@ -378,7 +378,7 @@ function SelectBatchTable({
                           ),
                         );
                       }}
-                      className="h-8 w-full rounded-lg border border-linen-200 bg-surface px-2 outline-none focus:border-teal-400 disabled:opacity-50"
+                      className="h-8 w-full appearance-none rounded-lg border border-linen-200 bg-field-silver px-2 text-ink-900 outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 disabled:opacity-50"
                     />
                   </td>
                 </tr>
@@ -427,7 +427,7 @@ function EnterSerialTable({
                       setSerials(next);
                     }}
                     maxLength={36}
-                    className="h-9 w-full rounded-lg border border-linen-200 bg-surface px-2 outline-none focus:border-teal-400"
+                    className="h-9 w-full appearance-none rounded-lg border border-linen-200 bg-field-silver px-2 text-ink-900 outline-none transition placeholder:text-neutral-300 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                   />
                 </td>
                 <td className="px-2 py-2">

@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 import { Calendar } from "@/components/calendar/calendar";
+import { LOT_TEXT_FIELD_CLASS } from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
 import {
   parseISODate,
   toDisplayDate,
@@ -110,7 +111,7 @@ export function LotExpiryDateCell({ ariaLabel, onChange, value }: LotExpiryDateC
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={ariaLabel}
-        className="relative flex h-8 w-full cursor-pointer items-center justify-start rounded-md border border-linen-200 bg-field-silver pl-2 pr-8 text-left text-xs text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+        className={`${LOT_TEXT_FIELD_CLASS} relative flex cursor-pointer items-center justify-start pr-8 text-left text-xs hover:bg-surface`}
         onClick={() => setOpen((current) => !current)}
         type="button"
       >

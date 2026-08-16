@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import { Select } from "@/components/select/select";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { LOT_SELECT_TRIGGER_CLASS } from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
 
 const NONE_VALUE = "__none__";
 
@@ -87,7 +88,7 @@ export function LotBinCell({
         }}
         value={selectedValue}
       >
-        <Select.Trigger aria-label="Bin location" className="h-8 rounded-md px-2 py-0 text-xs">
+        <Select.Trigger aria-label="Bin location" className={LOT_SELECT_TRIGGER_CLASS}>
           <Select.Value labelMap={labelMap} placeholder="Select bin" />
           <Select.Icon rotate={180}>
             <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />

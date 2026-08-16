@@ -1,7 +1,9 @@
 import { Plus, Trash2 } from "lucide-react";
 
+import { Input } from "@/components/input/input";
 import { LotBinCell } from "@/features/create-pages/create-shared/lot-setup/lot-bin-cell";
 import { LotExpiryDateCell } from "@/features/create-pages/create-shared/lot-setup/lot-expiry-date-cell";
+import { LOT_TEXT_FIELD_CLASS } from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
 import {
   lineNeededQty,
   type SerialAutoFillInput,
@@ -79,9 +81,9 @@ export function CreatedSerialsTable({
               >
                 <td className="px-2 py-1 text-xs text-neutral-400">{index + 1}</td>
                 <td className="px-2 py-1">
-                  <input
+                  <Input
                     aria-label={`Serial number ${index + 1}`}
-                    className="h-8 w-full rounded-md border border-linen-200 bg-field-silver px-2 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
+                    className={LOT_TEXT_FIELD_CLASS}
                     maxLength={36}
                     onChange={(event) =>
                       onChange(index, { internalSerialNumber: event.target.value })
@@ -92,7 +94,7 @@ export function CreatedSerialsTable({
                 </td>
                 {/* Qty is always 1 for serials — read-only display */}
                 <td className="px-2 py-1 text-center">
-                  <span className="inline-flex h-8 w-full items-center justify-center rounded-md border border-linen-100 bg-linen-50 text-sm font-medium text-neutral-500">
+                  <span className="inline-flex h-8 w-full items-center justify-center rounded-lg border border-linen-200 bg-field-silver text-sm font-medium text-neutral-500">
                     1
                   </span>
                 </td>

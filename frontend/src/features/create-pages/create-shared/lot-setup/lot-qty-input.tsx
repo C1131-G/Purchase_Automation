@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { Input } from "@/components/input/input";
+import { LOT_TEXT_FIELD_CLASS } from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
+
 interface LotQtyInputProps {
   ariaLabel: string;
   className?: string;
@@ -34,9 +37,9 @@ export function LotQtyInput({ ariaLabel, className, min = 0, onCommit, value }: 
   };
 
   return (
-    <input
+    <Input
       aria-label={ariaLabel}
-      className={className}
+      className={className ?? LOT_TEXT_FIELD_CLASS}
       inputMode="decimal"
       min={min}
       onBlur={(event) => commit(event.target.value)}

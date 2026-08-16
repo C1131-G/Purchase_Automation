@@ -3,7 +3,12 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
+import { Input } from "@/components/input/input";
 import { Select } from "@/components/select/select";
+import {
+  LOT_SELECT_TRIGGER_CLASS,
+  LOT_TEXT_FIELD_CLASS,
+} from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
 import {
   buildSerialAutoFillNumbers,
   type SerialAutoFillDirection,
@@ -90,7 +95,7 @@ function SerialKindSelect({
         }}
         value={value}
       >
-        <Select.Trigger aria-label={ariaLabel} className="h-8 w-full rounded-md px-2 py-0 text-xs">
+        <Select.Trigger aria-label={ariaLabel} className={LOT_SELECT_TRIGGER_CLASS}>
           <Select.Value labelMap={KIND_LABELS} placeholder="Type" />
           <Select.Icon rotate={180}>
             <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
@@ -283,14 +288,14 @@ export function SerialAutoFillPopover({
                       }}
                       value={part.kind}
                     />
-                    <input
+                    <Input
                       ref={index === 0 ? firstInputRef : undefined}
                       aria-label={
                         part.kind === "number"
                           ? `Part ${index + 1} number`
                           : `Part ${index + 1} string`
                       }
-                      className="h-8 min-w-0 flex-1 rounded-md border border-linen-200 bg-field-silver px-2 text-sm outline-none focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
+                      className={LOT_TEXT_FIELD_CLASS}
                       inputMode={part.kind === "number" ? "numeric" : "text"}
                       maxLength={20}
                       onChange={(event) => {

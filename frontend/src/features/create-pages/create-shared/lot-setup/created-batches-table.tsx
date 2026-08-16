@@ -1,7 +1,9 @@
 import { Plus, Split, Trash2 } from "lucide-react";
 
+import { Input } from "@/components/input/input";
 import { LotBinCell } from "@/features/create-pages/create-shared/lot-setup/lot-bin-cell";
 import { LotExpiryDateCell } from "@/features/create-pages/create-shared/lot-setup/lot-expiry-date-cell";
+import { LOT_TEXT_FIELD_CLASS } from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
 import { LotQtyInput } from "@/features/create-pages/create-shared/lot-setup/lot-qty-input";
 import {
   lineNeededQty,
@@ -86,9 +88,9 @@ export function CreatedBatchesTable({
               >
                 <td className="px-2 py-1 text-xs text-neutral-400">{index + 1}</td>
                 <td className="px-2 py-1">
-                  <input
+                  <Input
                     aria-label={`Batch number ${index + 1}`}
-                    className="h-8 w-full rounded-md border border-linen-200 bg-field-silver px-2 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
+                    className={LOT_TEXT_FIELD_CLASS}
                     maxLength={36}
                     onChange={(event) => onChange(index, { batchNumber: event.target.value })}
                     placeholder="ddmmyyyy"
@@ -98,7 +100,6 @@ export function CreatedBatchesTable({
                 <td className="px-2 py-1">
                   <LotQtyInput
                     ariaLabel={`Batch quantity ${index + 1}`}
-                    className="h-8 w-full rounded-md border border-linen-200 bg-field-silver px-2 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
                     min={0}
                     onCommit={(quantity) => onChange(index, { quantity })}
                     value={batch.quantity}

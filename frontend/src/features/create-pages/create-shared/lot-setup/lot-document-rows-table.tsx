@@ -105,7 +105,6 @@ export function LotDocumentRowsTable({
                 <td className="px-4 py-2.5 text-left">
                   <LotQtyInput
                     ariaLabel={`Total needed for ${row.productCode}`}
-                    className="h-8 w-full rounded-md border border-linen-200 bg-field-silver px-2 text-left text-sm outline-none focus:border-teal-400 focus:bg-surface"
                     min={1}
                     onCommit={(quantity) => onNeededQtyChange(row.id, quantity)}
                     value={lineNeededQty(row)}
