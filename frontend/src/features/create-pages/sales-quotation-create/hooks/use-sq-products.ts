@@ -12,7 +12,6 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
   BROWSE_PRODUCT_LIMIT,
-  QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
@@ -47,7 +46,6 @@ export function useSqProducts({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
-  const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -57,13 +55,6 @@ export function useSqProducts({
   }, [productSearch]);
 
   const normalizedProductSearch = debouncedProductSearch.trim();
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setProductQueryLimit(QUICK_PRODUCT_LIMIT);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [normalizedProductSearch, customerSelected, productPopupOpen]);
 
   const searchWarehouseCode = useMemo(() => {
     if (activeProductRowId) {
@@ -80,7 +71,7 @@ export function useSqProducts({
     ...salesQuotationCreateQueries.products(
       undefined,
       normalizedProductSearch || undefined,
-      normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
+      BROWSE_PRODUCT_LIMIT,
       "sales",
       undefined,
       partnerCardCode,
@@ -107,7 +98,7 @@ export function useSqProducts({
       salesQuotationCreateQueries.products(
         undefined,
         undefined,
-        QUICK_PRODUCT_LIMIT,
+        BROWSE_PRODUCT_LIMIT,
         "sales",
         undefined,
         partnerCardCode,
@@ -122,45 +113,6 @@ export function useSqProducts({
     }
     prefetchProducts();
   }, [customerLookupToken, customerSelected, partnerCardCode, prefetchProducts]);
-
-  useEffect(() => {
-    if (!productPopupOpen || !customerSelected || !partnerCardCode) {
-      return;
-    }
-    if (normalizedProductSearch) {
-      return;
-    }
-    if (productsQuery.isFetching || productsQuery.isError) {
-      return;
-    }
-    if ((productsQuery.data?.length ?? 0) === 0) {
-      return;
-    }
-    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
-      return;
-    }
-    void queryClient.prefetchQuery(
-      salesQuotationCreateQueries.products(
-        undefined,
-        undefined,
-        BROWSE_PRODUCT_LIMIT,
-        "sales",
-        undefined,
-        partnerCardCode,
-        "sales-quotation",
-      ),
-    );
-  }, [
-    productPopupOpen,
-    customerSelected,
-    partnerCardCode,
-    normalizedProductSearch,
-    productsQuery.isFetching,
-    productsQuery.isError,
-    productsQuery.data,
-    productQueryLimit,
-    queryClient,
-  ]);
 
   const openProductPopup = (
     rowId: string | null,
@@ -180,7 +132,6 @@ export function useSqProducts({
     const nextSearch = rowId || initialSearch.trim().length > 0 ? initialSearch : productSearch;
     setProductSearch(nextSearch);
     setDebouncedProductSearch(nextSearch);
-    setProductQueryLimit(QUICK_PRODUCT_LIMIT);
     setActiveProductRowId(rowId);
     setProductPopupOpen(true);
     window.requestAnimationFrame(() => {
@@ -191,25 +142,7 @@ export function useSqProducts({
   };
 
   const loadMoreProducts = () => {
-    if (!productPopupOpen) {
-      return;
-    }
-    if (productsQuery.isFetching) {
-      return;
-    }
-    const currentCount = productsQuery.data?.length ?? 0;
-    if (currentCount < productQueryLimit) {
-      return;
-    }
-    const isSearchMode = normalizedProductSearch.length > 0;
-    if (isSearchMode) {
-      return;
-    }
-    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
-      return;
-    }
-    // Single jump to warm page (prefetched after first paint) instead of 10→20→30 steps.
-    setProductQueryLimit(BROWSE_PRODUCT_LIMIT);
+    // Browse is a single cached page (BROWSE_PRODUCT_LIMIT). Virtual scroll only windows it.
   };
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {

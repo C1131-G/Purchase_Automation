@@ -31,3 +31,4 @@ export { acceptedResult } from "./flows/shared/flow-result";
 export type { IcPoHookInput, IcPqDraftHookInput } from "./flows/shared/flow.types";
 export { IC_OBJECT } from "./infrastructure/object-codes";
 export { IC_CONFIG_KEY } from "./infrastructure/constants";
+export { commentsWithoutSapBaseAutoLines } from "./infrastructure/ic-remarks-chain";

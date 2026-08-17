@@ -11,6 +11,7 @@ import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { getPqCopyEligibility, listPqCopyAllowedDocEntries } from "@/modules/intercompany";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a filtered and paginated list of Purchase Quotations from the tenant-specific HANA database.
@@ -47,6 +48,7 @@ export const getPurchaseQuotation = async (sessionId: string, id: string, isDraf
       id: result.DocEntry,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,

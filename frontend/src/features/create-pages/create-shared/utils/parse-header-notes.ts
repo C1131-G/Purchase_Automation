@@ -1,3 +1,5 @@
+import { dedupeRemarkChainLines, normalizeRemarkNewlines } from "./auto-reference";
+
 /**
  * Split SAP header Notes into UI "Reference No" (NumAtCard) vs "Comments".
  *
@@ -24,7 +26,7 @@ const SHORT_IC_REMARK_LINE_RE = /^(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+\S+/im;
 
 /** True when Comments contain IC automation chain lines. */
 export const hasIcRemarkLines = (comments: string | null | undefined): boolean => {
-  const raw = String(comments ?? "");
+  const raw = normalizeRemarkNewlines(String(comments ?? ""));
   return (
     LEGACY_IC_REMARK_LINE_RE.test(raw) ||
     BASED_ON_REFERENCE_LINE_RE.test(raw) ||
@@ -43,12 +45,12 @@ export const parseDocumentHeaderNotes = (detail: {
   NumAtCard?: unknown;
 }): HeaderNotesFields => {
   const referenceNo = String(detail.NumAtCard ?? "").trim();
-  const rawComments = String(detail.Comments ?? "").trim();
+  const rawComments = normalizeRemarkNewlines(String(detail.Comments ?? "")).trim();
 
   // IC chain present: keep full Comments (user + IC links). Do not re-split on " | ".
   if (hasIcRemarkLines(rawComments)) {
     return {
-      comments: rawComments,
+      comments: dedupeRemarkChainLines(rawComments),
       referenceNo,
     };
   }

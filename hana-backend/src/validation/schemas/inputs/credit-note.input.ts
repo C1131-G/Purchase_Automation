@@ -156,6 +156,7 @@ export const UpdateCreditNoteInputSchema = z
     CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
     CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
+    ...sapDocumentSeriesFields,
   })
   .strict();
 

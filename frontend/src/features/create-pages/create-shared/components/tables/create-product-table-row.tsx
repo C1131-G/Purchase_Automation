@@ -25,6 +25,7 @@ import {
 } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import {
   formatTaxCodeLabel,
+  mapTaxCodeForSide,
   taxRateForCode,
   type TaxDocumentSide,
 } from "@/features/create-pages/create-shared/utils/product-tax-codes";
@@ -245,7 +246,7 @@ export function CreateProductTableRow({
   lineFieldInvalid,
   showTaxCode = true,
   taxCodes: taxCodesProp = [],
-  taxSide: _taxSide = "purchase",
+  taxSide = "purchase",
   lotRequired = false,
   onOpenLotAllocation,
 }: CreateProductTableRowProps) {
@@ -649,16 +650,36 @@ export function CreateProductTableRow({
     setUomInput(row.uomCode ?? "");
   }, [row.uomCode]);
 
+  const displayTaxCode = React.useMemo(
+    () => mapTaxCodeForSide(taxCodes, row.vatGroup, taxSide),
+    [row.vatGroup, taxCodes, taxSide],
+  );
+
   React.useEffect(() => {
-    const code = String(row.vatGroup ?? "").trim();
+    const code = displayTaxCode || String(row.vatGroup ?? "").trim();
     if (!code || taxCodes.length === 0) {
       return;
     }
+    const nextPatch: Partial<ProductRow> = {};
     const resolvedRate = taxRateForCode(taxCodes, code);
     if (resolvedRate > 0 && (!Number.isFinite(row.taxRate) || row.taxRate === 0)) {
-      updateProductRow(row.id, { taxRate: resolvedRate });
+      nextPatch.taxRate = resolvedRate;
     }
-  }, [row.id, row.vatGroup, row.taxRate, taxCodes, updateProductRow]);
+    if (rfqSellerFill && displayTaxCode && displayTaxCode !== String(row.vatGroup ?? "").trim()) {
+      nextPatch.vatGroup = displayTaxCode;
+    }
+    if (Object.keys(nextPatch).length > 0) {
+      updateProductRow(row.id, nextPatch);
+    }
+  }, [
+    displayTaxCode,
+    rfqSellerFill,
+    row.id,
+    row.taxRate,
+    row.vatGroup,
+    taxCodes,
+    updateProductRow,
+  ]);
 
   const selectedWarehouse = React.useMemo(() => {
     return warehouses.find((w) => w.code === row.warehouseCode);
@@ -699,15 +720,15 @@ export function CreateProductTableRow({
   };
 
   const selectedTax = React.useMemo(() => {
-    const code = String(row.vatGroup ?? "").trim();
+    const code = displayTaxCode || String(row.vatGroup ?? "").trim();
     if (!code) {
       return undefined;
     }
     return taxCodes.find((item) => String(item.code).trim() === code);
-  }, [row.vatGroup, taxCodes]);
+  }, [displayTaxCode, row.vatGroup, taxCodes]);
   const taxDisplay = selectedTax
     ? formatTaxCodeLabel(selectedTax)
-    : String(row.vatGroup ?? "").trim();
+    : displayTaxCode || String(row.vatGroup ?? "").trim();
 
   // Use centralized line math for consistency with SAP totals
   const lineTotals = calculateLineTotals(row);
@@ -729,6 +750,19 @@ export function CreateProductTableRow({
         ? "0.00"
         : ""
       : clampedDiscountAmount.toFixed(2));
+  const priceInputValue =
+    rowDraft?.price !== undefined ? rowDraft.price : Number(row.price || 0).toFixed(2);
+  const beginZeroNumericEdit = (
+    field: "price" | "discountPercent" | "discountAmount",
+    current: number,
+  ) => {
+    if (rowDraft?.[field] !== undefined) {
+      return;
+    }
+    if (current === 0) {
+      setProductRowDraft(row.id, field, "");
+    }
+  };
   const isRowActive = !showSelection || row.selected === true;
   const baseDisabled = disableInputs || !isRowActive;
   /**
@@ -1363,12 +1397,12 @@ export function CreateProductTableRow({
             min={0}
             step="0.01"
             inputMode="decimal"
-            placeholder="0"
+            placeholder="0.00"
             aria-invalid={lineFieldInvalid?.price === true}
-            value={
-              // Draft string while typing (so "0" is removable); otherwise show 0, not blank.
-              rowDraft?.price !== undefined ? rowDraft.price : String(row.price ?? 0)
-            }
+            value={priceInputValue}
+            onFocus={() => {
+              beginZeroNumericEdit("price", Number(row.price || 0));
+            }}
             onChange={(event) => {
               // Keep draft string so user can clear "0" and type a new price.
               setProductRowDraft(row.id, "price", event.target.value);
@@ -1431,6 +1465,12 @@ export function CreateProductTableRow({
               if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 onInputRestrictedClick?.();
               }
+            }}
+            onFocus={() => {
+              if (!sellerFieldEditable) {
+                return;
+              }
+              beginZeroNumericEdit("discountPercent", row.discountPercent);
             }}
             onChange={(event) => {
               if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
@@ -1504,6 +1544,12 @@ export function CreateProductTableRow({
               if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 onInputRestrictedClick?.();
               }
+            }}
+            onFocus={() => {
+              if (!sellerFieldEditable) {
+                return;
+              }
+              beginZeroNumericEdit("discountAmount", clampedDiscountAmount);
             }}
             onChange={(event) => {
               if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {

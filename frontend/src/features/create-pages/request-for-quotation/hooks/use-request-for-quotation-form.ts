@@ -10,6 +10,7 @@ import {
   notifyDocumentHydrating,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type {
+  CreateLookupOption,
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
@@ -28,6 +29,7 @@ import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { toSafeErrorMessage } from "@/shared/utils/error-message";
 
 import {
+  applyRfqSalesTaxToRows,
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
   getRfqLineFieldErrors,
@@ -39,6 +41,8 @@ import {
   type RfqSellerProductPatch,
 } from "../utils/rfq-form.utils";
 
+const EMPTY_TAX_CODES: CreateLookupOption[] = [];
+
 export function useRequestForQuotationForm(rfqId: number) {
   const detailQuery = useIcRfq(rfqId, Number.isFinite(rfqId) && rfqId > 0);
   const header = detailQuery.data?.data;
@@ -46,6 +50,8 @@ export function useRequestForQuotationForm(rfqId: number) {
   // Seller company masters — resolve RFQ warehouse → branch (OWHS.BPLid / OBPL) for display.
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const branchesQuery = useQuery(createSharedQueries.branches());
+  const taxCodesQuery = useQuery(createSharedQueries.taxCodes());
+  const taxCodes = taxCodesQuery.data ?? EMPTY_TAX_CODES;
 
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
@@ -112,7 +118,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       return;
     }
 
-    const rows = mapRfqLinesToProductRows(header.lines);
+    const rows = applyRfqSalesTaxToRows(mapRfqLinesToProductRows(header.lines), taxCodes);
     const requiredMap: Record<string, number> = {};
     for (const row of rows) {
       // Buyer required qty only — never seed from quoted qty.
@@ -129,7 +135,16 @@ export function useRequestForQuotationForm(rfqId: number) {
     setHydratedKey(fingerprint);
     setFormError(null);
     setSubmitAttempted(false);
-  }, [header, hydratedKey]);
+  }, [header, hydratedKey, taxCodes]);
+
+  // Tax codes often arrive after first hydrate — fill sales rate on every row
+  // so Tax Total / Grand Total include tax (virtualized rows never mount).
+  useEffect(() => {
+    if (taxCodes.length === 0) {
+      return;
+    }
+    setProductRows((prev) => applyRfqSalesTaxToRows(prev, taxCodes));
+  }, [taxCodes]);
 
   const totals = useMemo(() => computeRfqProductTotals(productRows), [productRows]);
 
@@ -143,10 +158,13 @@ export function useRequestForQuotationForm(rfqId: number) {
 
   const updateProductRow = useCallback(
     (id: string, patch: Partial<ProductRow>) => {
-      // taxRate from OVTG is display-only and must apply on submitted RFQs too.
+      // taxRate / vatGroup from OVTG are display-only (sales-side remap) and apply on submitted RFQs too.
       const allowed: Partial<RfqSellerProductPatch> = {};
       if (patch.taxRate !== undefined) {
         allowed.taxRate = patch.taxRate;
+      }
+      if (patch.vatGroup !== undefined) {
+        allowed.vatGroup = patch.vatGroup;
       }
       if (canEditLines) {
         if (patch.price !== undefined) {

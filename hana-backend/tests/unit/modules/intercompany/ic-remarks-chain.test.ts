@@ -7,6 +7,7 @@ import {
   buildFlow1SqRemarks,
   buildFlow2ArRemarks,
   clampSapDocumentComments,
+  commentsWithoutSapBaseAutoLines,
   ensureVendorRefInRemarks,
   formatIcDocLabel,
   mergeUserAndIcRemarks,
@@ -186,5 +187,20 @@ describe("ic-remarks-chain", () => {
       { cardName: "AJAX Industries", key: "PQ", text: "8000603" },
     ]);
     expect(next).toBe(existing);
+  });
+
+  it("drops a second Based on PQ (short + SAP long) in existing remarks", () => {
+    const existing =
+      "Created from portal\rBased on PQ 8000586\rBased On Purchase Quotations 8000586";
+    const next = appendIcRemarkLines(existing, [{ key: "RFQ", text: "8000586" }]);
+    expect(next).toBe("Created from portal\nBased on PQ 8000586\nBased on RFQ 8000586");
+    expect(next.match(/PQ|Purchase Quotation/gi)?.length).toBe(1);
+  });
+
+  it("strips Based on PQ when lines are SAP-based on a purchase quotation", () => {
+    const comments = "User note\nBased on PQ 8000586\nBased on RFQ 8000586";
+    const stripped = commentsWithoutSapBaseAutoLines(comments, [{ BaseType: 540000006 }]);
+    expect(stripped).toBe("User note\nBased on RFQ 8000586");
+    expect(stripped).not.toContain("Based on PQ");
   });
 });

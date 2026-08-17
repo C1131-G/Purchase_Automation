@@ -54,6 +54,14 @@ describe("parseDocumentHeaderNotes", () => {
     expect(parsed.comments).toBe(comments);
   });
 
+  it("dedupes SAP \\r Based on PQ twice into one line", () => {
+    const parsed = parseDocumentHeaderNotes({
+      Comments: "Created from portal\rBased on PQ 8000586\rBased On Purchase Quotations 8000586",
+      NumAtCard: "",
+    });
+    expect(parsed.comments).toBe("Created from portal\nBased on PQ 8000586");
+  });
+
   it("still supports legacy single-line REF | message when no IC lines", () => {
     const parsed = parseDocumentHeaderNotes({
       Comments: "REF-123 | Urgent delivery",

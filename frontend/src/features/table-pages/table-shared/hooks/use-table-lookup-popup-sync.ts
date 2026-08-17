@@ -33,7 +33,6 @@ const CODE_VALUE_COLUMNS = new Set([
   "Filler",
   "ToWhsCode",
   "pqDraftDocNum",
-  "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
   "createdBy",

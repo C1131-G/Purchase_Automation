@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, LayoutDashboard, Loader2, Table } from "lucide-react";
 
 import { Button } from "@/components/button";
+import { Popover } from "@/components/popover";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { CreateProductTable } from "@/features/create-pages/create-shared/components/tables/create-product-table";
@@ -53,6 +55,7 @@ export function RfqProductSection({
   lineFieldErrors,
   onSubmit,
 }: RfqProductSectionProps) {
+  const navigate = useNavigate();
   const taxCodesQuery = useQuery(createSharedQueries.taxCodes());
   const restricted = () => {
     notifyEditRestrictedField("Product line");
@@ -122,27 +125,87 @@ export function RfqProductSection({
           <p className="mt-2 text-right text-xs font-medium text-red-600">{formError}</p>
         ) : null}
 
-        {canSubmit ? (
-          <div className="mt-3 flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              size="md"
-              variant="outline"
-              disabled={isSubmitting || productRows.length === 0}
-              onClick={onSubmit}
-              className="group h-11 w-52 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900 focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer normal-case tracking-normal disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
-                  <span>Submitting…</span>
-                </>
-              ) : (
-                <span>Submit</span>
-              )}
-            </Button>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Popover.Root>
+              <Popover.Trigger asChild>
+                <Button
+                  type="button"
+                  size="md"
+                  variant="outline"
+                  className="group flex h-11 w-56 cursor-pointer items-center justify-center gap-2 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold tracking-normal text-ink-900 shadow-sm outline-none ring-0 transition-all hover:bg-linen-50 hover:text-teal-600 focus:outline-none focus:ring-0 normal-case"
+                >
+                  <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                  Go Back
+                </Button>
+              </Popover.Trigger>
+              <Popover.Content side="top" align="start" className="z-[1001] w-56">
+                <div className="flex flex-col py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigate({ to: "/dashboard" });
+                    }}
+                    className="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-all hover:bg-linen-50"
+                  >
+                    <LayoutDashboard className="mt-0.5 h-4 w-4 text-neutral-400 transition-colors group-hover:text-neutral-500" />
+                    <span className="flex flex-col">
+                      <span className="text-[13px] font-bold text-ink-900 transition-colors group-hover:text-ink-900">
+                        Back to Dashboard
+                      </span>
+                      <span className="mt-0.5 text-[10px] text-neutral-400">
+                        Go to main dashboard
+                      </span>
+                    </span>
+                  </button>
+                  <div className="border-t border-linen-100" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigate({
+                        search: { limit: 10, page: 1 },
+                        to: "/sales/request-for-quotations",
+                      });
+                    }}
+                    className="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-all hover:bg-linen-50"
+                  >
+                    <Table className="mt-0.5 h-4 w-4 text-neutral-400 transition-colors group-hover:text-ink-900" />
+                    <span className="flex flex-col">
+                      <span className="text-[13px] font-bold text-ink-900 transition-colors group-hover:text-ink-900">
+                        Back to Table
+                      </span>
+                      <span className="mt-0.5 text-[10px] text-neutral-400">
+                        Go to document table
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </Popover.Content>
+            </Popover.Root>
           </div>
-        ) : null}
+
+          {canSubmit ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                disabled={isSubmitting || productRows.length === 0}
+                onClick={onSubmit}
+                className="group flex h-11 w-52 cursor-pointer items-center justify-center gap-2 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold tracking-normal text-ink-900 shadow-sm outline-none ring-0 transition-all hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900 focus:outline-none focus:ring-0 normal-case disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
+                    <span>Submitting…</span>
+                  </>
+                ) : (
+                  <span>Submit</span>
+                )}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </SectionCard>
   );

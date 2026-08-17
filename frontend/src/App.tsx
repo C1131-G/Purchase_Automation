@@ -1,6 +1,6 @@
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { GlobalErrorBoundary } from "@/components/error-boundary";
 import { routeTree } from "@/routeTree.gen";
@@ -13,13 +13,6 @@ import {
 import { type BeforeInstallPromptEvent, usePwaActions } from "@/store/pwa/pwa.store";
 
 const QUERY_CACHE_MAX_AGE = 30 * 60 * 1000;
-
-const ReactQueryDevtools = import.meta.env.DEV
-  ? lazy(async () => {
-      const module = await import("@tanstack/react-query-devtools");
-      return { default: module.ReactQueryDevtools };
-    })
-  : undefined;
 
 // 1. Create a persistent QueryClient instance
 const queryClient = new QueryClient({
@@ -178,11 +171,6 @@ function App() {
       <GlobalErrorBoundary>
         <RouterProvider router={router} />
       </GlobalErrorBoundary>
-      {ReactQueryDevtools ? (
-        <Suspense fallback={null}>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </Suspense>
-      ) : null}
     </QueryClientProvider>
   );
 }

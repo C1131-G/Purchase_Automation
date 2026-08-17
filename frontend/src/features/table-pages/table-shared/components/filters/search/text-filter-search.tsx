@@ -37,10 +37,9 @@ const CARD_CODE_COLUMNS = new Set([
 const CARD_NAME_COLUMNS = new Set(["CardName", "ItemName"]);
 const DOC_NUM_COLUMNS = new Set(["DocNum"]);
 const WAREHOUSE_COLUMNS = new Set(["Filler", "ToWhsCode"]);
-/** Text filters that suggest unique values from the loaded table (RFQ draft/co fields). */
+/** Text filters that suggest unique values from the loaded table (RFQ PQ / company fields). */
 const TABLE_VALUE_LOOKUP_COLUMNS = new Set([
   "pqDraftDocNum",
-  "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
   "createdBy",

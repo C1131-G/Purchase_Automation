@@ -186,6 +186,7 @@ export const UpdateGRPOInputSchema = z
     CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
     ...sapDocumentBranchFields,
+    ...sapDocumentSeriesFields,
   })
   .strict();
 

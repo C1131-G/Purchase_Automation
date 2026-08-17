@@ -7,6 +7,7 @@ import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/d
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
@@ -57,7 +58,9 @@ export const createCreditNote = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
+      Comments: toSapCreateCommentsField(
+        commentsWithoutSapBaseAutoLines(payload.Comments ?? draftComments, lines),
+      ),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,

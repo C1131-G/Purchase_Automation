@@ -7,6 +7,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -61,7 +62,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocDate: result.DocDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      Series: Number((result as unknown as Record<string, unknown>).Series) || undefined,
+      Series: pickSapSeries(result),
       DocTotal: result.DocTotal,
       PaymentAccounts: (result as unknown as Record<string, unknown>).PaymentAccounts || [],
       PaymentChecks: (result as unknown as Record<string, unknown>).PaymentChecks || [],

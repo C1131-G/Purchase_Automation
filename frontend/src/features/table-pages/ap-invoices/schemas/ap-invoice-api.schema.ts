@@ -47,6 +47,7 @@ export const apInvoiceDetailSchema = z.object({
   DocDueDate: z.string(),
   DocEntry: z.number().optional(),
   DocNum: z.number(),
+  Series: z.number().optional(),
   DocStatus: z.enum(["O", "C", "Open", "Partial", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
   DocumentLines: z.array(

@@ -15,6 +15,7 @@ import {
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
+import { attachRfqSellerSalesTax } from "./attach-rfq-sales-tax";
 import { resolveRfqCustomerDisplay, withRfqCustomerDisplay } from "./resolve-rfq-customer-display";
 import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
 
@@ -409,7 +410,7 @@ const attachCustomerDisplay = (
   customerName: customer.customerName,
 });
 
-export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
+const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
   try {
     // Customer display (BP map + seller OCRD) does not need buyer PQ — run in parallel
     // with source-company lookup to cut serial HANA round-trips on RFQ open.
@@ -534,4 +535,10 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
     });
     return withRfqCustomerDisplay(withEnsuredRfqRemarks(header));
   }
+};
+
+/** Buyer PQ merge + seller sales tax so RFQ UI never shows purchase VatGroup. */
+export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
+  const enriched = await enrichRfqFromPqDraftCore(header);
+  return attachRfqSellerSalesTax(enriched);
 };

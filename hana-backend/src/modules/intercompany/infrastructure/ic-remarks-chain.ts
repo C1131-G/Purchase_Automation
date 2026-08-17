@@ -72,12 +72,19 @@ const LEGACY_IC_LINE_RE = /^IC\s*\|\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/i;
 
 /** Labels used only when parsing legacy "Based on …" lines. */
 const LABEL_TO_KEY: Record<string, string> = {
+  "purchase quotation drafts": "PQD",
   "purchase quotation draft": "PQD",
+  "request for quotations": "RFQ",
   "request for quotation": "RFQ",
+  "purchase quotations": "PQ",
   "purchase quotation": "PQ",
+  "sales quotations": "SQ",
   "sales quotation": "SQ",
+  "purchase orders": "PO",
   "purchase order": "PO",
+  "ar invoice drafts": "AR",
   "ar invoice draft": "AR",
+  "ar invoices": "AR",
   "ar invoice": "AR",
 };
 
@@ -269,14 +276,50 @@ export const parseIcRemarkLinks = (remarks: string | null | undefined): IcRemark
  * Append IC link lines without removing existing remarks.
  * Skips keys already present (idempotent re-runs).
  */
+const parseAnyIcLine = (
+  trimmed: string,
+): { key: string; text: string; cardName?: string } | null => {
+  const legacy = trimmed.match(LEGACY_IC_LINE_RE);
+  if (legacy?.[1] && legacy[2] !== undefined && legacy[2].trim()) {
+    return {
+      key: normalizeRemarkKey(legacy[1]),
+      text: extractDocRefFromLegacyText(legacy[2]),
+    };
+  }
+  return parseShortIcLine(trimmed) ?? parseBasedOnLine(trimmed);
+};
+
+/**
+ * Append IC link lines without removing existing remarks.
+ * Drops duplicate keys already in `existing` (same PQ twice, short + SAP long form).
+ * Skips keys already present when adding (idempotent re-runs).
+ */
 export const appendIcRemarkLines = (
   existing: string | null | undefined,
   links: IcRemarkLink[],
 ): string => {
   const base = normalizeRemarkNewlines(existing ?? "").trimEnd();
-  const have = parseIcRemarkKeys(base);
-  const toAdd: string[] = [];
+  const have = new Set<string>();
+  const kept: string[] = [];
 
+  for (const raw of base.split("\n")) {
+    const line = raw.trimEnd();
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const parsed = parseAnyIcLine(trimmed);
+    if (parsed) {
+      const key = normalizeRemarkKey(parsed.key);
+      if (have.has(key)) {
+        continue;
+      }
+      have.add(key);
+    }
+    kept.push(line);
+  }
+
+  const toAdd: string[] = [];
   for (const link of links) {
     const key = normalizeRemarkKey(link.key);
     const text = link.text.trim();
@@ -287,13 +330,54 @@ export const appendIcRemarkLines = (
     have.add(key);
   }
 
-  if (toAdd.length === 0) {
-    return base;
+  const next = [...kept, ...toAdd];
+  return next.join("\n");
+};
+
+/** SAP object type → IC remark key. Copy-to Comments omit these; SAP stamps its own line. */
+const SAP_BASE_TYPE_REMARK_KEY: Record<number, string> = {
+  540000006: "PQ",
+  23: "SQ",
+  22: "PO",
+  18: "AR",
+};
+
+export const stripIcRemarkKeys = (
+  remarks: string | null | undefined,
+  keys: Iterable<string>,
+): string => {
+  const drop = new Set([...keys].map((key) => normalizeRemarkKey(key)).filter(Boolean));
+  if (drop.size === 0) {
+    return normalizeRemarkNewlines(remarks ?? "").trim();
   }
-  if (!base) {
-    return toAdd.join("\n");
+  const userText = collectUserRemarkLines(remarks).join("\n");
+  const keep = parseIcRemarkLinks(remarks).filter(
+    (link) => !drop.has(normalizeRemarkKey(link.key)),
+  );
+  return appendIcRemarkLines(userText, keep);
+};
+
+/**
+ * When lines are SAP-based on a source doc, drop our matching "Based on" lines.
+ * Service Layer appends its own "Based On Purchase Quotations …" otherwise you get PQ twice.
+ */
+export const commentsWithoutSapBaseAutoLines = (
+  comments: unknown,
+  lines: Array<{ BaseType?: unknown }>,
+): string => {
+  const text = typeof comments === "string" ? comments : undefined;
+  const keys = new Set<string>();
+  for (const line of lines) {
+    const baseType = Number(line.BaseType);
+    const key = Number.isFinite(baseType) ? SAP_BASE_TYPE_REMARK_KEY[baseType] : undefined;
+    if (key) {
+      keys.add(key);
+    }
   }
-  return `${base}\n${toAdd.join("\n")}`;
+  if (keys.size === 0) {
+    return normalizeRemarkNewlines(text ?? "").trim();
+  }
+  return stripIcRemarkKeys(text, keys);
 };
 
 /**

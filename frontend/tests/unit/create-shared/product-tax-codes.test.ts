@@ -9,6 +9,7 @@ import {
   applyTaxCodeToRow,
   filterTaxCodesForSide,
   formatTaxCodeLabel,
+  mapTaxCodeForSide,
   taxRateForCode,
 } from "@/features/create-pages/create-shared/utils/product-tax-codes";
 
@@ -26,6 +27,18 @@ const codes: CreateLookupOption[] = [
   tax("OUT-5", 5, "O", "Output GST 5"),
   tax("LEGACY", 0, ""),
 ];
+
+describe("mapTaxCodeForSide", () => {
+  it("maps purchase IN-* to sales OUT-* at the same rate", () => {
+    expect(mapTaxCodeForSide(codes, "IN-18", "sales")).toBe("OUT-18");
+    expect(mapTaxCodeForSide(codes, "OUT-18", "purchase")).toBe("IN-18");
+  });
+
+  it("keeps a code that is already on the requested side", () => {
+    expect(mapTaxCodeForSide(codes, "OUT-18", "sales")).toBe("OUT-18");
+    expect(mapTaxCodeForSide(codes, "IN-12", "purchase")).toBe("IN-12");
+  });
+});
 
 describe("filterTaxCodesForSide", () => {
   it("keeps purchase (I) codes and uncategorized rows", () => {

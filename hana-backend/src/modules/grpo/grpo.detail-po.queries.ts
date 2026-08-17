@@ -8,6 +8,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 import { pickSapLotCollections } from "@/services/sap-line-lots";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
@@ -108,6 +109,7 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       DocTotal: result.DocTotal,
       DocumentLines: mappedLines,
       NumAtCard: result.NumAtCard,
@@ -179,6 +181,7 @@ export const getGRPO = async (sessionId: string, id: string, isDraft = false) =>
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,

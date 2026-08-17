@@ -21,7 +21,7 @@ export const rfqColumnFilterSchema = z.object({
 /**
  * URL search for `/sales/request-for-quotations`.
  * Mirrors purchase-quotation table chrome; filtering is client-side over GET /ic/rfqs.
- * Text lookup filters (Doc Number, PQ draft, companies) are stored both as
+ * Text lookup filters (Doc Number, PQ No., companies) are stored both as
  * top-level keys and inside `columnFilters` so shareable URLs restore the same chips.
  */
 export const rfqSearchSchema = z.object({

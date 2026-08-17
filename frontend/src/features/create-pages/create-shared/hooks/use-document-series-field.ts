@@ -23,6 +23,8 @@ type UseDocumentSeriesFieldArgs = {
   disabled?: boolean;
   /** When true, do not auto-pick (edit hydrate owns the value). */
   lockSuggestion?: boolean;
+  /** Edit: show this document's number next to the series name (not SAP next unused). */
+  documentNumber?: number | string | null | undefined;
 };
 
 export function useDocumentSeriesField({
@@ -33,6 +35,7 @@ export function useDocumentSeriesField({
   enabled = true,
   disabled = false,
   lockSuggestion = false,
+  documentNumber,
 }: UseDocumentSeriesFieldArgs) {
   const seriesQuery = useQuery({
     ...createSharedQueries.series(objectCode),
@@ -52,11 +55,11 @@ export function useDocumentSeriesField({
   const displayForSeries = useCallback(
     (id: number) => {
       const matched = seriesList.find((item) => toPositiveSeries(item.code) === id);
-      return matched
-        ? formatSeriesDisplay(matched.name, matched.nextNumber, id)
-        : formatSeriesDisplay("", null, id);
+      // Create: next unused. Edit: this document's number, never SAP's next unused.
+      const numberForDisplay = disabled ? toPositiveSeries(documentNumber) : matched?.nextNumber;
+      return formatSeriesDisplay(matched?.name ?? "", numberForDisplay, id);
     },
-    [seriesList],
+    [disabled, documentNumber, seriesList],
   );
 
   const applySeries = useCallback(
@@ -169,17 +172,18 @@ export function useDocumentSeriesField({
     seriesList,
   ]);
 
-  // Refresh label when series list loads for current series id (edit hydrate).
+  // Refresh label when series id is known (edit hydrate). Show "Series {id}"
+  // immediately; upgrade to the NNM1 name once the lookup list loads.
   useEffect(() => {
     const id = toPositiveSeries(series);
-    if (id == null || seriesFocused || seriesList.length === 0) {
+    if (id == null || seriesFocused) {
       return;
     }
     const display = displayForSeries(id);
     if (seriesInput !== display) {
       setSeriesInput(display);
     }
-  }, [displayForSeries, series, seriesFocused, seriesInput, seriesList]);
+  }, [displayForSeries, series, seriesFocused, seriesInput]);
 
   const seriesSuggestions = useMemo(
     () =>

@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { ProductLotAllocationModal } from "@/features/create-pages/create-shared/components/modals/product-lot-allocation-modal";
 import { CreateProductTableRow } from "@/features/create-pages/create-shared/components/tables/create-product-table-row";
@@ -166,8 +166,28 @@ export function CreateProductTable({
     getItemKey: (index) => productRows[index]?.id ?? index,
   });
 
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
+  useLayoutEffect(() => {
+    if (productRows.length === 0) {
+      return;
+    }
+    rowVirtualizer.measure();
+  }, [productRows.length, rowVirtualizer]);
+
+  const measuredRows = rowVirtualizer.getVirtualItems();
+  const virtualRows =
+    measuredRows.length > 0
+      ? measuredRows
+      : productRows.slice(0, PRODUCT_ROW_OVERSCAN + 8).map((_, index) => ({
+          index,
+          key: productRows[index]?.id ?? index,
+          start: index * PRODUCT_ROW_ESTIMATE_PX,
+          size: PRODUCT_ROW_ESTIMATE_PX,
+          end: (index + 1) * PRODUCT_ROW_ESTIMATE_PX,
+        }));
+  const totalSize = Math.max(
+    rowVirtualizer.getTotalSize(),
+    productRows.length * PRODUCT_ROW_ESTIMATE_PX,
+  );
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;

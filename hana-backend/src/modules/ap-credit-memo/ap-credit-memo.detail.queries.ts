@@ -10,6 +10,7 @@ import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService, type FileMetadata } from "@/modules/attachments/attachments.service";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
@@ -70,6 +71,7 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string, isDr
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,

@@ -188,6 +188,10 @@ export const icRfqLineSchema = z.object({
   rfqId: z.number(),
   rfqLineId: z.number(),
   taxCode: z.string().nullable(),
+  /** Buyer PQ purchase tax — same as taxCode. */
+  pqTaxCode: z.string().nullable().optional(),
+  /** Seller sales tax (OVTG Category O). RFQ tax column uses this. */
+  sqTaxCode: z.string().nullable().optional(),
   unitPrice: z.number().nullable(),
   uomCode: z.string().nullable(),
   warehouse: z.string().nullable(),

@@ -58,6 +58,7 @@ export interface GRPOCreatePODetail {
   id?: number;
   DocEntry?: number;
   DocNum?: number;
+  Series?: number;
   DocDate?: string;
   DocDueDate?: string;
   CardCode?: string;
@@ -107,6 +108,7 @@ export interface GRPODetail {
   id?: number;
   DocEntry?: number;
   DocNum?: number;
+  Series?: number;
   DocDate?: string;
   DocDueDate?: string;
   SalesPersonCode?: string | number;

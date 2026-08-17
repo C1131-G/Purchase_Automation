@@ -84,9 +84,10 @@ export function RequestForQuotationForm({
 
   return (
     <CreatePageWrapper
+      dashboardName="Sales Dashboard"
       dashboardUrl="/dashboard"
       breadcrumbParent={{
-        label: "Request For Quotations",
+        label: "Request For Quotations Data Table",
         onMouseEnter: () => {
           void queryClient.prefetchQuery(icRfqQueries.list());
         },
@@ -222,6 +223,7 @@ export function RequestForQuotationForm({
                 docDueDatePlaceholder="—"
                 showRequiredDate
                 requiredDateLabel="QUOTED DATE"
+                requiredDatePlaceholder="Select quoted date"
                 requiredDate={state.batchQuotedDate}
                 requiredDateReadOnly={!state.canEditLines}
                 requiredDateFutureOnly={false}

@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, Loader2 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ComponentProps } from "react";
 
 // ProductPopupModal: Orchestrates item selection, stock validation, and price lookup.
@@ -209,6 +209,25 @@ export function ProductPopupModal({
     overscan: 5,
   });
 
+  useLayoutEffect(() => {
+    if (!open || safeResults.length === 0) {
+      return;
+    }
+    rowVirtualizer.measure();
+  }, [open, safeResults.length, rowVirtualizer]);
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const visibleVirtualRows =
+    virtualRows.length > 0
+      ? virtualRows
+      : safeResults.slice(0, 12).map((_, index) => ({
+          index,
+          key: safeResults[index]?.code ?? index,
+          start: index * 40,
+          size: 40,
+          end: (index + 1) * 40,
+        }));
+
   return (
     <AnimatedModalShell open={open} onClose={handleInternalClose} panelClassName="max-w-4xl">
       <div className="flex items-center justify-between border-b border-linen-100 px-4 py-3">
@@ -286,15 +305,17 @@ export function ProductPopupModal({
 
               <div
                 ref={scrollContainerRef}
-                className="max-h-80 overflow-y-scroll relative"
+                className="max-h-80 min-h-[8rem] overflow-y-scroll relative"
                 onScroll={(event) => {
                   popupScrollState.set(scrollKey, event.currentTarget.scrollTop);
-                  // Allow reach-end while previous rows stay visible (keepPreviousData /
-                  // background warm). Only block when the list is empty skeleton-loading.
                   if (!onReachEnd || (loading && safeResults.length === 0)) {
                     return;
                   }
                   const target = event.currentTarget;
+                  // Unmeasured virtual list (height 0) is not a real end — do not refetch.
+                  if (target.scrollHeight <= target.clientHeight) {
+                    return;
+                  }
                   const threshold = 48;
                   const reachedEnd =
                     target.scrollHeight - target.scrollTop - target.clientHeight <= threshold;
@@ -305,12 +326,12 @@ export function ProductPopupModal({
               >
                 <div
                   style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    height: `${Math.max(rowVirtualizer.getTotalSize(), safeResults.length * 40)}px`,
                     width: "100%",
                     position: "relative",
                   }}
                 >
-                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  {visibleVirtualRows.map((virtualRow) => {
                     const product = safeResults[virtualRow.index]!;
                     return (
                       <ProductPopupRow

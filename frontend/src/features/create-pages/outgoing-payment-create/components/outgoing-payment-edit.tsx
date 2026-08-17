@@ -46,6 +46,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
     setSeries,
     disabled: true,
     lockSuggestion: true,
+    documentNumber: docNum,
   });
 
   useEffect(() => {

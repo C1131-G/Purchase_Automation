@@ -12,6 +12,7 @@ import { resolveCurrencyCode } from "@/services/currency-format";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Retrieves a paginated list of Purchase Orders from the HANA database.
@@ -52,6 +53,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string, isDraft = 
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,

@@ -3,8 +3,15 @@ import type {
   IcRfqLine,
   IcUpdateRfqLineBody,
 } from "@/features/intercompany/schemas/intercompany-api.schema";
-import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
+import type {
+  CreateLookupOption,
+  ProductRow,
+} from "@/features/create-pages/create-shared/utils/create-order.types";
 import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
+import {
+  mapTaxCodeForSide,
+  taxRateForCode,
+} from "@/features/create-pages/create-shared/utils/product-tax-codes";
 
 export type RfqEditableLine = {
   deliveryDate: string;
@@ -29,10 +36,16 @@ export type RfqSellerEditableFields = Pick<
   "unitPrice" | "quantity" | "discount" | "deliveryDate"
 >;
 
-/** ProductRow patches allowed on RFQ seller fill. Tax is item-based and not editable. */
+/** ProductRow patches allowed on RFQ seller fill. Tax code is remapped sales-side, not seller-typed. */
 export type RfqSellerProductPatch = Pick<
   ProductRow,
-  "price" | "quantity" | "discountPercent" | "discountAmount" | "quotedDate" | "taxRate"
+  | "price"
+  | "quantity"
+  | "discountPercent"
+  | "discountAmount"
+  | "quotedDate"
+  | "taxRate"
+  | "vatGroup"
 >;
 
 export const isRfqDraft = (status: string | undefined): boolean =>
@@ -137,11 +150,37 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
         stock: 0,
         taxRate: 0,
         uomCode: String(line.uomCode ?? "").trim() || undefined,
-        // Buyer snapshot TAX_CODE (purchase VatGroup). Rate fills from OVTG in the row.
-        vatGroup: String(line.taxCode ?? "").trim(),
+        // Seller sales tax when enrich resolved it; else buyer purchase snapshot
+        // (table remaps I→O by OVTG rate for display).
+        vatGroup: String(line.sqTaxCode ?? line.taxCode ?? "").trim(),
         warehouseCode: String(line.warehouse ?? "").trim(),
       } satisfies ProductRow;
     });
+};
+
+/**
+ * Map every RFQ line onto seller sales tax + OVTG rate so Tax Total / Grand Total
+ * include tax even for virtualized (unmounted) rows.
+ */
+export const applyRfqSalesTaxToRows = (
+  rows: ProductRow[],
+  taxCodes: CreateLookupOption[],
+): ProductRow[] => {
+  if (rows.length === 0 || taxCodes.length === 0) {
+    return rows;
+  }
+
+  let changed = false;
+  const next = rows.map((row) => {
+    const vatGroup = mapTaxCodeForSide(taxCodes, row.vatGroup, "sales") || row.vatGroup;
+    const taxRate = taxRateForCode(taxCodes, vatGroup);
+    if (vatGroup === row.vatGroup && taxRate === row.taxRate) {
+      return row;
+    }
+    changed = true;
+    return { ...row, taxRate, vatGroup };
+  });
+  return changed ? next : rows;
 };
 
 export const productRowsFingerprint = (rows: ProductRow[]): string =>

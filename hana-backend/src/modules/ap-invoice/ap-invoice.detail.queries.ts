@@ -9,6 +9,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 import { attachmentsService, type FileMetadata } from "@/modules/attachments/attachments.service";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
@@ -92,6 +93,7 @@ export const getInvoice = async (
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,

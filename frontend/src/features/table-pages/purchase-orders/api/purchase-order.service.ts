@@ -54,6 +54,7 @@ export interface PurchaseOrderDetail {
   id?: number;
   DocEntry?: number;
   DocNum?: number;
+  Series?: number;
   SalesPersonCode?: number | string;
   DocDate?: string;
   DocDueDate?: string;

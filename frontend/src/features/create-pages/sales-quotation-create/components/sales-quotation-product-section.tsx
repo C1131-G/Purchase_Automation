@@ -38,6 +38,7 @@ interface SalesQuotationProductSectionProps {
   secondaryActions?: ReactNode;
   onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
   isEditMode?: boolean;
+  isClosed?: boolean;
   isSaved?: boolean;
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
@@ -82,6 +83,7 @@ export function SalesQuotationProductSection({
   secondaryActions,
   onSubmitMode,
   isEditMode = false,
+  isClosed = false,
   isSaved = false,
   savedDocNum = null,
   onDownload,
@@ -126,7 +128,9 @@ export function SalesQuotationProductSection({
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={SALES_QUOTATION_MANDATORY_FIELDS.length}
+      hideSearch={isClosed}
       isEditMode={isEditMode}
+      isReadOnly={isClosed}
     >
       <CreateProductTable
         productRows={productRows}
@@ -148,6 +152,7 @@ export function SalesQuotationProductSection({
         showTaxCode
         taxSide="sales"
         showExplicitZeroDiscount={true}
+        disableLineInputs={isClosed}
       />
     </BaseProductSection>
   );

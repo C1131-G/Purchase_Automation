@@ -7,7 +7,7 @@ import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { assertPqLinesCopyAllowed } from "@/modules/intercompany";
+import { assertPqLinesCopyAllowed, commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
@@ -59,7 +59,9 @@ export const createInvoice = async (
     Address: payload.Address,
     Address2: payload.Address2,
     CardCode: payload.CardCode,
-    Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
+    Comments: toSapCreateCommentsField(
+      commentsWithoutSapBaseAutoLines(payload.Comments ?? draftComments, lines),
+    ),
     DocDate: payload.DocDate,
     DocDueDate: payload.DocDueDate || payload.DocDate,
     AttachmentEntry: absoluteEntry ?? undefined,

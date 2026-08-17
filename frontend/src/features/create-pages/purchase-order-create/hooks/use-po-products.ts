@@ -14,7 +14,6 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
   BROWSE_PRODUCT_LIMIT,
-  QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
@@ -54,7 +53,6 @@ export function usePoProducts({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
-  const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -84,8 +82,7 @@ export function usePoProducts({
     ...purchaseOrderCreateQueries.products(
       undefined, // Pass undefined to keep search warehouse-agnostic
       normalizedProductSearch || undefined,
-      // Always send a cap: browse uses progressive limit; search uses warm page size.
-      normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
+      BROWSE_PRODUCT_LIMIT,
       "purchase",
       undefined,
       partnerCardCode,
@@ -113,7 +110,7 @@ export function usePoProducts({
       purchaseOrderCreateQueries.products(
         undefined,
         undefined,
-        QUICK_PRODUCT_LIMIT,
+        BROWSE_PRODUCT_LIMIT,
         "purchase",
         undefined,
         partnerCardCode,
@@ -128,46 +125,6 @@ export function usePoProducts({
     }
     prefetchProducts();
   }, [vendorLookupToken, vendorSelected, partnerCardCode, prefetchProducts]);
-
-  // After the quick first page settles, warm the full browse page so scroll load-more is instant.
-  useEffect(() => {
-    if (!productPopupOpen || !vendorSelected || !partnerCardCode) {
-      return;
-    }
-    if (normalizedProductSearch) {
-      return;
-    }
-    if (productsQuery.isFetching || productsQuery.isError) {
-      return;
-    }
-    if ((productsQuery.data?.length ?? 0) === 0) {
-      return;
-    }
-    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
-      return;
-    }
-    void queryClient.prefetchQuery(
-      purchaseOrderCreateQueries.products(
-        undefined,
-        undefined,
-        BROWSE_PRODUCT_LIMIT,
-        "purchase",
-        undefined,
-        partnerCardCode,
-        "purchase-order",
-      ),
-    );
-  }, [
-    productPopupOpen,
-    vendorSelected,
-    partnerCardCode,
-    normalizedProductSearch,
-    productsQuery.isFetching,
-    productsQuery.isError,
-    productsQuery.data,
-    productQueryLimit,
-    queryClient,
-  ]);
 
   const openProductPopup = (
     rowId: string | null,
@@ -187,7 +144,6 @@ export function usePoProducts({
     const nextSearch = rowId || initialSearch.trim().length > 0 ? initialSearch : productSearch;
     setProductSearch(nextSearch);
     setDebouncedProductSearch(nextSearch);
-    setProductQueryLimit(QUICK_PRODUCT_LIMIT);
     setActiveProductRowId(rowId);
     setProductPopupOpen(true);
     window.requestAnimationFrame(() => {
@@ -198,25 +154,7 @@ export function usePoProducts({
   };
 
   const loadMoreProducts = () => {
-    if (!productPopupOpen) {
-      return;
-    }
-    if (productsQuery.isFetching) {
-      return;
-    }
-    const currentCount = productsQuery.data?.length ?? 0;
-    if (currentCount < productQueryLimit) {
-      return;
-    }
-    const isSearchMode = normalizedProductSearch.length > 0;
-    if (isSearchMode) {
-      return;
-    }
-    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
-      return;
-    }
-    // Single jump to warm page (prefetched after first paint) instead of 10→20→30 steps.
-    setProductQueryLimit(BROWSE_PRODUCT_LIMIT);
+    // Browse is a single cached page (BROWSE_PRODUCT_LIMIT). Virtual scroll only windows it.
   };
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {

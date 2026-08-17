@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyRfqSalesTaxToRows,
   buildUpdateRfqLinesPayload,
   buildUpdateRfqLinesPayloadFromProductRows,
+  computeRfqProductTotals,
   getRfqLineFieldErrors,
   isRfqDraft,
   isRfqReadyToSubmit,
@@ -41,7 +43,7 @@ describe("rfq-form.utils", () => {
     expect(mapped[0]?.taxCode).toBe("VAT");
   });
 
-  it("populates product-row vatGroup from buyer taxCode and omits tax from PUT", () => {
+  it("populates product-row vatGroup from seller sqTaxCode and omits tax from PUT", () => {
     const lines: IcRfqLine[] = [
       {
         deliveryDate: "2026-08-01T00:00:00.000Z",
@@ -54,6 +56,7 @@ describe("rfq-form.utils", () => {
         rfqId: 1,
         rfqLineId: 9,
         taxCode: "IN-18",
+        sqTaxCode: "OUT-18",
         unitPrice: 20,
         uomCode: "EA",
         warehouse: "01",
@@ -61,8 +64,11 @@ describe("rfq-form.utils", () => {
     ];
 
     const rows = mapRfqLinesToProductRows(lines);
-    expect(rows[0]?.vatGroup).toBe("IN-18");
+    expect(rows[0]?.vatGroup).toBe("OUT-18");
     expect(rows[0]?.taxRate).toBe(0);
+
+    const fallback = mapRfqLinesToProductRows([{ ...lines[0]!, sqTaxCode: null }]);
+    expect(fallback[0]?.vatGroup).toBe("IN-18");
 
     const quoted: ProductRow[] = [
       {
@@ -80,6 +86,37 @@ describe("rfq-form.utils", () => {
     expect(payload.lines[0]).not.toHaveProperty("taxCode");
     expect(payload.lines[0]).not.toHaveProperty("vatGroup");
     expect(payload.lines[0]).not.toHaveProperty("VatGroup");
+  });
+
+  it("applies sales tax rate so RFQ tax total is included in grand total", () => {
+    const rows = mapRfqLinesToProductRows([
+      {
+        deliveryDate: "2026-08-20",
+        description: "Widget",
+        discount: 0,
+        itemCode: "A-1",
+        lineNum: 1,
+        quantity: 10,
+        remarks: null,
+        rfqId: 1,
+        rfqLineId: 9,
+        taxCode: "IN-18",
+        unitPrice: 20,
+        uomCode: "EA",
+        warehouse: "01",
+      },
+    ]);
+    const taxed = applyRfqSalesTaxToRows(rows, [
+      { category: "I", code: "IN-18", name: "Input 18", rate: 18 },
+      { category: "O", code: "OUT-18", name: "Output 18", rate: 18 },
+    ]);
+    expect(taxed[0]?.vatGroup).toBe("OUT-18");
+    expect(taxed[0]?.taxRate).toBe(18);
+
+    const totals = computeRfqProductTotals(taxed);
+    expect(totals.netTotal).toBe(200);
+    expect(totals.taxTotal).toBe(36);
+    expect(totals.grandTotal).toBe(236);
   });
 
   it("keeps quoted qty/date empty and does not copy required fields", () => {

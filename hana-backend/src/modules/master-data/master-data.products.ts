@@ -110,9 +110,8 @@ export const getProducts = async (
     }
   }
 
-  const quickLimit = BROWSE_SEED_LIMITS[0];
-  const fetchLimit =
-    requestedLimit <= quickLimit ? requestedLimit : Math.max(requestedLimit, BROWSE_WARM_LIMIT);
+  // Always load the warm page on a miss so FE limit=10 does not force a second HANA trip for 50.
+  const fetchLimit = Math.max(requestedLimit, BROWSE_WARM_LIMIT);
 
   const rows = await getCachedData(
     browseKey(fetchLimit),

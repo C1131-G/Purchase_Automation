@@ -50,6 +50,7 @@ export interface SalesQuotationDetail {
   id?: number;
   DocEntry?: number;
   DocNum?: number;
+  Series?: number;
   SalesPersonCode?: number | string;
   DocDate?: string;
   DocDueDate?: string;

@@ -15,6 +15,19 @@ export const SAP_SERIES_OBJECT = {
   salesQuotation: "23",
 } as const;
 
+/** SAP Service Layer header Series (NNM1). Used by edit pages to show the assigned series. */
+export const pickSapSeries = (result: unknown): number | undefined => {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+  const raw = (result as Record<string, unknown>).Series;
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num <= 0) {
+    return undefined;
+  }
+  return Math.trunc(num);
+};
+
 export const assignDocumentSeries = async (params: {
   dbName: string;
   objectCode: string;

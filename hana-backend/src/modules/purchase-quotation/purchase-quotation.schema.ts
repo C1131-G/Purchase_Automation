@@ -187,6 +187,7 @@ export const UpdatePurchaseQuotationInputSchema = z.object({
   CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
   draftDocEntry: z.coerce.number().optional(),
   ...sapDocumentBranchFields,
+  ...sapDocumentSeriesFields,
 });
 
 export type PurchaseQuotationQuery = z.infer<typeof PurchaseQuotationQuerySchema>;

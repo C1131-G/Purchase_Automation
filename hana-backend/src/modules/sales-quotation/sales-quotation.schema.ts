@@ -159,6 +159,7 @@ export const UpdateSalesQuotationInputSchema = z
     isDraft: z.boolean().optional(),
     draftDocEntry: z.coerce.number().optional(),
     ...sapDocumentBranchFields,
+    ...sapDocumentSeriesFields,
   })
   .strict();
 

@@ -89,6 +89,7 @@ export function ActionsPopoverContent({
   isSubmitting,
   submitDisabled,
   disabledReason,
+  hideUpdate = false,
   copyToTargets,
   copyToDocNum,
   copyToSourceDocType,
@@ -98,6 +99,7 @@ export function ActionsPopoverContent({
   isSubmitting?: boolean | undefined;
   submitDisabled?: boolean | undefined;
   disabledReason?: string | null | undefined;
+  hideUpdate?: boolean | undefined;
   copyToTargets?: string[];
   copyToDocNum?: string;
   copyToSourceDocType?: string;
@@ -199,22 +201,24 @@ export function ActionsPopoverContent({
       <div className="border-t border-linen-100 my-1" />
 
       {/* Option 1: Update */}
-      <button
-        type="button"
-        onClick={() => {
-          onSubmit();
-          setOpen(false);
-        }}
-        disabled={submitDisabled || Boolean(disabledReason) || isSubmitting}
-        className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border-none"
-      >
-        <span className="flex items-center gap-2.5">
-          <RefreshCw
-            className={`h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600 ${isSubmitting ? "animate-spin text-teal-600" : ""}`}
-          />
-          <span>Update</span>
-        </span>
-      </button>
+      {hideUpdate ? null : (
+        <button
+          type="button"
+          onClick={() => {
+            onSubmit();
+            setOpen(false);
+          }}
+          disabled={submitDisabled || Boolean(disabledReason) || isSubmitting}
+          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border-none"
+        >
+          <span className="flex items-center gap-2.5">
+            <RefreshCw
+              className={`h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600 ${isSubmitting ? "animate-spin text-teal-600" : ""}`}
+            />
+            <span>Update</span>
+          </span>
+        </button>
+      )}
 
       {/* Option 2: Download */}
       {onDownload && (
@@ -1015,6 +1019,7 @@ export function BaseProductSection({
                         isSubmitting={isSubmitting}
                         submitDisabled={submitDisabled}
                         disabledReason={disabledReason}
+                        hideUpdate={isReadOnly}
                         copyToTargets={copyToTargets}
                         copyToDocNum={copyToDocNum}
                         copyToSourceDocType={copyToSourceDocType}

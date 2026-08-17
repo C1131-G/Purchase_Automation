@@ -187,9 +187,6 @@ export function RfqTable() {
     if (searchParams.pqDraftDocNum) {
       built.push({ id: "pqDraftDocNum", value: searchParams.pqDraftDocNum });
     }
-    if (searchParams.pqDraftDocEntry) {
-      built.push({ id: "pqDraftDocEntry", value: searchParams.pqDraftDocEntry });
-    }
     if (searchParams.sourceCompanyId) {
       built.push({ id: "sourceCompanyId", value: searchParams.sourceCompanyId });
     }
@@ -252,9 +249,7 @@ export function RfqTable() {
           DocStatus: filterValueToString(nextFilters.find((f) => f.id === "DocStatus")?.value),
           columnFilters: nextSearchColumnFilters,
           page: 1,
-          pqDraftDocEntry: filterValueToString(
-            nextFilters.find((f) => f.id === "pqDraftDocEntry")?.value,
-          ),
+          pqDraftDocEntry: undefined,
           pqDraftDocNum: filterValueToString(
             nextFilters.find((f) => f.id === "pqDraftDocNum")?.value,
           ),

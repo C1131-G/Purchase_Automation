@@ -34,6 +34,7 @@ import {
   notifyDocumentHydrateError,
   notifyDocumentHydrating,
   notifyEditRestrictedField,
+  notifySqEditLocked,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
@@ -129,6 +130,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   const modals = useSqModals();
 
   const notifyRestricted = (fieldName = "Field") => {
+    if (isEditMode) {
+      notifySqEditLocked();
+      return;
+    }
     notifyEditRestrictedField(fieldName);
   };
 
@@ -187,6 +192,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     setSeries,
     disabled: isEditMode,
     lockSuggestion: isEditMode,
+    documentNumber: isEditMode ? editDocNum : null,
   });
 
   const productsHook = useSqProducts({
@@ -312,9 +318,11 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     enabled: (isEditMode && Boolean(editDocNum)) || (!isEditMode && Boolean(draftDocNum)),
   });
 
-  const isClosed =
+  const isSapClosed =
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
-    editDetailQuery.data?.data?.DocStatus === "C";
+    editDetailQuery.data?.data?.DocStatus === "C" ||
+    editDetailQuery.data?.data?.DocStatus === "bost_Close";
+  const isClosed = isEditMode || isSapClosed;
 
   useEffect(() => {
     if (!isEditMode && !draftDocNum) {
@@ -608,6 +616,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   ]);
 
   const openPopupWithContext = (mode: PopupMode) => {
+    if (isEditMode) {
+      notifyRestricted();
+      return;
+    }
     modals.openPopup(mode, {
       branchInput: branchField.branchInput,
       codeInput: lookups.codeInput,
@@ -670,6 +682,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   }, [activeDatePicker]);
 
   const handleOpenProductPopup = (rowId: string | null = null) => {
+    if (isEditMode) {
+      notifyRestricted("Products");
+      return;
+    }
     const existingRow = rowId ? productsHook.productRows.find((r) => r.id === rowId) : null;
     const initialSearch = existingRow ? existingRow.productName : "";
 
@@ -774,6 +790,11 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     const isDraftAction = action === "draft";
     const isDraftUpdate = isDraftAction && Boolean(draftDocNum);
     const isUpdating = isEditMode || isDraftUpdate;
+
+    if (isEditMode) {
+      notifyRestricted("Sales quotation");
+      return;
+    }
 
     if (isDraftAction && !draftDocNum) {
       // New draft: validate customer is filled, then create draft
@@ -1110,7 +1131,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     attachments,
   ]);
 
-  const submitDisabled = isEditMode ? !isDirty : false;
+  const submitDisabled = isEditMode;
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),

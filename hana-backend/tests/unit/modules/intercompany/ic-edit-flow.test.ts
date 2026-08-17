@@ -20,7 +20,10 @@ import { createRfqQueries } from "@/modules/intercompany/domain/rfq/rfq.queries"
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createPqCaptureService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/01-pq-capture/pq-capture.service";
 import { createUpdateRfqFromPqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/01-pq-capture/update-rfq-from-pq.service";
-import { createUpdateArDraftService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/update-ar-draft.service";
+import {
+  createUpdateArDraftService,
+  sapTaxCodeOrEmpty,
+} from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/update-ar-draft.service";
 import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
@@ -420,6 +423,172 @@ describe("PO to A/R Draft propagation", () => {
         ],
       },
     });
+  });
+
+  it("maps buyer purchase tax to seller sales tax and never copies IN-* / WH / UoM", async () => {
+    const stack = createStack();
+    await addMap(stack, IC_OBJECT.AR_DRAFT);
+    const patchArInvoiceDraft = vi.fn(async () => undefined);
+    const resolveLineTax = vi.fn(async () => "OUT-18");
+    const service = createUpdateArDraftService({
+      documentMap: stack.documentMap,
+      documents: {
+        getArInvoiceDraft: async () => ({
+          CardCode: "SELLER-CUSTOMER",
+          DocumentLines: [
+            {
+              BaseEntry: 300,
+              BaseLine: 0,
+              BaseType: 23,
+              ItemCode: "SELLER-ITEM",
+              LineNum: 0,
+              Quantity: 1,
+              UnitPrice: 5,
+              UoMCode: "NOS",
+              UoMEntry: 1,
+              VatGroup: "OUT-12.5",
+              WarehouseCode: "SL-WH",
+            },
+          ],
+        }),
+        patchArInvoiceDraft,
+      },
+      partnerTax: {
+        resolve: async () => ({ docSide: "sales", source: "ovtg_rate", taxCode: "OUT-18" }),
+        resolveLineTax,
+      },
+    });
+
+    await service.update({
+      buyerCompanyId: 1,
+      purchaseOrder: {
+        cardCode: "BUYER-VENDOR",
+        dbName: "DB_A",
+        docEntry: 55,
+        lines: [
+          {
+            ItemCode: "BUYER-ITEM",
+            LineNum: 0,
+            Quantity: 4,
+            UnitPrice: 12,
+            UoMCode: "BUYER-UOM",
+            VatGroup: "IN-18",
+            WarehouseCode: "BY-WH",
+          },
+        ],
+      },
+    });
+
+    expect(resolveLineTax).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docSide: "sales",
+        itemCode: "SELLER-ITEM",
+        sourceCompanyId: 1,
+        sourceTaxCode: "IN-18",
+        targetCardCode: "SELLER-CUSTOMER",
+        targetCompanyId: 2,
+      }),
+    );
+    const patchedLines = patchArInvoiceDraft.mock.calls[0]?.[0]?.patch?.DocumentLines as Record<
+      string,
+      unknown
+    >[];
+    expect(patchedLines[0]).toMatchObject({
+      ItemCode: "SELLER-ITEM",
+      Quantity: 4,
+      UoMCode: "NOS",
+      VatGroup: "OUT-18",
+      WarehouseCode: "SL-WH",
+    });
+    expect(patchedLines[0]?.VatGroup).not.toBe("IN-18");
+    expect(patchedLines[0]?.WarehouseCode).not.toBe("BY-WH");
+  });
+
+  it("keeps seller VatGroup when buyer tax cannot be mapped", async () => {
+    const stack = createStack();
+    await addMap(stack, IC_OBJECT.AR_DRAFT);
+    const patchArInvoiceDraft = vi.fn(async () => undefined);
+    const service = createUpdateArDraftService({
+      documentMap: stack.documentMap,
+      documents: {
+        getArInvoiceDraft: async () => ({
+          CardCode: "SELLER-CUSTOMER",
+          DocumentLines: [
+            {
+              ItemCode: "SELLER-ITEM",
+              LineNum: 0,
+              Quantity: 1,
+              VatGroup: "OUT-12.5",
+            },
+          ],
+        }),
+        patchArInvoiceDraft,
+      },
+      partnerTax: {
+        resolve: async () => ({ docSide: "sales", source: "omit", taxCode: "" }),
+        resolveLineTax: async () => "",
+      },
+    });
+
+    await service.update({
+      buyerCompanyId: 1,
+      purchaseOrder: {
+        cardCode: "BUYER-VENDOR",
+        dbName: "DB_A",
+        docEntry: 55,
+        lines: [{ ItemCode: "BUYER-ITEM", LineNum: 0, Quantity: 2, VatGroup: "IN-18" }],
+      },
+    });
+
+    expect(patchArInvoiceDraft.mock.calls[0]?.[0]?.patch?.DocumentLines?.[0]?.VatGroup).toBe(
+      "OUT-12.5",
+    );
+  });
+
+  it("drops garbled GET tax codes so SAP is not PATCHed with invalid VatGroup", async () => {
+    const stack = createStack();
+    await addMap(stack, IC_OBJECT.AR_DRAFT);
+    const patchArInvoiceDraft = vi.fn(async () => undefined);
+    await createUpdateArDraftService({
+      documentMap: stack.documentMap,
+      documents: {
+        getArInvoiceDraft: async () => ({
+          DocumentLines: [
+            {
+              ItemCode: "SELLER-ITEM",
+              LineNum: 0,
+              Quantity: 1,
+              TaxCode: "\uFEFF∩┐╜▌º",
+              VatGroup: "\uFEFF∩┐╜▌º",
+            },
+          ],
+        }),
+        patchArInvoiceDraft,
+      },
+    }).update({
+      buyerCompanyId: 1,
+      purchaseOrder: {
+        cardCode: "BUYER-VENDOR",
+        dbName: "DB_A",
+        docEntry: 55,
+        lines: [{ ItemCode: "BUYER-ITEM", LineNum: 0, Quantity: 2 }],
+      },
+    });
+
+    const patched = patchArInvoiceDraft.mock.calls[0]?.[0]?.patch?.DocumentLines?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(patched).not.toHaveProperty("VatGroup");
+    expect(patched).not.toHaveProperty("TaxCode");
+  });
+
+  it("accepts printable SAP tax codes and rejects BOM / mojibake", () => {
+    expect(sapTaxCodeOrEmpty("OUT-18")).toBe("OUT-18");
+    expect(sapTaxCodeOrEmpty("IN-12.5")).toBe("IN-12.5");
+    expect(sapTaxCodeOrEmpty("\uFEFFIN-18")).toBe("IN-18");
+    expect(sapTaxCodeOrEmpty("∩┐╜▌º")).toBe("");
+    expect(sapTaxCodeOrEmpty("TOO-LONG-TAX")).toBe("");
   });
 
   it("skips maps without a usable A/R Draft target", async () => {

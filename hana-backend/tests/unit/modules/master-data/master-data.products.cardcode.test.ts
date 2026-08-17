@@ -27,6 +27,37 @@ describe("getProducts / getProductsByCodes — OSCN CardCode gate", () => {
     expect(args?.[7]).toBe("V0011");
   });
 
+  it("first browse of 10 warms 50 so a later 50 does not reload HANA", async () => {
+    const rows = Array.from({ length: 50 }, (_, index) => ({ ItemCode: `I${index}` }));
+    loadProductsForTenant.mockResolvedValue(rows);
+
+    const first = await getProducts(
+      "DB-WARM",
+      undefined,
+      undefined,
+      10,
+      "purchase",
+      undefined,
+      "V1",
+    );
+    expect(first).toHaveLength(10);
+    expect(loadProductsForTenant).toHaveBeenCalledTimes(1);
+    expect(loadProductsForTenant.mock.calls[0]?.[3]).toBe(50);
+
+    loadProductsForTenant.mockClear();
+    const second = await getProducts(
+      "DB-WARM",
+      undefined,
+      undefined,
+      50,
+      "purchase",
+      undefined,
+      "V1",
+    );
+    expect(second).toHaveLength(50);
+    expect(loadProductsForTenant).not.toHaveBeenCalled();
+  });
+
   it("products-by-codes returns empty without cardCode", async () => {
     await expect(getProductsByCodes("DB", ["A", "B"], "purchase")).resolves.toEqual([]);
   });

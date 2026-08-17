@@ -31,6 +31,7 @@ export interface APCreditMemoDetailResponse {
     id?: number;
     DocEntry?: number;
     DocNum?: number;
+    Series?: number;
     DocDate?: string;
     CardCode?: string;
     CardName?: string;

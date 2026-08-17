@@ -11,6 +11,7 @@ import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { pickSapSeries } from "@/modules/master-data/document-series";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
@@ -44,6 +45,7 @@ export const getSalesQuotation = async (sessionId: string, id: string, isDraft =
       id: result.DocEntry,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      Series: pickSapSeries(result),
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,

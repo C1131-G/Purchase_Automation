@@ -1,5 +1,4 @@
 import { useQueryClient } from "@tanstack/react-query";
-
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -58,7 +57,7 @@ export function SalesQuotationCreate({
   );
 
   const pageTitle = state.isEditMode
-    ? `Update Sales Quotation ${docNum}`
+    ? `Sales Quotation ${docNum}`
     : draftDocNum
       ? `Create Sales Quotation (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
       : "Create Sales Quotation";
@@ -167,48 +166,69 @@ export function SalesQuotationCreate({
             </div>
           </div>
 
-          <LogisticsGrid
-            salesEmployeeLabel="Sales Employee"
-            salesEmployeeInput={state.salesEmployeeInput}
-            salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-            error={
-              state.salesEmployeesQuery.isError || state.warehousesQuery.isError
-                ? "Unable to load logistics details."
-                : null
+          <div
+            className={`h-full ${state.isClosed ? "cursor-not-allowed" : ""}`}
+            onClickCapture={
+              state.isClosed
+                ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    state.showEditRestrictedToast("Logistics");
+                  }
+                : undefined
             }
-            salesEmployeeFocused={state.salesEmployeeFocused}
-            salesEmployeeSuggestions={state.salesEmployeeSuggestions}
-            onSalesEmployeeChange={state.handleSalesEmployeeChange}
-            onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-            onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
-            onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
-            onSelectSalesEmployee={state.selectSalesEmployee}
-            showWarehouseInsteadOfDocNum={true}
-            warehouseLabel="Warehouse"
-            warehouseInput={state.warehouseInput}
-            warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
-            warehouseFocused={state.warehouseFocused}
-            warehouseSuggestions={state.warehouseSuggestions}
-            onWarehouseChange={state.handleWarehouseChange}
-            onWarehouseFocus={() => state.setWarehouseFocused(true)}
-            onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
-            onOpenWarehousePopup={() => state.openPopup("warehouse")}
-            onSelectWarehouse={state.selectWarehouse}
-            warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
-            warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
-            showBranch={state.showBranch}
-            branchInput={state.branchInput}
-            branchesLoading={state.branchesQuery?.isLoading || isFormHydrating}
-            branchFocused={state.branchFocused}
-            branchSuggestions={state.branchSuggestions}
-            onBranchChange={state.handleBranchChange}
-            onBranchFocus={() => state.setBranchFocused(true)}
-            onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
-            onOpenBranchPopup={() => state.openPopup("branch")}
-            onSelectBranch={state.selectBranch}
-            branchPlaceholder={state.branchPlaceholder ?? "No Branch"}
-            branchDisabled={Boolean(state.branchDisabled)}
-          />
+          >
+            <div className={`h-full ${state.isClosed ? "pointer-events-none" : ""}`}>
+              <LogisticsGrid
+                salesEmployeeLabel="Sales Employee"
+                salesEmployeeInput={state.salesEmployeeInput}
+                salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
+                error={
+                  state.salesEmployeesQuery.isError || state.warehousesQuery.isError
+                    ? "Unable to load logistics details."
+                    : null
+                }
+                salesEmployeeFocused={state.salesEmployeeFocused}
+                salesEmployeeSuggestions={state.salesEmployeeSuggestions}
+                onSalesEmployeeChange={state.handleSalesEmployeeChange}
+                onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
+                onSalesEmployeeBlur={() =>
+                  setTimeout(() => state.setSalesEmployeeFocused(false), 120)
+                }
+                onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
+                onSelectSalesEmployee={state.selectSalesEmployee}
+                salesEmployeeDisabled={state.isClosed}
+                readOnly={state.isClosed}
+                uniformReadOnlyAppearance={state.isClosed}
+                showWarehouseInsteadOfDocNum={true}
+                warehouseLabel="Warehouse"
+                warehouseInput={state.warehouseInput}
+                warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+                warehouseFocused={state.warehouseFocused}
+                warehouseSuggestions={state.warehouseSuggestions}
+                onWarehouseChange={state.handleWarehouseChange}
+                onWarehouseFocus={() => state.setWarehouseFocused(true)}
+                onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+                onOpenWarehousePopup={() => state.openPopup("warehouse")}
+                onSelectWarehouse={state.selectWarehouse}
+                warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
+                warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
+                warehouseDisabled={state.isClosed}
+                showBranch={state.showBranch}
+                branchInput={state.branchInput}
+                branchesLoading={state.branchesQuery?.isLoading || isFormHydrating}
+                branchFocused={state.branchFocused}
+                branchSuggestions={state.branchSuggestions}
+                onBranchChange={state.handleBranchChange}
+                onBranchFocus={() => state.setBranchFocused(true)}
+                onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
+                onOpenBranchPopup={() => state.openPopup("branch")}
+                onSelectBranch={state.selectBranch}
+                branchPlaceholder={state.branchPlaceholder ?? "No Branch"}
+                branchDisabled={state.isClosed || Boolean(state.branchDisabled)}
+              />
+            </div>
+          </div>
 
           <DocumentDatesGrid
             loading={isFormHydrating}
@@ -230,38 +250,63 @@ export function SalesQuotationCreate({
                 docDueDate: undefined,
               }));
             }}
+            docDateReadOnly={state.isClosed}
+            docDueDateReadOnly={state.isClosed}
+            uniformReadOnlyAppearance={state.isClosed}
             docDueDateLabel="VALID UNTIL"
             docDueDatePlaceholder="Select validity date"
           />
         </div>
 
         <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-          <AddressGrid
-            loading={isFormHydrating}
-            billToAddress={state.billToAddress}
-            shipToAddress={state.shipToAddress}
-            billToLabel="Pay To Address"
-            billToOptions={billToOptions}
-            shipToOptions={shipToOptions}
-            onBillToAddressChange={(value) => {
-              state.setBillToAddress(value);
-              state.setProductSearchFieldErrors((prev) => ({
-                ...prev,
-                billToAddress: value.trim() ? undefined : prev.billToAddress,
-              }));
-            }}
-            onShipToAddressChange={(value) => {
-              state.setShipToAddress(value);
-              state.setProductSearchFieldErrors((prev) => ({
-                ...prev,
-                shipToAddress: value.trim() ? undefined : prev.shipToAddress,
-              }));
-            }}
-          />
+          <div
+            className={`h-full lg:col-span-2 ${state.isClosed ? "cursor-not-allowed" : ""}`}
+            onClickCapture={
+              state.isClosed
+                ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    state.showEditRestrictedToast("Address");
+                  }
+                : undefined
+            }
+          >
+            <div className={`h-full ${state.isClosed ? "pointer-events-none" : ""}`}>
+              <AddressGrid
+                loading={isFormHydrating}
+                billToAddress={state.billToAddress}
+                shipToAddress={state.shipToAddress}
+                billToLabel="Pay To Address"
+                billToOptions={billToOptions}
+                shipToOptions={shipToOptions}
+                readOnly={state.isClosed}
+                uniformReadOnlyAppearance={state.isClosed}
+                onBillToAddressChange={(value) => {
+                  state.setBillToAddress(value);
+                  state.setProductSearchFieldErrors((prev) => ({
+                    ...prev,
+                    billToAddress: value.trim() ? undefined : prev.billToAddress,
+                  }));
+                }}
+                onShipToAddressChange={(value) => {
+                  state.setShipToAddress(value);
+                  state.setProductSearchFieldErrors((prev) => ({
+                    ...prev,
+                    shipToAddress: value.trim() ? undefined : prev.shipToAddress,
+                  }));
+                }}
+              />
+            </div>
+          </div>
           <ReferenceGrid
             loading={isFormHydrating}
             referenceNo={state.header.referenceNo}
             comments={state.header.comments}
+            referenceNoDisabled={state.isClosed}
+            commentsDisabled={state.isClosed}
+            onReferenceNoDisabledClick={() => state.showEditRestrictedToast("Customer ref no")}
+            onCommentsDisabledClick={() => state.showEditRestrictedToast("Remarks")}
+            uniformReadOnlyAppearance={state.isClosed}
             onReferenceNoChange={(value) => {
               state.setHeader({ referenceNo: value });
               state.setProductSearchFieldErrors((prev) => ({
@@ -335,6 +380,7 @@ export function SalesQuotationCreate({
             "Sales_Quotation",
           )}
           onReset={state.resetForm}
+          isClosed={state.isClosed}
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
         />

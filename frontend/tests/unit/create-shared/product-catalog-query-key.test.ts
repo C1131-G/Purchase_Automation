@@ -7,7 +7,7 @@ describe("product catalog query keys", () => {
     const pq = createSharedQueries.products(
       undefined,
       undefined,
-      10,
+      50,
       "purchase",
       undefined,
       "V001",
@@ -16,7 +16,7 @@ describe("product catalog query keys", () => {
     const po = createSharedQueries.products(
       undefined,
       undefined,
-      10,
+      50,
       "purchase",
       undefined,
       "V001",
@@ -25,7 +25,7 @@ describe("product catalog query keys", () => {
     const grpo = createSharedQueries.products(
       undefined,
       undefined,
-      10,
+      50,
       "purchase",
       undefined,
       "V001",
@@ -43,7 +43,7 @@ describe("product catalog query keys", () => {
     const vendorA = createSharedQueries.products(
       undefined,
       undefined,
-      10,
+      50,
       "purchase",
       undefined,
       "V001",
@@ -52,7 +52,7 @@ describe("product catalog query keys", () => {
     const vendorB = createSharedQueries.products(
       undefined,
       undefined,
-      10,
+      50,
       "purchase",
       undefined,
       "V002",
@@ -60,5 +60,38 @@ describe("product catalog query keys", () => {
     ).queryKey;
 
     expect(vendorA).not.toEqual(vendorB);
+  });
+
+  it("uses the same query key for prefetch and popup browse (one cache, no 10-then-50 refetch)", () => {
+    const prefetch = createSharedQueries.products(
+      undefined,
+      undefined,
+      50,
+      "purchase",
+      undefined,
+      "V001",
+      "grpo",
+    ).queryKey;
+    const popup = createSharedQueries.products(
+      undefined,
+      undefined,
+      50,
+      "purchase",
+      undefined,
+      "V001",
+      "grpo",
+    ).queryKey;
+    const firstPageOnly = createSharedQueries.products(
+      undefined,
+      undefined,
+      10,
+      "purchase",
+      undefined,
+      "V001",
+      "grpo",
+    ).queryKey;
+
+    expect(prefetch).toEqual(popup);
+    expect(firstPageOnly).not.toEqual(popup);
   });
 });

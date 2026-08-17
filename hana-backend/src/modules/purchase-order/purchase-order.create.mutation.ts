@@ -12,6 +12,7 @@ import { attachmentsService } from "@/modules/attachments/attachments.service";
 import {
   afterPoCreated,
   assertPqLinesCopyAllowed,
+  commentsWithoutSapBaseAutoLines,
   recordIcPqToPoLink,
 } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
@@ -135,7 +136,9 @@ export const createPurchaseOrder = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: toSapCreateCommentsField(payload.Comments ?? draftComments),
+      Comments: toSapCreateCommentsField(
+        commentsWithoutSapBaseAutoLines(payload.Comments ?? draftComments, documentLines),
+      ),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,

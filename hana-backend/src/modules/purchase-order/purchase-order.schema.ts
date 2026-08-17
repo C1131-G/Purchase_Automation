@@ -218,6 +218,8 @@ export const UpdatePurchaseOrderInputSchema = z
     CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
     ...sapDocumentBranchFields,
+    // Series is locked after numbering; accept and ignore if a client still sends it.
+    ...sapDocumentSeriesFields,
   })
   .strict();
 

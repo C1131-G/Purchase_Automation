@@ -1,8 +1,8 @@
 /**
  * Request For Quotation lookup layer — sales-side (customer, not vendor).
- * Doc Number, customer, and table-value fields (PQ draft, companies) use suggestion
+ * Doc Number, customer, and table-value fields (PQ No., companies) use suggestion
  * chips + full-screen lookup from the loaded RFQ list.
- * No Create button (documents are created from IC PQ draft Flow 1).
+ * No Create button (documents are created from IC PQ Flow 1).
  */
 import type { useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -28,7 +28,6 @@ const RFQ_LOOKUP_COLUMNS = [
   "DocNum",
   "CardCode",
   "pqDraftDocNum",
-  "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
 ] as const;
@@ -37,7 +36,6 @@ type RfqLookupColumnId = (typeof RFQ_LOOKUP_COLUMNS)[number];
 
 const TABLE_VALUE_COLUMNS = new Set<string>([
   "pqDraftDocNum",
-  "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
 ]);
@@ -45,8 +43,7 @@ const TABLE_VALUE_COLUMNS = new Set<string>([
 const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
   CardCode: "Search Customer Code",
   DocNum: "Search Doc Number",
-  pqDraftDocEntry: "Search PQ Draft Entry",
-  pqDraftDocNum: "Search PQ Draft No.",
+  pqDraftDocNum: "Search PQ No.",
   sourceCompanyId: "Search Source Co.",
   targetCompanyId: "Search Target Co.",
 };
@@ -54,8 +51,7 @@ const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
 const LOOKUP_PLACEHOLDERS: Record<RfqLookupColumnId, string> = {
   CardCode: "Search customer code",
   DocNum: "Search document number",
-  pqDraftDocEntry: "Search PQ draft entry",
-  pqDraftDocNum: "Search PQ draft number",
+  pqDraftDocNum: "Search PQ number",
   sourceCompanyId: "Search source company name",
   targetCompanyId: "Search target company name",
 };
@@ -89,10 +85,6 @@ const pickFieldValue = (row: IcRfqHeader, columnId: string): string => {
       return row.pqDraftDocNum === null || row.pqDraftDocNum === undefined
         ? ""
         : String(row.pqDraftDocNum).trim();
-    case "pqDraftDocEntry":
-      return row.pqDraftDocEntry === null || row.pqDraftDocEntry === undefined
-        ? ""
-        : String(row.pqDraftDocEntry).trim();
     case "sourceCompanyId": {
       const name = row.sourceCompanyName?.trim();
       return name || String(row.sourceCompanyId ?? "").trim();

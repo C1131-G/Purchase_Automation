@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
+import { Lock } from "lucide-react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -13,6 +14,7 @@ import { ReferenceGrid } from "@/features/create-pages/create-shared/components/
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { PQ_RFQ_LOCKED_MESSAGE } from "@/features/create-pages/create-shared/utils/pq-rfq-copy";
 import { resolveActiveHighlightDocRef } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import {
   parseISODate,
@@ -117,6 +119,16 @@ export function PurchaseQuotationCreate({
             : null
         }
       >
+        {state.isRfqLocked ? (
+          <div
+            role="status"
+            className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-medium text-amber-950"
+          >
+            <Lock className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+            {PQ_RFQ_LOCKED_MESSAGE}
+          </div>
+        ) : null}
+
         {state.trackerDocType && state.trackerDocEntry && (
           <div className="mb-4 mt-2 w-full">
             <div className="relative z-10 overflow-x-auto w-full">
@@ -260,7 +272,7 @@ export function PurchaseQuotationCreate({
             toISODate={toISODate}
             docDueDateInvalid={Boolean(state.productSearchFieldErrors.docDueDate)}
             docDueDateErrorText={state.productSearchFieldErrors.docDueDate}
-            docDateReadOnly={false}
+            docDateReadOnly={state.isClosed}
             docDueDateReadOnly={state.isClosed}
             uniformReadOnlyAppearance={state.isEditMode}
             onSetActiveDatePicker={state.setActiveDatePicker}
@@ -328,6 +340,10 @@ export function PurchaseQuotationCreate({
             loading={isFormHydrating}
             referenceNo={state.header.referenceNo}
             comments={state.header.comments}
+            referenceNoDisabled={state.isClosed}
+            commentsDisabled={state.isClosed}
+            onReferenceNoDisabledClick={() => state.showEditRestrictedToast("Vendor ref no")}
+            onCommentsDisabledClick={() => state.showEditRestrictedToast("Remarks")}
             uniformReadOnlyAppearance={state.isEditMode}
             onReferenceNoChange={(value) => {
               state.setHeader({ referenceNo: value });
@@ -413,7 +429,7 @@ export function PurchaseQuotationCreate({
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
-            !state.isClosed && state.rfqCopyAllowed && state.isEditMode && docNum ? (
+            !state.isSapClosed && state.rfqCopyAllowed && state.isEditMode && docNum ? (
               <CopyToDropdown
                 docNum={String(docNum)}
                 sourceDocType="PurchaseQuotation"

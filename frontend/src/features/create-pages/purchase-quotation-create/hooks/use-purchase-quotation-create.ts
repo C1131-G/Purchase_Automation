@@ -16,6 +16,7 @@ import {
   resolveHydrateProductMeta,
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
+import { isPqLockedAfterRfqSubmit } from "@/features/create-pages/create-shared/utils/pq-rfq-copy";
 import { sapCommentsField } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
@@ -31,6 +32,7 @@ import {
   notifyCreateApiError,
   notifyDocumentHydrating,
   notifyEditRestrictedField,
+  notifyPqRfqLocked,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { resolveDocCurrencyForPayload } from "@/shared/utils/currency";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
@@ -242,10 +244,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const modals = usePqModals();
 
-  const notifyRestricted = (fieldName = "Field") => {
-    notifyEditRestrictedField(fieldName);
-  };
-
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   }, []);
@@ -297,6 +295,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     setSeries,
     disabled: isEditMode,
     lockSuggestion: isEditMode,
+    documentNumber: isEditMode ? editDocNum : null,
   });
 
   const productsHook = usePqProducts({
@@ -364,10 +363,20 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     enabled: (isEditMode && Boolean(editDocNum)) || Boolean(draftDocNum),
   });
 
-  const isClosed =
+  const isSapClosed =
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
     editDetailQuery.data?.data?.DocStatus === "bost_Close" ||
     editDetailQuery.data?.data?.DocStatus === "C";
+  const isRfqLocked = isPqLockedAfterRfqSubmit(editDetailQuery.data?.data?.rfqStatus);
+  const isClosed = isSapClosed || isRfqLocked;
+
+  const notifyRestricted = (fieldName = "Field") => {
+    if (isRfqLocked) {
+      notifyPqRfqLocked();
+      return;
+    }
+    notifyEditRestrictedField(fieldName);
+  };
 
   useEffect(() => {
     if (!isEditMode && !draftDocNum) {
@@ -990,6 +999,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     const isDraftAction = action === "draft";
     const draftCardCode = (header.vendorCode || lookups.codeInput).trim();
 
+    if (isClosed && isEditMode) {
+      notifyRestricted("Purchase quotation");
+      return;
+    }
+
     if (isDraftAction) {
       if (!draftCardCode) {
         setSubmitAttempted(true);
@@ -1423,6 +1437,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     handleLookupModalSearchSync,
     header,
     isClosed,
+    isSapClosed,
+    isRfqLocked,
     isEditHydrated,
     isEditMode,
     isSaved: saveActions.isSaved,

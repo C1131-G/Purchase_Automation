@@ -156,39 +156,9 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
         .includes(term);
     },
     header: ({ column, table }) => (
-      <TableColumnSort
-        column={column}
-        sortingState={table.getState().sorting}
-        title="PQ Draft No."
-      />
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="PQ No." />
     ),
     id: "pqDraftDocNum",
-    meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
-  }),
-  columnHelper.accessor("pqDraftDocEntry", {
-    cell: (info) => info.getValue() || "—",
-    enableSorting: true,
-    filterFn: (row, _columnId, filterValue) => {
-      const term = String(filterValue ?? "")
-        .trim()
-        .toLowerCase();
-      if (!term) {
-        return true;
-      }
-      return String(row.original.pqDraftDocEntry ?? "")
-        .toLowerCase()
-        .includes(term);
-    },
-    header: ({ column, table }) => (
-      <TableColumnSort
-        column={column}
-        sortingState={table.getState().sorting}
-        title="PQ Draft Entry"
-      />
-    ),
-    id: "pqDraftDocEntry",
     meta: { filterType: "text" },
     minSize: 12,
     size: 14,
@@ -244,7 +214,6 @@ export const RFQ_DEFAULT_COLUMN_ORDER = [
   "CardCode",
   "DocStatus",
   "pqDraftDocNum",
-  "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
 ] as const;

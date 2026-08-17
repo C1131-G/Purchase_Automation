@@ -238,6 +238,7 @@ export const createSharedQueries = {
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     });
   },
+  /** Browse: use one stable limit (50). A 10-then-50 pair is two keys and a second fetch. */
   products: (
     warehouseCode?: string,
     search?: string,
