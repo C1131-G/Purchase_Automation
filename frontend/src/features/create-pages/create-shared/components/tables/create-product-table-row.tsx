@@ -35,6 +35,11 @@ import {
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { parseDocumentLineQuantity } from "@/features/create-pages/create-shared/utils/document-line-quantity";
+import {
+  commitZeroNumericBlur,
+  draftAfterZeroNumericFocus,
+  formatZeroNumericDisplay,
+} from "@/features/create-pages/create-shared/utils/zero-numeric-input";
 
 type CalendarWithBoundsProps = ComponentProps<typeof Calendar> & {
   minDate?: Date | undefined;
@@ -231,7 +236,7 @@ export function CreateProductTableRow({
   onInputRestrictedClick,
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
-  showExplicitZeroDiscount = false,
+  showExplicitZeroDiscount = true,
   showSelection = false,
   showReturnReason = false,
   nativeReturnReason = false,
@@ -736,22 +741,17 @@ export function CreateProductTableRow({
   // Unit net price for display (pre-tax per unit)
   const unitNetPrice = (row.quantity || 0) > 0 ? lineNet / (row.quantity || 1) : 0;
 
-  const discountPercentInputValue =
-    rowDraft?.discountPercent ??
-    (row.discountPercent === 0
-      ? showExplicitZeroDiscount
-        ? "0.00"
-        : ""
-      : row.discountPercent.toFixed(2));
-  const discountAmountInputValue =
-    rowDraft?.discountAmount ??
-    (clampedDiscountAmount === 0
-      ? showExplicitZeroDiscount
-        ? "0.00"
-        : ""
-      : clampedDiscountAmount.toFixed(2));
-  const priceInputValue =
-    rowDraft?.price !== undefined ? rowDraft.price : Number(row.price || 0).toFixed(2);
+  const discountPercentInputValue = formatZeroNumericDisplay(
+    rowDraft?.discountPercent,
+    row.discountPercent,
+    { explicitZero: showExplicitZeroDiscount },
+  );
+  const discountAmountInputValue = formatZeroNumericDisplay(
+    rowDraft?.discountAmount,
+    clampedDiscountAmount,
+    { explicitZero: showExplicitZeroDiscount },
+  );
+  const priceInputValue = formatZeroNumericDisplay(rowDraft?.price, Number(row.price || 0));
   const beginZeroNumericEdit = (
     field: "price" | "discountPercent" | "discountAmount",
     current: number,
@@ -759,9 +759,11 @@ export function CreateProductTableRow({
     if (rowDraft?.[field] !== undefined) {
       return;
     }
-    if (current === 0) {
-      setProductRowDraft(row.id, field, "");
+    const nextDraft = draftAfterZeroNumericFocus(undefined, current);
+    if (nextDraft === undefined) {
+      return;
     }
+    setProductRowDraft(row.id, field, nextDraft);
   };
   const isRowActive = !showSelection || row.selected === true;
   const baseDisabled = disableInputs || !isRowActive;
@@ -773,6 +775,7 @@ export function CreateProductTableRow({
   const snapshotLocked = effectiveDisableInputs;
   const sellerFieldEditable = rfqSellerFill && !baseDisabled;
   const sellerFieldLocked = !sellerFieldEditable;
+  const discountInputsLocked = showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs;
   return (
     <tr
       className={`transition-opacity duration-200 ${!isRowActive ? "opacity-50" : "opacity-100"}`}
@@ -1417,8 +1420,7 @@ export function CreateProductTableRow({
                 clearProductRowDraft(row.id, "price");
                 return;
               }
-              const parsed = Number(rawValue);
-              const next = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+              const next = Math.max(0, commitZeroNumericBlur(rawValue));
               const newGross = next * row.quantity;
               const newDiscountAmount =
                 Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
@@ -1459,21 +1461,23 @@ export function CreateProductTableRow({
             type="number"
             step="0.001"
             inputMode="decimal"
+            placeholder="0.00"
+            aria-label="Discount percent"
             value={discountPercentInputValue}
-            readOnly={showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs}
+            readOnly={discountInputsLocked}
             onClick={() => {
-              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
+              if (discountInputsLocked) {
                 onInputRestrictedClick?.();
               }
             }}
             onFocus={() => {
-              if (!sellerFieldEditable) {
+              if (discountInputsLocked) {
                 return;
               }
               beginZeroNumericEdit("discountPercent", row.discountPercent);
             }}
             onChange={(event) => {
-              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
+              if (discountInputsLocked) {
                 return;
               }
               const rawValue = event.target.value;
@@ -1497,12 +1501,11 @@ export function CreateProductTableRow({
               });
             }}
             onBlur={(event) => {
-              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
+              if (discountInputsLocked) {
                 return;
               }
               const rawValue = event.target.value.trim();
-              const rawPercent =
-                rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 1000) / 1000;
+              const rawPercent = Math.round(commitZeroNumericBlur(rawValue) * 1000) / 1000;
               const nextPercent = Math.min(100, rawPercent);
               const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
               updateProductRow(row.id, {
@@ -1512,9 +1515,7 @@ export function CreateProductTableRow({
               clearProductRowDraft(row.id, "discountPercent");
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
-              (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs)
-                ? "cursor-not-allowed opacity-70"
-                : ""
+              discountInputsLocked ? "cursor-not-allowed opacity-70" : ""
             }`}
           />
         )}
@@ -1537,22 +1538,24 @@ export function CreateProductTableRow({
             type="number"
             step="0.01"
             inputMode="decimal"
+            placeholder="0.00"
+            aria-label="Discount amount"
             title=""
             value={discountAmountInputValue}
-            readOnly={showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs}
+            readOnly={discountInputsLocked}
             onClick={() => {
-              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
+              if (discountInputsLocked) {
                 onInputRestrictedClick?.();
               }
             }}
             onFocus={() => {
-              if (!sellerFieldEditable) {
+              if (discountInputsLocked) {
                 return;
               }
               beginZeroNumericEdit("discountAmount", clampedDiscountAmount);
             }}
             onChange={(event) => {
-              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
+              if (discountInputsLocked) {
                 return;
               }
               const rawValue = event.target.value;
@@ -1579,12 +1582,11 @@ export function CreateProductTableRow({
               });
             }}
             onBlur={(event) => {
-              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
+              if (discountInputsLocked) {
                 return;
               }
               const rawValue = event.target.value.trim();
-              const rawAmount =
-                rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
+              const rawAmount = Math.round(commitZeroNumericBlur(rawValue) * 100) / 100;
               const nextAmount = Math.min(grossAmount, rawAmount);
               const nextPercent =
                 grossAmount > 0
@@ -1597,9 +1599,7 @@ export function CreateProductTableRow({
               clearProductRowDraft(row.id, "discountAmount");
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
-              (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs)
-                ? "cursor-not-allowed opacity-70"
-                : ""
+              discountInputsLocked ? "cursor-not-allowed opacity-70" : ""
             }`}
           />
         )}

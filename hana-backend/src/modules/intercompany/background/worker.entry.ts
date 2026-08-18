@@ -15,7 +15,7 @@ import "@/config/zod";
 
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
-import { stopObservability } from "@/core/observability/otel-sdk";
+import { stopObservability } from "@/core/observability/observability-runtime";
 import { AppDataSource, initializeDatabase } from "@/db/config/data-source";
 import { closeAllTenantDataSources } from "@/db/config/tenant-data-source";
 import {

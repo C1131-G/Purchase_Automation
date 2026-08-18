@@ -1,25 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { RequestHandler } from "express";
-import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
 
-let exporter: PrometheusExporter | null = null;
+import { getPrometheusExporter } from "./prometheus-runtime";
 
-export function createPrometheusExporter(endpoint = "/metrics"): PrometheusExporter {
-  if (exporter) {
-    return exporter;
-  }
-  exporter = new PrometheusExporter({
-    preventServerStart: true,
-    endpoint,
-    withoutScopeInfo: true,
-  });
-  return exporter;
-}
-
-export function getPrometheusExporter(): PrometheusExporter | null {
-  return exporter;
-}
+export { getPrometheusExporter } from "./prometheus-runtime";
 
 /**
  * Express handler that scrapes the in-process Prometheus exporter.

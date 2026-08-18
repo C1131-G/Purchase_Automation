@@ -95,7 +95,7 @@ export function CreateProductTable({
   onLineInputRestrictedClick,
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
-  showExplicitZeroDiscount = false,
+  showExplicitZeroDiscount = true,
   showSelection = false,
   showReturnReason = false,
   nativeReturnReason = false,

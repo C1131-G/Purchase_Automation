@@ -16,8 +16,15 @@ import {
 } from "@opentelemetry/semantic-conventions";
 
 import { initAppMetrics } from "./metrics";
-import { createPrometheusExporter } from "./prometheus";
+import {
+  isObservabilityStarted,
+  markObservabilityStarted,
+  setObservabilitySdk,
+} from "./observability-runtime";
+import { createPrometheusExporter } from "./prometheus-exporter";
 import { shouldStartObservability } from "./should-start-observability";
+
+export { isObservabilityStarted, stopObservability } from "./observability-runtime";
 
 export type ObservabilityOptions = {
   serviceName: string;
@@ -25,9 +32,6 @@ export type ObservabilityOptions = {
   /** Enable pg instrumentation (SQL backend only). */
   includePg?: boolean;
 };
-
-let sdk: NodeSDK | null = null;
-let started = false;
 
 function envFlag(name: string, defaultTrue = false): boolean {
   const envValue = process.env[name];
@@ -58,10 +62,10 @@ function buildSampler() {
  * Must run before Express / pg / http clients are first loaded when possible.
  */
 export function startObservability(options: ObservabilityOptions): void {
-  if (started || shouldDisable()) {
+  if (isObservabilityStarted() || shouldDisable()) {
     return;
   }
-  started = true;
+  markObservabilityStarted();
 
   if (process.env.OTEL_DIAG === "true") {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
@@ -111,26 +115,11 @@ export function startObservability(options: ObservabilityOptions): void {
     sdkConfig.traceExporter = new OTLPTraceExporter({ url });
   }
 
-  sdk = new NodeSDK(sdkConfig);
+  const sdk = new NodeSDK(sdkConfig);
   sdk.start();
+  setObservabilitySdk(sdk);
 
   if (envFlag("METRICS_ENABLED", true)) {
     initAppMetrics();
   }
-}
-
-export async function stopObservability(): Promise<void> {
-  if (!sdk) {
-    return;
-  }
-  try {
-    await sdk.shutdown();
-  } finally {
-    sdk = null;
-    started = false;
-  }
-}
-
-export function isObservabilityStarted(): boolean {
-  return started;
 }

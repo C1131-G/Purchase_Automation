@@ -1,4 +1,4 @@
-import { context, SpanStatusCode, trace, type Attributes, type Span } from "@opentelemetry/api";
+import { SpanStatusCode, trace, type Attributes, type Span } from "@opentelemetry/api";
 
 const TRACER_NAME = "vendor-portal";
 
@@ -8,7 +8,7 @@ export function getTracer() {
 
 /** Active W3C ids for log correlation (empty when no span / SDK off). */
 export function getActiveTraceFields(): { trace_id?: string; span_id?: string } {
-  const span = trace.getSpan(context.active());
+  const span = trace.getActiveSpan();
   const activeSpanContext = span?.spanContext();
   if (
     !activeSpanContext ||
@@ -21,7 +21,7 @@ export function getActiveTraceFields(): { trace_id?: string; span_id?: string } 
 }
 
 export function recordExceptionOnActiveSpan(err: unknown): void {
-  const span = trace.getSpan(context.active());
+  const span = trace.getActiveSpan();
   if (!span) {
     return;
   }
