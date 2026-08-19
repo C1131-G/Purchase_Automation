@@ -209,6 +209,8 @@ interface CreateProductTableRowProps {
   showPqLineDatesAndQtys?: boolean;
   /** PQ Valid Until — line Required Date cannot be after this. */
   lineRequiredDateMax?: string;
+  /** RFQ Valid Until — line Quoted Date cannot be after this. */
+  rfqQuotedDateMax?: string;
   /**
    * RFQ seller fill: PQ column layout, only quoted qty/date + price + disc editable.
    * Buyer snapshot fields (product, WH, UoM, required date/qty) stay locked.
@@ -251,6 +253,7 @@ export function CreateProductTableRow({
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
   lineRequiredDateMax = "",
+  rfqQuotedDateMax = "",
   rfqSellerFill = false,
   lineFieldInvalid,
   showTaxCode = true,
@@ -362,6 +365,7 @@ export function CreateProductTableRow({
     : undefined;
   const lineRequiredMinDate =
     lineRequiredMaxDate && lineRequiredMaxDate < today ? lineRequiredMaxDate : today;
+  const rfqQuotedMaxDate = rfqQuotedDateMax.trim() ? parseISODate(rfqQuotedDateMax) : undefined;
 
   const updateLineCalendarPosition = React.useCallback(() => {
     const anchor =
@@ -659,6 +663,16 @@ export function CreateProductTableRow({
     ) : (
       <span className="font-bold text-rose-500">Item is out of stock</span>
     );
+
+  const rfqMaxQty =
+    row.requiredQuantity && row.requiredQuantity > 0 ? row.requiredQuantity : undefined;
+  const rfqQuantityMessage =
+    rfqMaxQty !== undefined ? (
+      <span className="flex items-center gap-1.5">
+        <span className="font-normal text-neutral-500">Max allowed limit: </span>
+        <span className="font-bold text-teal-600">{rfqMaxQty}</span>
+      </span>
+    ) : null;
 
   React.useEffect(() => {
     setUomInput(row.uomCode ?? "");
@@ -1157,12 +1171,15 @@ export function CreateProductTableRow({
                         >
                           <CalendarWithBounds
                             mode="single"
+                            {...(rfqQuotedMaxDate ? { maxDate: rfqQuotedMaxDate } : {})}
                             {...(row.quotedDate ? { selected: parseISODate(row.quotedDate) } : {})}
                             onSelect={(value) => {
                               if (!(value instanceof Date)) {
                                 return;
                               }
-                              updateProductRow(row.id, { quotedDate: toISODate(value) });
+                              updateProductRow(row.id, {
+                                quotedDate: capIsoDateToMax(toISODate(value), rfqQuotedDateMax),
+                              });
                               setLineDatePicker(null);
                             }}
                           />
@@ -1233,37 +1250,44 @@ export function CreateProductTableRow({
           {/* Quoted Qty — locked on PQ; editable on RFQ seller fill. */}
           <td className="min-w-0 px-2 py-2">
             {sellerFieldEditable ? (
-              <input
-                type="number"
-                min={1}
-                step="any"
-                placeholder="1"
-                aria-invalid={lineFieldInvalid?.quantity === true}
-                value={
-                  rowDraft?.quantity !== undefined
-                    ? rowDraft.quantity
-                    : row.quantity > 0
-                      ? String(row.quantity)
-                      : ""
-                }
-                onChange={(event) => {
-                  setProductRowDraft(row.id, "quantity", event.target.value);
-                }}
-                onBlur={(event) => {
-                  const next = parseDocumentLineQuantity(event.target.value);
-                  const newGross = row.price * next;
-                  const newDiscountAmount =
-                    Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
-                  updateProductRow(row.id, {
-                    discountAmount: newDiscountAmount,
-                    quantity: next,
-                  });
-                  clearProductRowDraft(row.id, "quantity");
-                }}
-                className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
-                  lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
-                }`}
-              />
+              <Tooltip content={rfqQuantityMessage} className="block w-auto max-w-none">
+                <input
+                  type="number"
+                  min={1}
+                  max={rfqMaxQty}
+                  step="any"
+                  placeholder="1"
+                  aria-invalid={lineFieldInvalid?.quantity === true}
+                  value={
+                    rowDraft?.quantity !== undefined
+                      ? rowDraft.quantity
+                      : row.quantity > 0
+                        ? String(row.quantity)
+                        : ""
+                  }
+                  onChange={(event) => {
+                    setProductRowDraft(row.id, "quantity", event.target.value);
+                  }}
+                  onBlur={(event) => {
+                    const parsed = parseDocumentLineQuantity(event.target.value);
+                    const next =
+                      rfqMaxQty !== undefined && rfqMaxQty > 0
+                        ? Math.max(1, Math.min(rfqMaxQty, parsed))
+                        : parsed;
+                    const newGross = row.price * next;
+                    const newDiscountAmount =
+                      Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                    updateProductRow(row.id, {
+                      discountAmount: newDiscountAmount,
+                      quantity: next,
+                    });
+                    clearProductRowDraft(row.id, "quantity");
+                  }}
+                  className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
+                    lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
+                  }`}
+                />
+              </Tooltip>
             ) : (
               <input
                 type="number"

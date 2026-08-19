@@ -227,6 +227,7 @@ export function RequestForQuotationForm({
                 requiredDate={state.batchQuotedDate}
                 requiredDateReadOnly={!state.canEditLines}
                 requiredDateFutureOnly={false}
+                requiredDateMax={header.docDueDate?.slice(0, 10) || ""}
                 onRequiredDateChange={(value) => {
                   state.setAllQuotedDate(value);
                 }}
@@ -304,6 +305,7 @@ export function RequestForQuotationForm({
               isSubmitting={state.isSubmitting}
               formError={state.formError}
               lineFieldErrors={state.lineFieldErrors}
+              rfqQuotedDateMax={header.docDueDate?.slice(0, 10) || ""}
               onSubmit={() => {
                 void state.handleSubmit();
               }}

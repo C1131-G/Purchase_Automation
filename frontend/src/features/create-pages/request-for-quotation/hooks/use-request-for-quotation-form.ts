@@ -21,6 +21,7 @@ import {
   type BranchLookupItem,
   type WarehouseWithBranch,
 } from "@/features/create-pages/create-shared/utils/document-branch";
+import { capIsoDateToMax } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import {
   useConvertIcRfq,
   useSubmitIcRfq,
@@ -171,7 +172,9 @@ export function useRequestForQuotationForm(rfqId: number) {
           allowed.price = patch.price;
         }
         if (patch.quantity !== undefined) {
-          allowed.quantity = patch.quantity;
+          const maxReq = requiredQtyByIdRef.current[id];
+          allowed.quantity =
+            maxReq !== undefined && maxReq > 0 && patch.quantity > maxReq ? maxReq : patch.quantity;
         }
         if (patch.discountPercent !== undefined) {
           allowed.discountPercent = patch.discountPercent;
@@ -180,7 +183,10 @@ export function useRequestForQuotationForm(rfqId: number) {
           allowed.discountAmount = patch.discountAmount;
         }
         if (patch.quotedDate !== undefined) {
-          allowed.quotedDate = patch.quotedDate;
+          const docDueDate = (header?.docDueDate ?? "").trim().slice(0, 10);
+          allowed.quotedDate = docDueDate
+            ? capIsoDateToMax(patch.quotedDate, docDueDate)
+            : patch.quotedDate;
         }
       }
       if (Object.keys(allowed).length === 0) {
@@ -203,7 +209,7 @@ export function useRequestForQuotationForm(rfqId: number) {
         setFormError(null);
       }
     },
-    [canEditLines],
+    [canEditLines, header?.docDueDate],
   );
 
   const setProductRowDraft = useCallback(
@@ -252,10 +258,12 @@ export function useRequestForQuotationForm(rfqId: number) {
       if (!canEditLines) {
         return;
       }
-      const nextDate = value.trim().slice(0, 10);
-      if (!nextDate) {
+      const rawDate = value.trim().slice(0, 10);
+      if (!rawDate) {
         return;
       }
+      const docDueDate = (header?.docDueDate ?? "").trim().slice(0, 10);
+      const nextDate = docDueDate ? capIsoDateToMax(rawDate, docDueDate) : rawDate;
       const prevBatchDate = lastBatchQuotedDateRef.current;
       lastBatchQuotedDateRef.current = nextDate;
       setBatchQuotedDate(nextDate);
@@ -272,7 +280,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       );
       setFormError(null);
     },
-    [canEditLines],
+    [canEditLines, header?.docDueDate],
   );
 
   const openProductPopup = useCallback((_rowId: string | null) => {

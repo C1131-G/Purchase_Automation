@@ -61,6 +61,8 @@ interface CreateProductTableProps {
   showPqLineDatesAndQtys?: boolean;
   /** PQ Valid Until — line Required Date cannot be after this. */
   lineRequiredDateMax?: string;
+  /** RFQ Valid Until — line Quoted Date cannot be after this. */
+  rfqQuotedDateMax?: string;
   /**
    * RFQ seller fill: same PQ columns, but only quoted qty/date, price, disc %/amt editable.
    * Product, warehouse, UoM, required date/qty stay locked.
@@ -109,6 +111,7 @@ export function CreateProductTable({
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
   lineRequiredDateMax = "",
+  rfqQuotedDateMax = "",
   rfqSellerFill = false,
   lineFieldErrors,
   showTaxCode = true,
@@ -292,6 +295,7 @@ export function CreateProductTable({
                     showGLAccount={showGLAccount}
                     showPqLineDatesAndQtys={showPqLineDatesAndQtys}
                     lineRequiredDateMax={lineRequiredDateMax}
+                    rfqQuotedDateMax={rfqQuotedDateMax}
                     rfqSellerFill={rfqSellerFill}
                     lineFieldInvalid={lineFieldErrors?.[row.id]}
                     showTaxCode={showTaxCode}

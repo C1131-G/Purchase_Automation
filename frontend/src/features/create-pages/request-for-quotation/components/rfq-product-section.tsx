@@ -31,6 +31,7 @@ interface RfqProductSectionProps {
   /** API / network errors only — validation uses red field borders. */
   formError: string | null;
   lineFieldErrors: RfqLineFieldErrors;
+  rfqQuotedDateMax?: string;
   onSubmit: () => void;
 }
 
@@ -53,6 +54,7 @@ export function RfqProductSection({
   isSubmitting,
   formError,
   lineFieldErrors,
+  rfqQuotedDateMax = "",
   onSubmit,
 }: RfqProductSectionProps) {
   const navigate = useNavigate();
@@ -85,6 +87,7 @@ export function RfqProductSection({
         taxSide="sales"
         uoms={[]}
         showPqLineDatesAndQtys
+        rfqQuotedDateMax={rfqQuotedDateMax}
         rfqSellerFill
         disableLineInputs={!canEdit}
         onLineInputRestrictedClick={restricted}
