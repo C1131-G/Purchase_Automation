@@ -24,6 +24,7 @@ import type {
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
+  capIsoDateToMax,
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
@@ -111,11 +112,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     docDueDate: string,
     docDate: string,
   ) => {
+    const fallbackDue = getEffectivePurchaseQuotationDueDate(docDueDate, docDate);
     const trimmedRequiredDate = requiredDate.trim();
-    if (trimmedRequiredDate) {
-      return trimmedRequiredDate;
-    }
-    return getEffectivePurchaseQuotationDueDate(docDueDate, docDate);
+    return capIsoDateToMax(trimmedRequiredDate || fallbackDue, fallbackDue);
   };
 
   /**
@@ -142,6 +141,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     },
     fallbackRequiredDate: string,
     fallbackWarehouse: string,
+    validUntilDate?: string,
   ) => {
     const quotedQty = Number(row.quantity ?? 0);
     const requiredQty = Number(
@@ -149,9 +149,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ? row.requiredQuantity
         : 1,
     );
-    const lineReqDate = String(row.requiredDate || fallbackRequiredDate || "")
-      .trim()
-      .slice(0, 10);
+    const lineReqDate = capIsoDateToMax(
+      String(row.requiredDate || fallbackRequiredDate || "")
+        .trim()
+        .slice(0, 10),
+      validUntilDate,
+    );
     // Do not copy required date into quoted date.
     const lineQuotedDate = String(row.quotedDate || "")
       .trim()
@@ -176,6 +179,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const mapSapLineQtyAndDates = (
     line: PurchaseQuotationDetailLine,
     fallbackRequiredDate: string,
+    validUntilDate?: string,
   ) => {
     const lineData = line as Record<string, unknown>;
     // Quoted qty = Quantity only (never invent from required qty).
@@ -196,11 +200,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         : quantity > 0
           ? quantity
           : 1;
-    const requiredDate = String(
-      line.ReqDate ?? line.RequiredDate ?? lineData.ReqDate ?? fallbackRequiredDate ?? "",
-    )
-      .trim()
-      .slice(0, 10);
+    const requiredDate = capIsoDateToMax(
+      String(line.ReqDate ?? line.RequiredDate ?? lineData.ReqDate ?? fallbackRequiredDate ?? "")
+        .trim()
+        .slice(0, 10),
+      validUntilDate,
+    );
     // Quoted date = ShipDate only (never invent from required date).
     const quotedDate = String(line.ShipDate ?? lineData.ShipDate ?? "")
       .trim()
@@ -458,6 +463,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           const { quantity, requiredQuantity, requiredDate, quotedDate } = mapSapLineQtyAndDates(
             line,
             headerRequiredDate || effectiveDocDueDate,
+            effectiveDocDueDate,
           );
           // OpenQty is the real remaining-fulfillable quantity. Surface it on the
           // row so downstream CopyTo cascades (PO/GRPO/AP Invoice) and any
@@ -539,7 +545,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           comments,
           docDate: docDate || header.docDate,
           docDueDate,
-          requiredDate: headerRequiredDate || effectiveDocDueDate,
+          requiredDate: capIsoDateToMax(
+            headerRequiredDate || effectiveDocDueDate,
+            effectiveDocDueDate,
+          ),
           referenceNo,
           series: toPositiveSeries((detail as Record<string, unknown>).Series),
           vendorCode,
@@ -587,7 +596,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           referenceNo: referenceNo.trim(),
           docDate: docDate,
           docDueDate: docDueDate,
-          requiredDate: (headerRequiredDate || effectiveDocDueDate).trim(),
+          requiredDate: capIsoDateToMax(
+            headerRequiredDate || effectiveDocDueDate,
+            effectiveDocDueDate,
+          ),
           salesEmployee: associatedSalesEmployeeName.trim(),
           warehouseCode: warehouseCode.trim(),
           billToAddress: address.trim(),
@@ -963,6 +975,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     tableUrl: "/purchase/quotations",
     resetForm,
     getPayloadString: () => {
+      const effectiveDocDueDate = getEffectivePurchaseQuotationDueDate(
+        header.docDueDate,
+        header.docDate,
+      );
       const effectiveRequiredDate = getEffectivePurchaseQuotationRequiredDate(
         header.requiredDate,
         header.docDueDate,
@@ -975,10 +991,15 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ...sapCommentsField(header.comments),
         NumAtCard: header.referenceNo.trim() || undefined,
         DocDate: header.docDate,
-        DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+        DocDueDate: effectiveDocDueDate,
         RequriedDate: effectiveRequiredDate,
         DocumentLines: productsHook.productRows.map((row) =>
-          mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
+          mapPqDocumentLine(
+            row,
+            effectiveRequiredDate,
+            lookups.effectiveWarehouseCode.trim(),
+            effectiveDocDueDate,
+          ),
         ),
         SalesPersonCode: resolvedSalesEmployeeCode,
         ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
@@ -1074,7 +1095,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           DocDueDate: effectiveDocDueDate,
           RequriedDate: effectiveRequiredDate,
           DocumentLines: validRows.map((row) =>
-            mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
+            mapPqDocumentLine(
+              row,
+              effectiveRequiredDate,
+              lookups.effectiveWarehouseCode.trim(),
+              effectiveDocDueDate,
+            ),
           ),
           SalesPersonCode: resolvedSalesEmployeeCode,
           attachments: attachments.map((att) => ({
@@ -1108,6 +1134,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
                       row,
                       effectiveRequiredDate,
                       lookups.effectiveWarehouseCode.trim(),
+                      effectiveDocDueDate,
                     ),
                   ),
                 }),
@@ -1137,7 +1164,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             DocDueDate: effectiveDocDueDate,
             RequriedDate: effectiveRequiredDate,
             DocumentLines: validRows.map((row) =>
-              mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
+              mapPqDocumentLine(
+                row,
+                effectiveRequiredDate,
+                lookups.effectiveWarehouseCode.trim(),
+                effectiveDocDueDate,
+              ),
             ),
             SalesPersonCode: resolvedSalesEmployeeCode,
             attachments: attachments.map((att) => ({
@@ -1245,6 +1277,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             const { quantity, requiredQuantity, requiredDate, quotedDate } = mapSapLineQtyAndDates(
               line,
               headerRequiredDate || docDueDate,
+              docDueDate,
             );
             const sapOpenQty = Number(
               lineData.OpenQty ?? lineData.OpenQuantity ?? lineData.RemainingOpenQuantity ?? 0,
@@ -1296,14 +1329,14 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           setHeader({
             docDate: docDate || header.docDate,
             docDueDate,
-            requiredDate: headerRequiredDate || docDueDate,
+            requiredDate: capIsoDateToMax(headerRequiredDate || docDueDate, docDueDate),
           });
           setFormSnapshot({
             comments: comments.trim(),
             referenceNo: referenceNo.trim(),
             docDate: docDate,
             docDueDate: docDueDate,
-            requiredDate: (headerRequiredDate || docDueDate).trim(),
+            requiredDate: capIsoDateToMax(headerRequiredDate || docDueDate, docDueDate),
             salesEmployee: associatedSalesEmployeeName.trim(),
             warehouseCode: warehouseCode.trim(),
             billToAddress: address.trim(),

@@ -17,6 +17,7 @@ import { CreatePageWrapper } from "@/features/create-pages/create-shared/compone
 import { PQ_RFQ_LOCKED_MESSAGE } from "@/features/create-pages/create-shared/utils/pq-rfq-copy";
 import { resolveActiveHighlightDocRef } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import {
+  capIsoDateToMax,
   parseISODate,
   toDisplayDate,
   toISODate,
@@ -278,7 +279,21 @@ export function PurchaseQuotationCreate({
             onSetActiveDatePicker={state.setActiveDatePicker}
             onDocDateChange={(value) => state.setHeader({ docDate: value })}
             onDocDueDateChange={(value) => {
-              state.setHeader({ docDueDate: value });
+              const nextRequired = capIsoDateToMax(state.header.requiredDate, value);
+              state.setHeader({
+                docDueDate: value,
+                ...(nextRequired !== state.header.requiredDate
+                  ? { requiredDate: nextRequired }
+                  : {}),
+              });
+              state.setProductRows((prev) =>
+                prev.map((row) => {
+                  const nextLineRequired = capIsoDateToMax(row.requiredDate, value);
+                  return nextLineRequired === (row.requiredDate ?? "")
+                    ? row
+                    : { ...row, requiredDate: nextLineRequired };
+                }),
+              );
               state.setProductSearchFieldErrors((prev) => ({
                 ...prev,
                 docDueDate: undefined,
@@ -290,8 +305,11 @@ export function PurchaseQuotationCreate({
             requiredDate={state.header.requiredDate}
             requiredDateReadOnly={state.isClosed}
             requiredDateFutureOnly
+            requiredDateMax={state.header.docDueDate}
             onRequiredDateChange={(value) => {
-              state.setHeader({ requiredDate: value });
+              state.setHeader({
+                requiredDate: capIsoDateToMax(value, state.header.docDueDate),
+              });
             }}
           />
         </div>
@@ -393,6 +411,7 @@ export function PurchaseQuotationCreate({
           vendorCode={state.codeInput}
           vendorName={state.nameInput}
           defaultWarehouseCode={state.effectiveWarehouseCode}
+          validUntilDate={state.header.docDueDate}
           warehouses={state.warehouses}
           warehousesLoading={state.warehousesQuery.isLoading}
           uoms={state.uoms}

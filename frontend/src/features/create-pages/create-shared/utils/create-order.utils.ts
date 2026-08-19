@@ -61,6 +61,16 @@ export const toISODate = (value: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+/** YYYY-MM-DD string compare. If `value` is after `maxIso`, return `maxIso`. */
+export const capIsoDateToMax = (value: string | undefined, maxIso: string | undefined): string => {
+  const next = (value ?? "").trim().slice(0, 10);
+  const max = (maxIso ?? "").trim().slice(0, 10);
+  if (!next || !max) {
+    return next;
+  }
+  return next > max ? max : next;
+};
+
 export const toDisplayDate = (value: string | undefined) => {
   const date = parseISODate(value);
   return date.toLocaleDateString("en-GB");

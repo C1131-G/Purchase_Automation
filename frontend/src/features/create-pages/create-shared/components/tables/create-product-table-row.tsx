@@ -30,6 +30,7 @@ import {
   type TaxDocumentSide,
 } from "@/features/create-pages/create-shared/utils/product-tax-codes";
 import {
+  capIsoDateToMax,
   parseISODate,
   toDisplayDate,
   toISODate,
@@ -206,6 +207,8 @@ interface CreateProductTableRowProps {
   showGLAccount?: boolean;
   /** PQ only: Required Date, Quoted Date, Required Qty, Quoted Qty after UoM. */
   showPqLineDatesAndQtys?: boolean;
+  /** PQ Valid Until — line Required Date cannot be after this. */
+  lineRequiredDateMax?: string;
   /**
    * RFQ seller fill: PQ column layout, only quoted qty/date + price + disc editable.
    * Buyer snapshot fields (product, WH, UoM, required date/qty) stay locked.
@@ -247,6 +250,7 @@ export function CreateProductTableRow({
   showBinLocation = false,
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
+  lineRequiredDateMax = "",
   rfqSellerFill = false,
   lineFieldInvalid,
   showTaxCode = true,
@@ -353,6 +357,11 @@ export function CreateProductTableRow({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }, []);
+  const lineRequiredMaxDate = lineRequiredDateMax.trim()
+    ? parseISODate(lineRequiredDateMax)
+    : undefined;
+  const lineRequiredMinDate =
+    lineRequiredMaxDate && lineRequiredMaxDate < today ? lineRequiredMaxDate : today;
 
   const updateLineCalendarPosition = React.useCallback(() => {
     const anchor =
@@ -1095,13 +1104,16 @@ export function CreateProductTableRow({
                     >
                       <CalendarWithBounds
                         mode="single"
-                        minDate={today}
+                        minDate={lineRequiredMinDate}
+                        {...(lineRequiredMaxDate ? { maxDate: lineRequiredMaxDate } : {})}
                         {...(row.requiredDate ? { selected: parseISODate(row.requiredDate) } : {})}
                         onSelect={(value) => {
                           if (!(value instanceof Date)) {
                             return;
                           }
-                          updateProductRow(row.id, { requiredDate: toISODate(value) });
+                          updateProductRow(row.id, {
+                            requiredDate: capIsoDateToMax(toISODate(value), lineRequiredDateMax),
+                          });
                           setLineDatePicker(null);
                         }}
                       />

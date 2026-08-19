@@ -49,6 +49,8 @@ interface DocumentDatesGridProps {
   requiredDatePlaceholder?: string;
   /** When true, calendar only allows dates after `today` (strict future). */
   requiredDateFutureOnly?: boolean;
+  /** ISO date: Required Date cannot be after this (PQ Valid Until). */
+  requiredDateMax?: string;
 }
 
 export function DocumentDatesGrid({
@@ -83,13 +85,17 @@ export function DocumentDatesGrid({
   requiredDateLabel = "REQUIRED DATE",
   requiredDatePlaceholder = "Select required date",
   requiredDateFutureOnly = true,
+  requiredDateMax = "",
 }: DocumentDatesGridProps) {
+  const requiredMaxDate = requiredDateMax.trim() ? parseISODate(requiredDateMax) : undefined;
   const requiredMinDate = (() => {
-    if (!requiredDateFutureOnly) {
-      return today;
-    }
     const min = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    min.setDate(min.getDate() + 1);
+    if (requiredDateFutureOnly) {
+      min.setDate(min.getDate() + 1);
+    }
+    if (requiredMaxDate && requiredMaxDate < min) {
+      return requiredMaxDate;
+    }
     return min;
   })();
 
@@ -272,12 +278,17 @@ export function DocumentDatesGrid({
                 <CalendarWithBounds
                   mode="single"
                   minDate={requiredMinDate}
+                  {...(requiredMaxDate ? { maxDate: requiredMaxDate } : {})}
                   {...(requiredDate ? { selected: parseISODate(requiredDate) } : {})}
                   onSelect={(value) => {
                     if (!(value instanceof Date)) {
                       return;
                     }
-                    onRequiredDateChange?.(toISODate(value));
+                    const next = toISODate(value);
+                    if (requiredDateMax.trim() && next > requiredDateMax.trim().slice(0, 10)) {
+                      return;
+                    }
+                    onRequiredDateChange?.(next);
                     onSetActiveDatePicker(null);
                   }}
                 />

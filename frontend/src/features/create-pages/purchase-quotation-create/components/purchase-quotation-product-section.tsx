@@ -52,6 +52,7 @@ interface PurchaseQuotationProductSectionProps {
   submitDisabled?: boolean;
   isDirty?: boolean;
   isSubmitting?: boolean;
+  validUntilDate?: string;
 }
 
 /**
@@ -102,6 +103,7 @@ export function PurchaseQuotationProductSection({
   submitDisabled,
   isDirty,
   isSubmitting,
+  validUntilDate = "",
 }: PurchaseQuotationProductSectionProps) {
   return (
     <BaseProductSection
@@ -167,6 +169,7 @@ export function PurchaseQuotationProductSection({
         taxCodes={taxCodes}
         taxSide="purchase"
         showPqLineDatesAndQtys
+        lineRequiredDateMax={validUntilDate}
       />
     </BaseProductSection>
   );
