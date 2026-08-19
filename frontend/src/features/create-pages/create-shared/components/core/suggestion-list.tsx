@@ -108,7 +108,7 @@ export function SuggestionList({
   const outerClass =
     containerClassName ??
     (floating
-      ? "absolute left-0 right-0 top-full z-[60] mt-2 overflow-hidden rounded-xl border border-linen-200 bg-surface shadow-lg"
+      ? "absolute left-0 right-0 top-full z-[40] mt-2 overflow-hidden rounded-xl border border-linen-200 bg-surface shadow-lg"
       : "-mt-3 overflow-hidden rounded-xl border border-linen-200 bg-surface");
 
   return (
