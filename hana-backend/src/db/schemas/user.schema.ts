@@ -8,7 +8,7 @@ import type { HANAColumnType } from "@/db/schemas/types/base.types";
 export interface User {
   USER_CODE: string; // The primary login identifier in SAP.
   U_NAME: string; // The display name or full name of the user.
-  U_PortalPassword?: string; // Hashed password specifically for portal access.
+  U_PortalPassword?: string; // bcrypt (cost 10) or leftover plaintext portal password.
   U_Role?: string; // Application-level role for RBAC.
   U_CardCode?: string; // If 'V' (Vendor role), this links the user to a specific Business Partner.
   U_CardName?: string;

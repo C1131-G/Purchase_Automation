@@ -9,6 +9,7 @@ import { getCachedData } from "@/core/utils/cache";
 // Data Access & Schemas
 import { getTenantRepository } from "@/db/tenant-query";
 import type { LoginResponse } from "./auth.types";
+import { verifyPortalPassword } from "./portal-password";
 import { UserSchema } from "@/db/schemas/user.schema";
 import { getServiceLayerCredentials } from "@/services/credential.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
@@ -65,10 +66,11 @@ export const login = async (
       throw error;
     }
 
-    // Strict Credential Matching: Match USER_CODE (done in SQL) and U_PortalPassword.
-    // We only allow entry if the provided password matches the one stored in SAP UDF (U_PortalPassword).
+    // Match USER_CODE (SQL) and U_PortalPassword. Stored value may be a bcrypt
+    // hash (cost 10) or leftover plaintext — verifyPortalPassword handles both.
     if (localUser.U_PortalPassword) {
-      if (localUser.U_PortalPassword !== password) {
+      const passwordMatches = await verifyPortalPassword(localUser.U_PortalPassword, password);
+      if (!passwordMatches) {
         const error = new Error("Invalid username or password") as ExtendedSLError;
         error.statusCode = 401;
         error.reason = "password_mismatch";
