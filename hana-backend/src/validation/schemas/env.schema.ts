@@ -10,8 +10,9 @@ export const EnvSchema = z.object({
   HANA_USER: z.string().min(1).trim(),
   HANA_PASSWORD: z.string().min(1).trim(),
 
-  // Security & Web: Secret for session signing and CORS origin for the frontend.
+  // Security & Web: cookie signing + bcrypt cost for U_PortalPassword.
   SESSION_SECRET: z.string().min(64).trim(),
+  PORTAL_PASSWORD_SALT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
   PORT: z.coerce.number().int().positive().default(4000),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(1),

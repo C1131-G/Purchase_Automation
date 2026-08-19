@@ -9,6 +9,7 @@ process.env.HANA_PASSWORD = process.env.HANA_PASSWORD || "TestPassword123!";
 process.env.SESSION_SECRET =
   process.env.SESSION_SECRET ||
   "0123456789012345678901234567890123456789012345678901234567890123456789";
+process.env.PORTAL_PASSWORD_SALT_ROUNDS = process.env.PORTAL_PASSWORD_SALT_ROUNDS || "10";
 process.env.SERVICE_LAYER_URL = process.env.SERVICE_LAYER_URL || "http://localhost:50000";
 process.env.ATTACHMENTS_BASE_PATH = process.env.ATTACHMENTS_BASE_PATH || "/tmp/attachments";
 process.env.COMMON_DB = process.env.COMMON_DB || "SBOCOMMON";

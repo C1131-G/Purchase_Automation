@@ -1,9 +1,11 @@
-// Portal U_PortalPassword: bcrypt hashes (salt rounds 10) or leftover plaintext.
+// Portal U_PortalPassword: bcrypt hashes (cost from env) or leftover plaintext.
 import { timingSafeEqual } from "node:crypto";
 
 import { compare } from "bcryptjs";
 
-export const PORTAL_PASSWORD_SALT_ROUNDS = 10;
+import { config } from "@/config/env";
+
+export const PORTAL_PASSWORD_SALT_ROUNDS = config.auth.portalPasswordSaltRounds;
 
 const BCRYPT_HASH = /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 

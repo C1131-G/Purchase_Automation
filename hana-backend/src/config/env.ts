@@ -27,6 +27,7 @@ const getEnv = (): Env => {
         HANA_USER: "SYSTEM",
         ORGANIZATION_TABLE: "ORGC",
         SERVICE_LAYER_URL: "http://localhost:50000",
+        PORTAL_PASSWORD_SALT_ROUNDS: 10,
         SESSION_SECRET: "0123456789012345678901234567890123456789012345678901234567890123456789",
         ...process.env,
       });
@@ -54,6 +55,9 @@ validatedEnv = getEnv();
 export const config = {
   attachments: {
     basePath: validatedEnv.ATTACHMENTS_BASE_PATH,
+  },
+  auth: {
+    portalPasswordSaltRounds: validatedEnv.PORTAL_PASSWORD_SALT_ROUNDS,
   },
   currency: {
     defaultCode: validatedEnv.DEFAULT_CURRENCY_CODE,

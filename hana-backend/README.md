@@ -79,6 +79,7 @@ HANA_PASSWORD=
 COMMON_DB=                 # IC_* tables + shared org data
 ORGANIZATION_TABLE=
 SESSION_SECRET=
+PORTAL_PASSWORD_SALT_ROUNDS=10   # bcrypt cost for U_PortalPassword (default 10)
 PORT=4000
 FRONTEND_URL=http://localhost:5173
 SERVICE_LAYER_URL=
