@@ -29,10 +29,8 @@ pre-push:
   parallel: false
   commands:
     typecheck-hana-backend:
-      root: hana-backend/
-      run: pnpm typecheck
+      run: pnpm --filter hana-backend typecheck
     typecheck-frontend:
-      root: frontend/
-      run: pnpm exec tsc -b --noEmit
+      run: pnpm --filter frontend typecheck
     build:
       run: pnpm build
