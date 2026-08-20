@@ -1,6 +1,7 @@
 packages:
   - frontend
   - hana-backend
+  - packages/*
 
 allowBuilds:
   "@sap/hana-client": true

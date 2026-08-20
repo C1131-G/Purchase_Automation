@@ -69,6 +69,8 @@ export type IcRfqHeader = {
   shipToAddress?: string | null;
   warehouseCode?: string | null;
   vendorRefNo?: string | null;
+  /** True when buyer PQ has a SUCCESS PQ→PO map — RFQ commercials are then locked. */
+  pqCopiedToPo?: boolean;
 };
 
 export type CreateRfqFromDraftInput = {

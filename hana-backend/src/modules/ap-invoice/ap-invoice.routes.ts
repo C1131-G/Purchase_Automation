@@ -7,8 +7,21 @@ import { validateSession } from "@/core/middleware/auth.middleware";
 import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 import { apInvoiceController } from "./ap-invoice.controller";
 import { getInvoiceByDocNum } from "./ap-invoice.service";
-import { validateQuery } from "@/core/middleware/validation.middleware";
-import { InvoiceDocNumLookupQuerySchema, InvoiceQuerySchema } from "./ap-invoice.schema";
+import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "@/core/middleware/validation.middleware";
+import {
+  SapDocumentIdParamsSchema,
+  SapDocumentNumberParamsSchema,
+} from "@/validation/schemas/inputs/common.input";
+import {
+  CreateInvoiceInputSchema,
+  InvoiceDocNumLookupQuerySchema,
+  InvoiceQuerySchema,
+  UpdateInvoiceInputSchema,
+} from "./ap-invoice.schema";
 
 const router = express.Router();
 
@@ -25,24 +38,38 @@ router.get(
 );
 
 // GET /:id: Fetches full details for a single A/P invoice.
-router.get("/:id", apInvoiceController.getInvoice);
+router.get("/:id", validateParams(SapDocumentIdParamsSchema), apInvoiceController.getInvoice);
 
 // POST /: Entry point for submitting a new A/P invoice (often from a GRPO).
-router.post("/", apInvoiceController.createInvoice);
+router.post("/", validateBody(CreateInvoiceInputSchema), apInvoiceController.createInvoice);
 
 // PATCH /:id: Updates an existing open A/P invoice.
-router.patch("/:id", apInvoiceController.updateInvoice);
+router.patch(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  validateBody(UpdateInvoiceInputSchema),
+  apInvoiceController.updateInvoice,
+);
 
 // POST /:id/cancel: Triggers a cancellation for the invoice in SAP.
-router.post("/:id/cancel", apInvoiceController.cancelInvoice);
+router.post(
+  "/:id/cancel",
+  validateParams(SapDocumentIdParamsSchema),
+  apInvoiceController.cancelInvoice,
+);
 
 // Export endpoints: Download saved document as PDF, Excel, or Word.
 router.get(
   "/by-doc-num/:docNum/export/:format",
+  validateParams(SapDocumentNumberParamsSchema),
   createExportHandler(getInvoiceByDocNum, "AP Invoice"),
 );
 
 // POST /:id/reopen: Triggers a reopen for the invoice in SAP.
-router.post("/:id/reopen", apInvoiceController.reopenInvoice);
+router.post(
+  "/:id/reopen",
+  validateParams(SapDocumentIdParamsSchema),
+  apInvoiceController.reopenInvoice,
+);
 
 export const apInvoiceRoutes = router;

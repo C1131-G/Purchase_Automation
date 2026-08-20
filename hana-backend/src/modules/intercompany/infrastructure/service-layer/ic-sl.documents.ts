@@ -285,6 +285,12 @@ export type IcSlDocuments = {
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   /** PATCH buyer PurchaseQuotations with RFQ commercial lines. */
   applyPricesToPq: (input: ApplyPricesToDraftInput) => Promise<void>;
+  /** PATCH seller SalesQuotations with RFQ commercial lines (post-convert re-apply). */
+  applyPricesToSq: (input: {
+    companyId: number;
+    docEntry: number;
+    documentLines: Record<string, unknown>[];
+  }) => Promise<void>;
   /**
    * One GET for convert: parent Comments + NumAtCard from real PQ.
    * Parent remarks stay via applyPrices PATCH merge; this feeds SQ remarks + vendor ref.
@@ -406,6 +412,106 @@ export const createIcSlDocuments = (deps?: {
     }
   };
 
+  const patchCommercialDocument = async (input: {
+    companyId: number;
+    comments?: string | null;
+    documentLines: Record<string, unknown>[];
+    docEntry: number;
+    endpoint: string;
+    logCheck: string;
+  }): Promise<void> => {
+    const { connection, session: slSession } = await withCompanySession(input.companyId);
+    logSlRequest({
+      companyId: input.companyId,
+      endpoint: input.endpoint,
+      lineCount: input.documentLines.length,
+      method: "GET+PATCH",
+    });
+
+    try {
+      const draftResponse = await client.request<Record<string, unknown>>({
+        connection,
+        endpoint: input.endpoint,
+        method: "GET",
+        session: slSession,
+      });
+      const draft = draftResponse.data ?? {};
+      const existingLines = Array.isArray(draft.DocumentLines)
+        ? (draft.DocumentLines as Record<string, unknown>[])
+        : [];
+      const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
+
+      const body: Record<string, unknown> = {
+        DocumentLines: mergedLines,
+      };
+      if (input.comments != null && String(input.comments).trim()) {
+        const existingComments =
+          draft.Comments === null || draft.Comments === undefined ? null : String(draft.Comments);
+        body.Comments = clampSapDocumentComments(
+          mergeUserAndIcRemarks(existingComments, String(input.comments).trim()),
+        );
+      }
+
+      icLog.info(SCOPE, "IC SL apply commercial lines", {
+        check: input.logCheck,
+        companyId: input.companyId,
+        docEntry: input.docEntry,
+        lines: mergedLines.map((line, index) => ({
+          discountPercent: line.DiscountPercent ?? null,
+          itemCode: line.ItemCode ?? null,
+          lineNum: line.LineNum ?? index,
+          quantity: line.Quantity ?? null,
+          unitPrice: line.UnitPrice ?? null,
+          vatGroup: line.VatGroup ?? null,
+        })),
+        outcome: "pass",
+      });
+
+      const response = await client.request({
+        body,
+        connection,
+        endpoint: input.endpoint,
+        headers: { "B1S-ReplaceCollectionsOnPatch": "true" },
+        method: "PATCH",
+        session: slSession,
+      });
+
+      await apiLog.write({
+        companyId: input.companyId,
+        endpoint: input.endpoint,
+        method: "PATCH",
+        requestJson: safeJson(body),
+        responseJson: safeJson(response.data),
+        statusCode: response.status,
+      });
+    } catch (err: unknown) {
+      logSlFailure({
+        companyId: input.companyId,
+        endpoint: input.endpoint,
+        err,
+        method: "PATCH",
+      });
+      const message = err instanceof Error ? err.message : String(err);
+      try {
+        await apiLog.write({
+          companyId: input.companyId,
+          endpoint: input.endpoint,
+          method: "PATCH",
+          requestJson: safeJson({
+            DocumentLines: input.documentLines,
+            comments: input.comments ?? null,
+            docEntry: input.docEntry,
+          }),
+          responseJson: safeJson({ error: message }),
+          statusCode: null,
+        });
+      } catch {
+        // api-log failure must not mask the SL error
+      }
+      throw err instanceof Error ? err : new Error(message);
+    }
+  };
+
   return {
     getArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
@@ -483,101 +589,24 @@ export const createIcSlDocuments = (deps?: {
     },
 
     applyPricesToPq: async (input) => {
-      const { connection, session: slSession } = await withCompanySession(input.companyId);
-      // Update real buyer PQ from RFQ commercial lines (not Drafts).
-      const endpoint = `/PurchaseQuotations(${input.draftEntry})`;
-      logSlRequest({
+      await patchCommercialDocument({
+        comments: input.comments,
         companyId: input.companyId,
-        endpoint,
-        lineCount: input.documentLines.length,
-        method: "GET+PATCH",
+        documentLines: input.documentLines,
+        docEntry: input.draftEntry,
+        endpoint: `/PurchaseQuotations(${input.draftEntry})`,
+        logCheck: "sl_apply_prices_lines",
       });
+    },
 
-      try {
-        // GET existing PQ lines so replace-PATCH keeps tax/warehouse when RFQ omits them.
-        const draftResponse = await client.request<Record<string, unknown>>({
-          connection,
-          endpoint,
-          method: "GET",
-          session: slSession,
-        });
-        const draft = draftResponse.data ?? {};
-        const existingLines = Array.isArray(draft.DocumentLines)
-          ? (draft.DocumentLines as Record<string, unknown>[])
-          : [];
-        const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
-
-        const body: Record<string, unknown> = {
-          DocumentLines: mergedLines,
-        };
-        // Never wipe original PQ Comments — merge user text + IC chain.
-        if (input.comments != null && String(input.comments).trim()) {
-          const existingComments =
-            draft.Comments === null || draft.Comments === undefined ? null : String(draft.Comments);
-          body.Comments = clampSapDocumentComments(
-            mergeUserAndIcRemarks(existingComments, String(input.comments).trim()),
-          );
-        }
-
-        icLog.info(SCOPE, "IC SL apply prices to PQ lines", {
-          check: "sl_apply_prices_lines",
-          companyId: input.companyId,
-          draftEntry: input.draftEntry,
-          lines: mergedLines.map((line, index) => ({
-            discountPercent: line.DiscountPercent ?? null,
-            itemCode: line.ItemCode ?? null,
-            lineNum: line.LineNum ?? index,
-            quantity: line.Quantity ?? null,
-            unitPrice: line.UnitPrice ?? null,
-            vatGroup: line.VatGroup ?? null,
-          })),
-          outcome: "pass",
-        });
-
-        const response = await client.request({
-          body,
-          connection,
-          endpoint,
-          // Full merged lines — replace collection so qty/price/disc/tax stick.
-          headers: { "B1S-ReplaceCollectionsOnPatch": "true" },
-          method: "PATCH",
-          session: slSession,
-        });
-
-        await apiLog.write({
-          companyId: input.companyId,
-          endpoint,
-          method: "PATCH",
-          requestJson: safeJson(body),
-          responseJson: safeJson(response.data),
-          statusCode: response.status,
-        });
-      } catch (err: unknown) {
-        logSlFailure({
-          companyId: input.companyId,
-          endpoint,
-          err,
-          method: "PATCH",
-        });
-        const message = err instanceof Error ? err.message : String(err);
-        try {
-          await apiLog.write({
-            companyId: input.companyId,
-            endpoint,
-            method: "PATCH",
-            requestJson: safeJson({
-              DocumentLines: input.documentLines,
-              comments: input.comments ?? null,
-              draftEntry: input.draftEntry,
-            }),
-            responseJson: safeJson({ error: message }),
-            statusCode: null,
-          });
-        } catch {
-          // api-log failure must not mask the SL error
-        }
-        throw err instanceof Error ? err : new Error(message);
-      }
+    applyPricesToSq: async (input) => {
+      await patchCommercialDocument({
+        companyId: input.companyId,
+        documentLines: input.documentLines,
+        docEntry: input.docEntry,
+        endpoint: `/Quotations(${input.docEntry})`,
+        logCheck: "sl_apply_prices_sq_lines",
+      });
     },
 
     convertDraftToDocument: async (params) => {

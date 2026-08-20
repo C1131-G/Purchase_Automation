@@ -11,6 +11,12 @@ import {
   sapRequiredText,
 } from "@/validation/schemas/inputs/sap-document-fields";
 import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
+import {
+  sapDiscountPercentSchema,
+  sapNonnegativeAmountSchema,
+  sapPositiveQuantitySchema,
+  strictDecimalQuerySchema,
+} from "@/validation/schemas/inputs/sap-numeric-fields";
 
 extendZodWithOpenApi(z);
 
@@ -50,7 +56,7 @@ export const SalesQuotationQuerySchema = z
       .optional()
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
-    DocTotal: z.coerce.number().optional(),
+    DocTotal: strictDecimalQuerySchema.optional(),
 
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
@@ -98,10 +104,10 @@ export const SalesQuotationDocNumLookupQuerySchema = z.object({
 
 // SalesQuotationLineItemSchema: Individual items requested in the quotation.
 const SalesQuotationLineItemSchema = z.object({
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: sapDiscountPercentSchema.optional(),
   ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
-  Quantity: z.number().positive(),
-  UnitPrice: z.number().nonnegative().optional(),
+  Quantity: sapPositiveQuantitySchema,
+  UnitPrice: sapNonnegativeAmountSchema.optional(),
   UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
@@ -110,30 +116,32 @@ const SalesQuotationLineItemSchema = z.object({
 });
 
 // CreateSalesQuotationInputSchema: Validates a new sales quotation submission.
-export const CreateSalesQuotationInputSchema = z.object({
-  Address: sapOptionalText(SAP_FIELD_MAX.address),
-  Address2: sapOptionalText(SAP_FIELD_MAX.address),
-  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode), // Customer identification.
-  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
-  DocDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocDueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocumentLines: z.array(SalesQuotationLineItemSchema).min(1),
-  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
-  SalesPersonCode: z.coerce.number().int().optional(),
-  ...sapDocumentSeriesFields,
-  ...sapDocumentBranchFields,
-  Rounding: z.enum(["tYES", "tNO"]).optional(),
-  RoundingDiffAmount: z.number().optional(),
-  attachments: z.array(AttachmentInputSchema).optional(),
-  isDraft: z.boolean().optional(),
-  draftDocEntry: z.coerce.number().optional(),
-});
+export const CreateSalesQuotationInputSchema = z
+  .object({
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode), // Customer identification.
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocumentLines: z.array(SalesQuotationLineItemSchema).min(1),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
+    SalesPersonCode: z.coerce.number().int().optional(),
+    ...sapDocumentSeriesFields,
+    ...sapDocumentBranchFields,
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    draftDocEntry: z.coerce.number().optional(),
+  })
+  .strict();
 
 // UpdateSalesQuotationInputSchema: Edit flow blocks customer updates (CardCode/CardName).
 export const UpdateSalesQuotationInputSchema = z

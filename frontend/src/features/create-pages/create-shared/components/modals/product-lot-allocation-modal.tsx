@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { NumericInput } from "@/components/input/numeric-input";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { AnimatedModalShell } from "@/features/create-pages/create-shared/components/core/animated-modal-shell";
 import type {
@@ -256,14 +257,13 @@ function EnterBatchTable({
                   />
                 </td>
                 <td className="px-3 py-2">
-                  <input
+                  <NumericInput
                     aria-label={`Batch quantity ${index + 1}`}
-                    type="number"
-                    min={0}
-                    value={batch.quantity || ""}
-                    onChange={(event) => {
+                    profile="sapDecimal"
+                    value={batch.quantity ? String(batch.quantity) : ""}
+                    onValueChange={(value) => {
                       const next = [...batches];
-                      next[index] = { ...batch, quantity: Number(event.target.value) || 0 };
+                      next[index] = { ...batch, quantity: Number(value) || 0 };
                       setBatches(next);
                     }}
                     className="h-9 w-full appearance-none rounded-lg border border-linen-200 bg-field-silver px-2 text-ink-900 outline-none transition placeholder:text-neutral-300 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
@@ -358,18 +358,13 @@ function SelectBatchTable({
                   <td className="px-3 py-2 font-medium text-ink-900">{item.batchNumber}</td>
                   <td className="px-3 py-2">{item.quantity}</td>
                   <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={item.quantity}
+                    <NumericInput
+                      profile="sapDecimal"
                       disabled={!checked}
-                      value={checked ? take : ""}
+                      value={checked ? String(take) : ""}
                       aria-label={`Quantity for ${item.batchNumber}`}
-                      onChange={(event) => {
-                        const qty = Math.min(
-                          item.quantity,
-                          Math.max(0, Number(event.target.value) || 0),
-                        );
+                      onValueChange={(value) => {
+                        const qty = Math.min(item.quantity, Math.max(0, Number(value) || 0));
                         setBatches(
                           batches.map((batch) =>
                             batch.batchNumber === item.batchNumber

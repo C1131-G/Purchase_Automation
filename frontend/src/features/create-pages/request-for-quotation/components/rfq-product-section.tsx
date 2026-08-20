@@ -27,17 +27,20 @@ interface RfqProductSectionProps {
   totals: ReturnType<typeof calculateOrderTotals>;
   canEdit: boolean;
   canSubmit: boolean;
+  canUpdate?: boolean;
+  isDirty?: boolean;
   isSubmitting: boolean;
   /** API / network errors only — validation uses red field borders. */
   formError: string | null;
   lineFieldErrors: RfqLineFieldErrors;
   rfqQuotedDateMax?: string;
   onSubmit: () => void;
+  onUpdate?: () => void;
 }
 
 /**
  * RFQ product block — same PQ line table (dates/qtys/price/disc),
- * with seller-fill field locks. Submit only (no Add / Search / Convert).
+ * with seller-fill field locks. Submit on DRAFT; Update after convert until PQ→PO.
  */
 export function RfqProductSection({
   productRows,
@@ -51,11 +54,14 @@ export function RfqProductSection({
   totals,
   canEdit,
   canSubmit,
+  canUpdate = false,
+  isDirty = false,
   isSubmitting,
   formError,
   lineFieldErrors,
   rfqQuotedDateMax = "",
   onSubmit,
+  onUpdate,
 }: RfqProductSectionProps) {
   const navigate = useNavigate();
   const taxCodesQuery = useQuery(createSharedQueries.taxCodes());
@@ -204,6 +210,27 @@ export function RfqProductSection({
                   </>
                 ) : (
                   <span>Submit</span>
+                )}
+              </Button>
+            </div>
+          ) : null}
+          {canUpdate ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                disabled={isSubmitting || productRows.length === 0 || !isDirty}
+                onClick={onUpdate}
+                className="group flex h-11 w-52 cursor-pointer items-center justify-center gap-2 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold tracking-normal text-ink-900 shadow-sm outline-none ring-0 transition-all hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900 focus:outline-none focus:ring-0 normal-case disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
+                    <span>Updating…</span>
+                  </>
+                ) : (
+                  <span>Update</span>
                 )}
               </Button>
             </div>

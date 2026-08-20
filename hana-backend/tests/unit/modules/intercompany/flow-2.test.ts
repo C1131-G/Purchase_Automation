@@ -102,6 +102,9 @@ const createFlow2TestStack = (opts?: {
     applyPricesToPq: async () => {
       throw new Error("not used");
     },
+    applyPricesToSq: async () => {
+      throw new Error("not used");
+    },
     convertDraftToDocument: async () => {
       throw new Error("not used");
     },

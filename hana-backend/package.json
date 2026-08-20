@@ -34,6 +34,7 @@
     "@opentelemetry/sdk-trace-node": "^2.9.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@sap/hana-client": "^2.27.19",
+    "@vendor-portal/validation-contracts": "workspace:*",
     "axios": "^1.13.2",
     "axios-retry": "^4.5.0",
     "bcryptjs": "^3.0.3",

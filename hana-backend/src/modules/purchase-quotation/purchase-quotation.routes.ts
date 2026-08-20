@@ -7,10 +7,20 @@ import { validateSession } from "@/core/middleware/auth.middleware";
 import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 import { purchaseQuotationController } from "./purchase-quotation.controller";
 import { getPurchaseQuotationByDocNum } from "./purchase-quotation.service";
-import { validateQuery } from "@/core/middleware/validation.middleware";
 import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "@/core/middleware/validation.middleware";
+import {
+  SapDocumentIdParamsSchema,
+  SapDocumentNumberParamsSchema,
+} from "@/validation/schemas/inputs/common.input";
+import {
+  CreatePurchaseQuotationInputSchema,
   PurchaseQuotationDocNumLookupQuerySchema,
   PurchaseQuotationQuerySchema,
+  UpdatePurchaseQuotationInputSchema,
 } from "./purchase-quotation.schema";
 
 const router = express.Router();
@@ -36,24 +46,46 @@ router.get("/open-lines", purchaseQuotationController.getOpenPurchaseQuotationLi
 router.get("/SalesEmployee", purchaseQuotationController.getSalesEmployees);
 
 // GET /by-doc-num/:docNum: Fetches full details for a single purchase quotation.
-router.get("/by-doc-num/:docNum", purchaseQuotationController.getPurchaseQuotationByDocNum);
+router.get(
+  "/by-doc-num/:docNum",
+  validateParams(SapDocumentNumberParamsSchema),
+  purchaseQuotationController.getPurchaseQuotationByDocNum,
+);
 
 // GET /:id: Fetches full details for a single purchase quotation by internal ID.
-router.get("/:id", purchaseQuotationController.getPurchaseQuotation);
+router.get(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  purchaseQuotationController.getPurchaseQuotation,
+);
 
 // POST /: Submits a new purchase quotation into the SAP system.
-router.post("/", purchaseQuotationController.createPurchaseQuotation);
+router.post(
+  "/",
+  validateBody(CreatePurchaseQuotationInputSchema),
+  purchaseQuotationController.createPurchaseQuotation,
+);
 
 // PATCH /:id: Modifies an existing open purchase quotation.
-router.patch("/:id", purchaseQuotationController.updatePurchaseQuotation);
+router.patch(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  validateBody(UpdatePurchaseQuotationInputSchema),
+  purchaseQuotationController.updatePurchaseQuotation,
+);
 
 // Export endpoints: Download saved document as PDF, Excel, or Word.
 router.get(
   "/by-doc-num/:docNum/export/:format",
+  validateParams(SapDocumentNumberParamsSchema),
   createExportHandler(getPurchaseQuotationByDocNum, "Purchase Quotation"),
 );
 
 // POST /:id/cancel: Marks a purchase quotation as canceled in the backend.
-router.post("/:id/cancel", purchaseQuotationController.cancelPurchaseQuotation);
+router.post(
+  "/:id/cancel",
+  validateParams(SapDocumentIdParamsSchema),
+  purchaseQuotationController.cancelPurchaseQuotation,
+);
 
 export const purchaseQuotationRoutes = router;

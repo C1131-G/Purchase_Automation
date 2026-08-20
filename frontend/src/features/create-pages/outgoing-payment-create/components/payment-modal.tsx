@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { Calendar } from "@/components/calendar/calendar";
+import { NumericInput } from "@/components/input/numeric-input";
+import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
 import { LookupPopup } from "@/components/lookup/lookup-popup";
 import { FieldBlock } from "@/features/create-pages/create-shared/components/core/field-block";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
@@ -57,6 +59,8 @@ export function PaymentModal({
   isPaymentOnAccount,
   currencyCode,
 }: PaymentModalProps) {
+  const amountFromDraft = (value: string): number =>
+    parseNumericDraft(value, "currencyAmount") ?? 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -66,6 +70,7 @@ export function PaymentModal({
   const [fullTabThreshold, setFullTabThreshold] = useState<number>(0);
 
   const [cashAmount, setCashAmount] = useState<string>("");
+  const [chequeNumberError, setChequeNumberError] = useState<string>();
   const [accountInput, setAccountInput] = useState("");
   const [accountFocused, setAccountFocused] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -160,7 +165,10 @@ export function PaymentModal({
 
   const { data: transferAccountData, isLoading: isLoadingTransferAccount } = useQuery({
     ...outgoingPaymentQueries.transferAccount(transferDate),
-    enabled: activeTab === "Bank Transfer" && !!transferDate && (Number(transferAmount) || 0) > 0,
+    enabled:
+      activeTab === "Bank Transfer" &&
+      !!transferDate &&
+      (parseNumericDraft(transferAmount, "currencyAmount") ?? 0) > 0,
   });
 
   const resolvedTransferAccount = transferAccountData?.data?.TransferAccount ?? "";
@@ -304,9 +312,9 @@ export function PaymentModal({
   };
 
   const handlePayFull = () => {
-    const cash = Number(cashAmount) || 0;
-    const cheque = Number(chequeAmount) || 0;
-    const transfer = Number(transferAmount) || 0;
+    const cash = amountFromDraft(cashAmount);
+    const cheque = amountFromDraft(chequeAmount);
+    const transfer = amountFromDraft(transferAmount);
     const totalCurrentPayments = cash + cheque + transfer;
     const remaining = balanceDue - totalCurrentPayments;
 
@@ -322,7 +330,7 @@ export function PaymentModal({
     setFullTab(activeTab);
 
     if (activeTab === "Cash") {
-      setCashAmount((Number(cashAmount) + remaining).toFixed(2));
+      setCashAmount((cash + remaining).toFixed(2));
     } else if (activeTab === "Cheque") {
       setChequeAmount(remaining.toFixed(2));
     } else {
@@ -342,7 +350,7 @@ export function PaymentModal({
     const current = getActiveAmount();
     if ((current === "" || current === "0") && digit !== ".") {
       setActiveAmount(digit);
-      if (fullTab === activeTab && Number(digit) < fullTabThreshold) {
+      if (fullTab === activeTab && amountFromDraft(digit) < fullTabThreshold) {
         setFullTab(null);
         setFullTabThreshold(0);
       }
@@ -359,7 +367,7 @@ export function PaymentModal({
     }
     const newAmount = current + digit;
     setActiveAmount(newAmount);
-    if (fullTab === activeTab && Number(newAmount) < fullTabThreshold) {
+    if (fullTab === activeTab && amountFromDraft(newAmount) < fullTabThreshold) {
       setFullTab(null);
       setFullTabThreshold(0);
     }
@@ -376,7 +384,7 @@ export function PaymentModal({
     } else {
       const newAmount = current.slice(0, -1);
       setActiveAmount(newAmount);
-      if (fullTab === activeTab && Number(newAmount) < fullTabThreshold) {
+      if (fullTab === activeTab && amountFromDraft(newAmount) < fullTabThreshold) {
         setFullTab(null);
         setFullTabThreshold(0);
       }
@@ -384,17 +392,24 @@ export function PaymentModal({
   };
 
   const handleSubmit = () => {
-    const cash = Number(cashAmount) || 0;
-    const cheque = Number(chequeAmount) || 0;
-    const transfer = Number(transferAmount) || 0;
+    const cash = amountFromDraft(cashAmount);
+    const cheque = amountFromDraft(chequeAmount);
+    const transfer = amountFromDraft(transferAmount);
 
     const paymentChecks: PaymentCheck[] = [];
 
     if (cheque > 0) {
+      const checkNumber = manualCheckNo
+        ? parseNumericDraft(chequeNo, "positiveIntegerQuantity")
+        : 1;
+      if (checkNumber === undefined) {
+        setChequeNumberError("Enter a positive cheque number.");
+        return;
+      }
       const chequeCheck: PaymentCheck = {
         BankCode: chequeBank || "CASH",
         Branch: chequeBranch || "LABASA",
-        CheckNumber: Number(chequeNo) || 1,
+        CheckNumber: checkNumber,
         CheckSum: cheque,
       };
       if (chequeGLAccount) chequeCheck.CheckAccount = chequeGLAccount;
@@ -445,7 +460,7 @@ export function PaymentModal({
   };
 
   const totalPaid =
-    (Number(cashAmount) || 0) + (Number(chequeAmount) || 0) + (Number(transferAmount) || 0);
+    amountFromDraft(cashAmount) + amountFromDraft(chequeAmount) + amountFromDraft(transferAmount);
   const remainingBalance = balanceDue - totalPaid;
 
   const isTabFull = (tab: "Cash" | "Cheque" | "Bank Transfer") => fullTab === tab;
@@ -536,7 +551,7 @@ export function PaymentModal({
                         const val = e.target.value;
                         if (/^\d*\.?\d{0,2}$/.test(val)) {
                           setActiveAmount(val);
-                          if (fullTab === "Cash" && Number(val) < fullTabThreshold) {
+                          if (fullTab === "Cash" && amountFromDraft(val) < fullTabThreshold) {
                             setFullTab(null);
                             setFullTabThreshold(0);
                           }
@@ -614,17 +629,14 @@ export function PaymentModal({
             ) : activeTab === "Cheque" ? (
               <div className="border border-slate-100 rounded-xl p-3 h-full cursor-pointer">
                 <div className="flex items-center gap-4 pb-3 mb-3 border-b border-slate-100">
-                  <input
-                    type="number"
+                  <NumericInput
+                    profile="currencyAmount"
                     value={chequeAmount}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (/^\d*\.?\d{0,2}$/.test(val)) {
-                        setChequeAmount(val);
-                        if (fullTab === "Cheque" && Number(val) < fullTabThreshold) {
-                          setFullTab(null);
-                          setFullTabThreshold(0);
-                        }
+                    onValueChange={(val) => {
+                      setChequeAmount(val);
+                      if (fullTab === "Cheque" && amountFromDraft(val) < fullTabThreshold) {
+                        setFullTab(null);
+                        setFullTabThreshold(0);
                       }
                     }}
                     placeholder="Enter amount"
@@ -779,14 +791,17 @@ export function PaymentModal({
                         />
                         Cheque Number
                       </label>
-                      <input
-                        type="text"
+                      <NumericInput
+                        id="payment-cheque-number"
+                        aria-label="Cheque number"
+                        profile="digitsOnly"
                         value={chequeNo}
-                        inputMode="numeric"
+                        error={chequeNumberError}
                         maxLength={10}
-                        onChange={(e) =>
-                          setChequeNo(e.target.value.replaceAll(/\D/g, "").slice(0, 10))
-                        }
+                        onValueChange={(value) => {
+                          setChequeNo(value);
+                          setChequeNumberError(undefined);
+                        }}
                         placeholder="Enter cheque number"
                         disabled={!manualCheckNo}
                         className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
@@ -847,17 +862,14 @@ export function PaymentModal({
             ) : (
               <div className="border border-slate-100 rounded-xl p-3 h-full cursor-pointer">
                 <div className="flex items-center gap-4 pb-3 mb-3 border-b border-slate-100">
-                  <input
-                    type="number"
+                  <NumericInput
+                    profile="currencyAmount"
                     value={transferAmount}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (/^\d*\.?\d{0,2}$/.test(val)) {
-                        setTransferAmount(val);
-                        if (fullTab === "Bank Transfer" && Number(val) < fullTabThreshold) {
-                          setFullTab(null);
-                          setFullTabThreshold(0);
-                        }
+                    onValueChange={(val) => {
+                      setTransferAmount(val);
+                      if (fullTab === "Bank Transfer" && amountFromDraft(val) < fullTabThreshold) {
+                        setFullTab(null);
+                        setFullTabThreshold(0);
                       }
                     }}
                     className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-field-silver"
@@ -976,18 +988,18 @@ export function PaymentModal({
             onClick={handleSubmit}
             disabled={(() => {
               const totalEntered =
-                (Number(cashAmount) || 0) +
-                (Number(chequeAmount) || 0) +
-                (Number(transferAmount) || 0);
+                amountFromDraft(cashAmount) +
+                amountFromDraft(chequeAmount) +
+                amountFromDraft(transferAmount);
               if (totalEntered <= 0) {
                 return true;
               }
               if (!isPaymentOnAccount && balanceDue > 0 && totalEntered > balanceDue + 0.01) {
                 return true;
               }
-              const cash = Number(cashAmount) || 0;
-              const cheque = Number(chequeAmount) || 0;
-              const transfer = Number(transferAmount) || 0;
+              const cash = amountFromDraft(cashAmount);
+              const cheque = amountFromDraft(chequeAmount);
+              const transfer = amountFromDraft(transferAmount);
               if (cash > 0 && !selectedAccount) {
                 return true;
               }

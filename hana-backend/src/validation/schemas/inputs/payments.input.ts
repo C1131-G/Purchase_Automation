@@ -8,6 +8,12 @@ import {
   sapOptionalText,
   sapRequiredText,
 } from "@/validation/schemas/inputs/sap-document-fields";
+import {
+  sapNonnegativeAmountSchema,
+  sapPositiveIntegerSchema,
+  sapPositiveQuantitySchema,
+  strictDecimalQuerySchema,
+} from "@/validation/schemas/inputs/sap-numeric-fields";
 
 extendZodWithOpenApi(z);
 
@@ -45,7 +51,7 @@ export const PaymentQuerySchema = z
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
 
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
-    DocTotal: z.coerce.number().optional(),
+    DocTotal: strictDecimalQuerySchema.optional(),
     PaymentMode: z
       .enum(["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"])
       .optional()
@@ -89,80 +95,82 @@ export const PaymentDocNumLookupQuerySchema = z.object({
 
 // CreatePaymentInputSchema: Validates the complex payload for recording a payment.
 // It supports cash and transfer sums, along with a list of invoices being settled.
-export const BaseCreatePaymentInputSchema = z.object({
-  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
-  ...sapDocumentSeriesFields,
-  DocDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  Reference: sapOptionalText(SAP_FIELD_MAX.numAtCard),
-  Remarks: sapOptionalText(SAP_FIELD_MAX.comments),
-  PaymentMode: z
-    .enum(["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"])
-    .optional()
-    .describe("Mode of payment (U_Mode_Pay). If omitted, derived from payment method fields."),
-  CashSum: z.number().optional(),
-  CashAccount: z.string().nullable().optional(),
-  TrsfrSum: z.number().optional(),
-  TransferSum: z.number().optional(),
-  TransferDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  TransferAccount: sapOptionalText(SAP_FIELD_MAX.glAccount),
-  TransferReference: sapOptionalText(SAP_FIELD_MAX.transferReference),
-  SurchargeTotal: z.number().optional(),
-  // PaymentChecks: Array of checks.
-  PaymentChecks: z
-    .array(
-      z.object({
-        BankCode: z.string().max(SAP_FIELD_MAX.bankCode),
-        Branch: sapOptionalText(SAP_FIELD_MAX.bankBranch),
-        CheckNumber: z.number(),
-        CheckSum: z.number(),
-        DueDate: z.string().optional(),
-        Endorse: z.string().optional(),
-        OriginallyIssuedBy: sapOptionalText(SAP_FIELD_MAX.issuedBy),
-        CountryCode: sapOptionalText(SAP_FIELD_MAX.countryCode),
-        BankName: z.string().optional(),
-        GLAccount: sapOptionalText(SAP_FIELD_MAX.glAccount),
-      }),
-    )
-    .optional(),
-  // PaymentCreditCards: Array of credit card details.
-  PaymentCreditCards: z
-    .array(
-      z.object({
-        CreditCard: z.number(),
-        CreditSum: z.number(),
-        VoucherNum: z.string(),
-        CreditCardNumber: z.string().optional(),
-        CardValidUntil: z.string().optional(),
-      }),
-    )
-    .optional(),
-  // PaymentAccounts: Array of GL Account applications (e.g. for surcharges).
-  PaymentAccounts: z
-    .array(
-      z.object({
-        AccountCode: z.string(),
-        Decription: z.string().optional(),
-        SumPaid: z.number(),
-      }),
-    )
-    .optional(),
-  // PaymentInvoices: Array of documents to which this payment is applied.
-  PaymentInvoices: z
-    .array(
-      z.object({
-        DocEntry: z.number().int().positive(), // Primary key of the invoice in SAP.
-        InvoiceType: z.string().optional(), // 'it_Invoice', 'it_CreditNote', etc.
-        SumApplied: z.number().positive(), // Amount of the payment allocated to this invoice.
-      }),
-    )
-    .optional(),
-});
+export const BaseCreatePaymentInputSchema = z
+  .object({
+    CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+    ...sapDocumentSeriesFields,
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    Reference: sapOptionalText(SAP_FIELD_MAX.numAtCard),
+    Remarks: sapOptionalText(SAP_FIELD_MAX.comments),
+    PaymentMode: z
+      .enum(["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"])
+      .optional()
+      .describe("Mode of payment (U_Mode_Pay). If omitted, derived from payment method fields."),
+    CashSum: sapNonnegativeAmountSchema.optional(),
+    CashAccount: z.string().nullable().optional(),
+    TrsfrSum: sapNonnegativeAmountSchema.optional(),
+    TransferSum: sapNonnegativeAmountSchema.optional(),
+    TransferDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    TransferAccount: sapOptionalText(SAP_FIELD_MAX.glAccount),
+    TransferReference: sapOptionalText(SAP_FIELD_MAX.transferReference),
+    SurchargeTotal: sapNonnegativeAmountSchema.optional(),
+    // PaymentChecks: Array of checks.
+    PaymentChecks: z
+      .array(
+        z.object({
+          BankCode: z.string().max(SAP_FIELD_MAX.bankCode),
+          Branch: sapOptionalText(SAP_FIELD_MAX.bankBranch),
+          CheckNumber: sapPositiveIntegerSchema,
+          CheckSum: sapNonnegativeAmountSchema,
+          DueDate: z.string().optional(),
+          Endorse: z.string().optional(),
+          OriginallyIssuedBy: sapOptionalText(SAP_FIELD_MAX.issuedBy),
+          CountryCode: sapOptionalText(SAP_FIELD_MAX.countryCode),
+          BankName: z.string().optional(),
+          GLAccount: sapOptionalText(SAP_FIELD_MAX.glAccount),
+        }),
+      )
+      .optional(),
+    // PaymentCreditCards: Array of credit card details.
+    PaymentCreditCards: z
+      .array(
+        z.object({
+          CreditCard: sapPositiveIntegerSchema,
+          CreditSum: sapNonnegativeAmountSchema,
+          VoucherNum: z.string(),
+          CreditCardNumber: z.string().optional(),
+          CardValidUntil: z.string().optional(),
+        }),
+      )
+      .optional(),
+    // PaymentAccounts: Array of GL Account applications (e.g. for surcharges).
+    PaymentAccounts: z
+      .array(
+        z.object({
+          AccountCode: z.string(),
+          Decription: z.string().optional(),
+          SumPaid: sapNonnegativeAmountSchema,
+        }),
+      )
+      .optional(),
+    // PaymentInvoices: Array of documents to which this payment is applied.
+    PaymentInvoices: z
+      .array(
+        z.object({
+          DocEntry: sapPositiveIntegerSchema, // Primary key of the invoice in SAP.
+          InvoiceType: z.string().optional(), // 'it_Invoice', 'it_CreditNote', etc.
+          SumApplied: sapPositiveQuantitySchema, // Amount of the payment allocated to this invoice.
+        }),
+      )
+      .optional(),
+  })
+  .strict();
 
 export const CreatePaymentInputSchema = BaseCreatePaymentInputSchema.transform((data) => {
   // Normalize TrsfrSum and TransferSum

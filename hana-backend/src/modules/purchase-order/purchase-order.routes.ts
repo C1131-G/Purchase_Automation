@@ -7,10 +7,20 @@ import { validateSession } from "@/core/middleware/auth.middleware";
 import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 import { purchaseOrderController } from "./purchase-order.controller";
 import { getPurchaseOrderByDocNum } from "./purchase-order.service";
-import { validateQuery } from "@/core/middleware/validation.middleware";
 import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "@/core/middleware/validation.middleware";
+import {
+  SapDocumentIdParamsSchema,
+  SapDocumentNumberParamsSchema,
+} from "@/validation/schemas/inputs/common.input";
+import {
+  CreatePurchaseOrderInputSchema,
   PurchaseOrderDocNumLookupQuerySchema,
   PurchaseOrderQuerySchema,
+  UpdatePurchaseOrderInputSchema,
 } from "./purchase-order.schema";
 
 const router = express.Router();
@@ -30,24 +40,46 @@ router.get(
 );
 
 // GET /:id: Fetches full details for a single PO, including line items.
-router.get("/by-doc-num/:docNum", purchaseOrderController.getPurchaseOrderByDocNum);
+router.get(
+  "/by-doc-num/:docNum",
+  validateParams(SapDocumentNumberParamsSchema),
+  purchaseOrderController.getPurchaseOrderByDocNum,
+);
 
 // GET /:id: Fetches full details for a single PO, including line items.
-router.get("/:id", purchaseOrderController.getPurchaseOrder);
+router.get(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  purchaseOrderController.getPurchaseOrder,
+);
 
 // POST /: Entry point for creating a new PO.
-router.post("/", purchaseOrderController.createPurchaseOrder);
+router.post(
+  "/",
+  validateBody(CreatePurchaseOrderInputSchema),
+  purchaseOrderController.createPurchaseOrder,
+);
 
 // PATCH /:id: Updates an existing draft or open PO.
-router.patch("/:id", purchaseOrderController.updatePurchaseOrder);
+router.patch(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  validateBody(UpdatePurchaseOrderInputSchema),
+  purchaseOrderController.updatePurchaseOrder,
+);
 
 // Export endpoints: Download saved document as PDF, Excel, or Word.
 router.get(
   "/by-doc-num/:docNum/export/:format",
+  validateParams(SapDocumentNumberParamsSchema),
   createExportHandler(getPurchaseOrderByDocNum, "Purchase Order"),
 );
 
 // POST /:id/cancel: Triggers a cancellation request for the document in SAP.
-router.post("/:id/cancel", purchaseOrderController.cancelPurchaseOrder);
+router.post(
+  "/:id/cancel",
+  validateParams(SapDocumentIdParamsSchema),
+  purchaseOrderController.cancelPurchaseOrder,
+);
 
 export const purchaseOrderRoutes = router;

@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
 
 import { Calendar } from "@/components/calendar/calendar";
+import { NumericInput } from "@/components/input/numeric-input";
 import { CreateModalSkeleton } from "@/components/skeleton/create-modal-skeleton";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { useDocumentSeriesField } from "@/features/create-pages/create-shared/hooks/use-document-series-field";
@@ -711,13 +712,12 @@ export function CreateOutgoingPaymentForm() {
                                   {doc.balanceDue.toFixed(2)}
                                 </td>
                                 <td className="px-5 py-3 text-right">
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
+                                  <NumericInput
+                                    profile="currencyAmount"
                                     value={
                                       selected &&
                                       editingAmounts[`${doc.type}-${doc.id}`] !== undefined
-                                        ? editingAmounts[`${doc.type}-${doc.id}`]
+                                        ? (editingAmounts[`${doc.type}-${doc.id}`] ?? "")
                                         : (selected
                                             ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ??
                                               doc.balanceDue)
@@ -737,11 +737,10 @@ export function CreateOutgoingPaymentForm() {
                                         [key]: current,
                                       }));
                                     }}
-                                    onChange={(e) => {
+                                    onValueChange={(raw) => {
                                       if (!selected) {
                                         return;
                                       }
-                                      const raw = e.target.value.replaceAll(/[^0-9.]/g, "");
                                       setEditingAmounts((prev) => ({
                                         ...prev,
                                         [`${doc.type}-${doc.id}`]: raw,

@@ -14,6 +14,7 @@ import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
 import { IC_RETRY_STATUS } from "@/modules/intercompany/infrastructure/constants";
 
+import { attachIcRfqEditFlags } from "./ic-edit-lifecycle";
 import { ConfirmArInvoiceBodySchema, SubmitRfqBodySchema, UpdateRfqBodySchema } from "./ic.schema";
 
 const resolveSessionDbName = (req: Request): string => {
@@ -108,7 +109,7 @@ export const getRfq = async (req: Request, res: Response, next: NextFunction): P
       throw new AppError("RFQ not visible to this company", 403, "IC_RFQ_FORBIDDEN");
     }
     // Merge source buyer PQ (vendor name, buyer, dates, addresses, line descriptions).
-    const enriched = await enrichRfqFromPqDraft(header);
+    const enriched = await attachIcRfqEditFlags(await enrichRfqFromPqDraft(header));
     res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);
@@ -127,7 +128,7 @@ export const updateRfq = async (req: Request, res: Response, next: NextFunction)
       rfqId,
     });
     // Same enrichment as GET so seller UI keeps names/dates/descriptions.
-    const enriched = await enrichRfqFromPqDraft(updated);
+    const enriched = await attachIcRfqEditFlags(await enrichRfqFromPqDraft(updated));
     res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);

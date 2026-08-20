@@ -37,7 +37,8 @@ interface RequestForQuotationFormProps {
 /**
  * RFQ seller fill — sales-side layout like Sales Quotation (customer, logistics,
  * dates, address, reference, attachments, product rows).
- * Only quoted qty, quoted date, price, disc %, disc amount are editable; Submit only.
+ * Only quoted qty, quoted date, price, disc %, disc amount are editable.
+ * Submit on DRAFT; Update after convert until the buyer PQ is copied to PO.
  */
 export function RequestForQuotationForm({
   rfqId,
@@ -302,12 +303,17 @@ export function RequestForQuotationForm({
               totals={state.totals}
               canEdit={state.canEditLines}
               canSubmit={state.canSubmit}
+              canUpdate={state.canUpdate}
+              isDirty={state.isDirty}
               isSubmitting={state.isSubmitting}
               formError={state.formError}
               lineFieldErrors={state.lineFieldErrors}
               rfqQuotedDateMax={header.docDueDate?.slice(0, 10) || ""}
               onSubmit={() => {
                 void state.handleSubmit();
+              }}
+              onUpdate={() => {
+                void state.handleUpdate();
               }}
             />
           </div>

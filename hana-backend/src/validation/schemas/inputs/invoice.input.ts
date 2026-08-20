@@ -10,6 +10,12 @@ import {
   sapRequiredText,
 } from "@/validation/schemas/inputs/sap-document-fields";
 import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
+import {
+  sapDiscountPercentSchema,
+  sapNonnegativeAmountSchema,
+  sapPositiveQuantitySchema,
+  strictDecimalQuerySchema,
+} from "@/validation/schemas/inputs/sap-numeric-fields";
 
 extendZodWithOpenApi(z);
 
@@ -49,7 +55,7 @@ export const InvoiceQuerySchema = z
       .optional()
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
-    DocTotal: z.coerce.number().optional(),
+    DocTotal: strictDecimalQuerySchema.optional(),
     NumAtCard: z.string().optional().openapi({
       description: "Customer/Vendor Reference (NumAtCard)",
       example: "122",
@@ -104,11 +110,11 @@ const InvoiceLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: sapDiscountPercentSchema.optional(),
   ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
-  Price: z.number().nonnegative().optional(), // SAP 'Price' field vs 'UnitPrice'.
-  Quantity: z.number().positive(),
-  UnitPrice: z.number().nonnegative().optional(),
+  Price: sapNonnegativeAmountSchema.optional(), // SAP 'Price' field vs 'UnitPrice'.
+  Quantity: sapPositiveQuantitySchema,
+  UnitPrice: sapNonnegativeAmountSchema.optional(),
   UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
@@ -117,29 +123,31 @@ const InvoiceLineItemSchema = z.object({
 });
 
 // CreateInvoiceInputSchema: Validates new invoice submissions.
-export const CreateInvoiceInputSchema = z.object({
-  Address: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Bill To Address" }),
-  Address2: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Ship To Address" }),
-  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
-  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
-  DocDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocDueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocumentLines: z.array(InvoiceLineItemSchema).min(1),
-  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard), // Customer/Vendor reference number (BP Ref No).
-  SalesPersonCode: z.coerce.number().int().optional(),
-  Rounding: z.enum(["tYES", "tNO"]).optional(),
-  RoundingDiffAmount: z.number().optional(), // Sales Employee code (OINV.SlpCode).
-  attachments: z.array(AttachmentInputSchema).optional(),
-  isDraft: z.boolean().optional(),
-  draftDocEntry: z.coerce.number().int().optional(),
-  ...sapDocumentSeriesFields,
-});
+export const CreateInvoiceInputSchema = z
+  .object({
+    Address: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Bill To Address" }),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Ship To Address" }),
+    CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocumentLines: z.array(InvoiceLineItemSchema).min(1),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard), // Customer/Vendor reference number (BP Ref No).
+    SalesPersonCode: z.coerce.number().int().optional(),
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(), // Sales Employee code (OINV.SlpCode).
+    attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    draftDocEntry: z.coerce.number().int().optional(),
+    ...sapDocumentSeriesFields,
+  })
+  .strict();
 
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
 export const UpdateInvoiceInputSchema = z

@@ -154,7 +154,7 @@ export function CreateProductTable({
   const lotRow = lotRowId ? (productRows.find((row) => row.id === lotRowId) ?? null) : null;
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   const emptyColSpan =
-    11 +
+    10 +
     pqExtraCols +
     (showSelection ? 1 : 0) +
     (showReturnReason ? 1 : 0) +
@@ -211,10 +211,7 @@ export function CreateProductTable({
             <thead className="sticky top-0 z-10 bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
               <tr>
                 {showSelection && <th scope="col" className="w-[4%] px-2 py-2 text-center" />}
-                <th scope="col" className={`${showUom ? "w-[12%]" : "w-[14%]"} px-2 py-2`}>
-                  Foreign Name
-                </th>
-                <th scope="col" className={`${showUom ? "w-[12%]" : "w-[14%]"} px-2 py-2`}>
+                <th scope="col" className={`${showUom ? "w-[18%]" : "w-[22%]"} px-2 py-2`}>
                   Description
                 </th>
                 <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>

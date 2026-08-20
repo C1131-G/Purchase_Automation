@@ -1,9 +1,8 @@
 import type { Table } from "@tanstack/react-table";
 import { useEffect, useRef, useState } from "react";
 
-import { Input } from "@/components/input/input";
+import { NumericInput } from "@/components/input/numeric-input";
 import { Select } from "@/components/select/select";
-import { normalizeDocTotalInput } from "@/features/table-pages/table-shared/components/filters/table-search.validation";
 import { isNumberComparisonFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import type { NumberComparisonOperator } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import { cn } from "@/shared/utils/cn";
@@ -143,12 +142,10 @@ export function NumberFilterSearch<TData>({
         </Select>
       </div>
 
-      <Input
-        type="text"
-        inputMode="decimal"
+      <NumericInput
+        profile="documentTotal"
         value={draftNumberFilter.value}
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-          const nextValue = normalizeDocTotalInput(event.target.value);
+        onValueChange={(nextValue) => {
           isEditingNumberInputRef.current = true;
           setDraftNumberFilter((prev) => ({ ...prev, value: nextValue }));
           if (nextValue.trim() === "") {

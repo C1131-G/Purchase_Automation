@@ -48,7 +48,9 @@ export function useUpdateIcRfq() {
     mutationFn: ({ body, rfqId }: { rfqId: number; body: IcUpdateRfqBody }) =>
       intercompanyAPI.updateRfq(rfqId, body),
     onSuccess: (_data, variables) => {
-      void invalidateIcCaches(queryClient, ["rfq"], { rfqId: variables.rfqId });
+      void invalidateIcCaches(queryClient, ["rfq", "flow1Documents", "relationshipMaps"], {
+        rfqId: variables.rfqId,
+      });
     },
   });
 }

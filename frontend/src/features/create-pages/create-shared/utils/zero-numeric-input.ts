@@ -1,4 +1,6 @@
 /** Idle display for price / disc % / disc amount: 0.00 unless the user is typing. */
+import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
+
 export function formatZeroNumericDisplay(
   draft: string | undefined,
   value: number,
@@ -30,6 +32,5 @@ export function commitZeroNumericBlur(raw: string): number {
   if (trimmed === "") {
     return 0;
   }
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parseNumericDraft(trimmed, "sapDecimal") ?? 0;
 }

@@ -6,10 +6,17 @@ import {
   SAP_FIELD_MAX,
   sapDocumentBranchFields,
   sapDocumentSeriesFields,
+  sapIsoDateSchema,
   sapOptionalCode,
   sapOptionalText,
   sapRequiredText,
 } from "@/validation/schemas/inputs/sap-document-fields";
+import {
+  sapDiscountPercentSchema,
+  sapNonnegativeAmountSchema,
+  sapPositiveQuantitySchema,
+  strictDecimalQuerySchema,
+} from "@/validation/schemas/inputs/sap-numeric-fields";
 
 extendZodWithOpenApi(z);
 
@@ -46,7 +53,7 @@ export const PurchaseQuotationQuerySchema = z
       .optional()
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
-    DocTotal: z.coerce.number().optional(),
+    DocTotal: strictDecimalQuerySchema.optional(),
 
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
@@ -96,24 +103,18 @@ export const PurchaseQuotationDocNumLookupQuerySchema = z.object({
 
 // PurchaseQuotationLineItemSchema: Individual items requested in the quotation.
 const PurchaseQuotationLineItemSchema = z.object({
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: sapDiscountPercentSchema.optional(),
   ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
   /** Quoted quantity — PQT1.Quantity / DocTotal (0 when not yet quoted). */
-  Quantity: z.number().nonnegative(),
+  Quantity: sapNonnegativeAmountSchema,
   /** Required quantity — PQT1.PQTReqQty (Service Layer RequiredQuantity). */
-  RequiredQuantity: z.number().positive().optional(),
-  ReqDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
+  RequiredQuantity: sapPositiveQuantitySchema.optional(),
+  ReqDate: sapIsoDateSchema.optional(),
   /** Quoted / shipping date — PQT1.ShipDate. */
-  ShipDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  UnitPrice: z.number().nonnegative().optional(),
+  ShipDate: sapIsoDateSchema.optional(),
+  UnitPrice: sapNonnegativeAmountSchema.optional(),
   UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
-  UoMEntry: z.coerce.number().int().optional(),
+  UoMEntry: z.number().int().optional(),
   VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
   WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
   LineNum: z.number().int().optional(),
@@ -128,67 +129,53 @@ export const AttachmentInputSchema = z.object({
 });
 
 // CreatePurchaseQuotationInputSchema: Validates a new purchase quotation submission.
-export const CreatePurchaseQuotationInputSchema = z.object({
-  Address: sapOptionalText(SAP_FIELD_MAX.address),
-  Address2: sapOptionalText(SAP_FIELD_MAX.address),
-  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
-  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
-  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
-  DocDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocDueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  RequriedDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocumentLines: z.array(PurchaseQuotationLineItemSchema).optional(),
-  SalesPersonCode: z.coerce.number().int().optional(),
-  Rounding: z.enum(["tYES", "tNO"]).optional(),
-  RoundingDiffAmount: z.number().optional(),
-  DocCurrency: sapOptionalText(SAP_FIELD_MAX.docCurrency),
-  attachments: z.array(AttachmentInputSchema).optional(),
-  isDraft: z.boolean().optional(),
-  draftDocEntry: z.coerce.number().optional(),
-  ...sapDocumentBranchFields,
-  ...sapDocumentSeriesFields,
-});
+export const CreatePurchaseQuotationInputSchema = z
+  .object({
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
+    DocDate: sapIsoDateSchema.optional(),
+    DocDueDate: sapIsoDateSchema.optional(),
+    RequriedDate: sapIsoDateSchema.optional(),
+    DocumentLines: z.array(PurchaseQuotationLineItemSchema).optional(),
+    SalesPersonCode: z.number().int().optional(),
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(),
+    DocCurrency: sapOptionalText(SAP_FIELD_MAX.docCurrency),
+    attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    draftDocEntry: z.number().int().positive().optional(),
+    ...sapDocumentBranchFields,
+    ...sapDocumentSeriesFields,
+  })
+  .strict();
 
 // UpdatePurchaseQuotationInputSchema: Edit flow blocks vendor updates (CardCode/CardName).
-export const UpdatePurchaseQuotationInputSchema = z.object({
-  Address: sapOptionalText(SAP_FIELD_MAX.address),
-  Address2: sapOptionalText(SAP_FIELD_MAX.address),
-  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
-  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
-  DocDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocDueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  RequriedDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocumentLines: z.array(PurchaseQuotationLineItemSchema).optional(),
-  SalesPersonCode: z.coerce.number().int().optional(),
-  Rounding: z.enum(["tYES", "tNO"]).optional(),
-  RoundingDiffAmount: z.number().optional(),
-  DocCurrency: sapOptionalText(SAP_FIELD_MAX.docCurrency),
-  attachments: z.array(AttachmentInputSchema).optional(),
-  isDraft: z.boolean().optional(),
-  CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
-  CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
-  draftDocEntry: z.coerce.number().optional(),
-  ...sapDocumentBranchFields,
-  ...sapDocumentSeriesFields,
-});
+export const UpdatePurchaseQuotationInputSchema = z
+  .object({
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
+    DocDate: sapIsoDateSchema.optional(),
+    DocDueDate: sapIsoDateSchema.optional(),
+    RequriedDate: sapIsoDateSchema.optional(),
+    DocumentLines: z.array(PurchaseQuotationLineItemSchema).optional(),
+    SalesPersonCode: z.number().int().optional(),
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(),
+    DocCurrency: sapOptionalText(SAP_FIELD_MAX.docCurrency),
+    attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
+    CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
+    draftDocEntry: z.number().int().positive().optional(),
+    ...sapDocumentBranchFields,
+    ...sapDocumentSeriesFields,
+  })
+  .strict();
 
 export type PurchaseQuotationQuery = z.infer<typeof PurchaseQuotationQuerySchema>;
 export type PurchaseQuotationDocNumLookupQuery = z.infer<

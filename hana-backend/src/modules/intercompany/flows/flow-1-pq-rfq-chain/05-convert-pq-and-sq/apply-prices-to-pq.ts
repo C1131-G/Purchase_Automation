@@ -44,6 +44,25 @@ export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<stri
     return docLine;
   });
 
+/** Seller SQ PATCH — same commercials, no ReqDate (PQ required date stays on buyer). */
+export const buildRfqCommercialSqDocumentLines = (lines: IcRfqLine[]): Record<string, unknown>[] =>
+  lines.map((line) => {
+    const quantity = toFinite(line.quantity, 0);
+    const unitPrice = line.unitPrice == null ? 0 : toFinite(line.unitPrice, 0);
+    const discount = line.discount == null ? 0 : toFinite(line.discount, 0);
+    const docLine: Record<string, unknown> = {
+      DiscountPercent: discount,
+      LineNum: line.lineNum,
+      Quantity: quantity,
+      UnitPrice: unitPrice,
+    };
+    const quotedDate = line.deliveryDate?.trim() || "";
+    if (quotedDate) {
+      docLine.ShipDate = quotedDate;
+    }
+    return docLine;
+  });
+
 /** Patch buyer PQ lines with RFQ qty / price / disc% / quoted date / required date only. */
 export const applyPricesToPq = async (params: {
   documents: IcSlDocuments;

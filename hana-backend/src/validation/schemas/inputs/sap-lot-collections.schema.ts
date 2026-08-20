@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { SAP_FIELD_MAX } from "@/validation/schemas/inputs/sap-document-fields";
+import {
+  sapNonnegativeIntegerSchema,
+  sapPositiveIntegerSchema,
+  sapPositiveQuantitySchema,
+} from "@/validation/schemas/inputs/sap-numeric-fields";
 
 const lotNumberId = z
   .string()
@@ -26,20 +31,20 @@ export const SapBatchNumberInputSchema = z.object({
   ExpiryDate: z.string().optional(),
   ManufacturingDate: z.string().optional(),
   Notes: z.string().max(SAP_FIELD_MAX.comments).optional(),
-  Quantity: z.number().positive(),
+  Quantity: sapPositiveQuantitySchema,
 });
 
 export const SapSerialNumberInputSchema = z.object({
   ExpiryDate: z.string().optional(),
   InternalSerialNumber: lotNumberId,
   ManufacturerSerialNumber: optionalLotNumberId,
-  Quantity: z.number().positive().optional(),
+  Quantity: sapPositiveQuantitySchema.optional(),
 });
 
 export const SapBinAllocationInputSchema = z.object({
-  BinAbsEntry: z.number().int().positive(),
-  Quantity: z.number().positive(),
-  SerialAndBatchNumbersBaseLine: z.number().int().nonnegative(),
+  BinAbsEntry: sapPositiveIntegerSchema,
+  Quantity: sapPositiveQuantitySchema,
+  SerialAndBatchNumbersBaseLine: sapNonnegativeIntegerSchema,
 });
 
 export const sapLotCollectionsFields = {

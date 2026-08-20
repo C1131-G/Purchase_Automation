@@ -227,6 +227,8 @@ export const icRfqHeaderSchema = z.object({
   customerName: z.string().nullable().optional(),
   vendorRefNo: z.string().nullable().optional(),
   warehouseCode: z.string().nullable().optional(),
+  /** True after buyer PQ is copied to PO — RFQ commercials lock. */
+  pqCopiedToPo: z.boolean().optional(),
 });
 
 export type IcRfqHeader = z.infer<typeof icRfqHeaderSchema>;

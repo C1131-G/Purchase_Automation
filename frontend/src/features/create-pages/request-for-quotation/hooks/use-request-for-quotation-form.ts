@@ -25,6 +25,7 @@ import { capIsoDateToMax } from "@/features/create-pages/create-shared/utils/cre
 import {
   useConvertIcRfq,
   useSubmitIcRfq,
+  useUpdateIcRfq,
 } from "@/features/intercompany/api/intercompany.mutations";
 import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { toSafeErrorMessage } from "@/shared/utils/error-message";
@@ -34,6 +35,8 @@ import {
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
   getRfqLineFieldErrors,
+  canEditRfqLines,
+  isRfqCompleted,
   isRfqDraft,
   isRfqSubmitted,
   mapRfqLinesToProductRows,
@@ -66,6 +69,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   const [batchQuotedDate, setBatchQuotedDate] = useState("");
 
   const submitMutation = useSubmitIcRfq();
+  const updateMutation = useUpdateIcRfq();
   const convertMutation = useConvertIcRfq();
 
   // Loading toast only during initial hydrate (once per doc), like SQ/PO/GRPO.
@@ -83,8 +87,9 @@ export function useRequestForQuotationForm(rfqId: number) {
     }
   }, [detailQuery.isLoading, detailQuery.isPending]);
 
-  const canEditLines = isRfqDraft(header?.status);
-  const canSubmit = canEditLines;
+  const canEditLines = canEditRfqLines(header?.status, header?.pqCopiedToPo);
+  const canSubmit = isRfqDraft(header?.status);
+  const canUpdate = isRfqCompleted(header?.status) && header?.pqCopiedToPo !== true;
   const canConvert = isRfqSubmitted(header?.status);
 
   const lineFieldErrors: RfqLineFieldErrors = useMemo(
@@ -333,6 +338,42 @@ export function useRequestForQuotationForm(rfqId: number) {
     }
   }, [canSubmit, header, productRows, submitMutation]);
 
+  const handleUpdate = useCallback(async () => {
+    if (!header || !canUpdate) {
+      return;
+    }
+
+    setSubmitAttempted(true);
+    setFormError(null);
+
+    const { errors, lines: payloadLines } = buildUpdateRfqLinesPayloadFromProductRows(productRows, {
+      requireAllPrices: true,
+    });
+    if (errors.length > 0 || payloadLines.length === 0) {
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        rfqId: header.rfqId,
+        body: { lines: payloadLines },
+      });
+      notifyActionSuccess(
+        "RFQ updated — purchase quotation and sales quotation synced",
+        "rfq-update",
+      );
+      setFormError(null);
+      setSubmitAttempted(false);
+    } catch (error) {
+      const message = toSafeErrorMessage(
+        error instanceof Error ? error.message : undefined,
+        "Could not update Request For Quotation.",
+      );
+      setFormError(message);
+      notifyCreateApiError(message, "rfq");
+    }
+  }, [canUpdate, header, productRows, updateMutation]);
+
   const handleConvert = useCallback(async () => {
     if (!header || !canConvert) {
       return;
@@ -366,7 +407,8 @@ export function useRequestForQuotationForm(rfqId: number) {
     }
   }, [canConvert, convertMutation, header]);
 
-  const isSubmitting = submitMutation.isPending || convertMutation.isPending;
+  const isSubmitting =
+    submitMutation.isPending || updateMutation.isPending || convertMutation.isPending;
 
   const defaultWarehouseCode = header?.warehouseCode?.trim() || productRows[0]?.warehouseCode || "";
 
@@ -393,12 +435,14 @@ export function useRequestForQuotationForm(rfqId: number) {
     canConvert,
     canEditLines,
     canSubmit,
+    canUpdate,
     clearProductRowDraft,
     defaultWarehouseCode,
     detailQuery,
     formError,
     handleConvert,
     handleSubmit,
+    handleUpdate,
     header,
     isDirty,
     isSubmitting,

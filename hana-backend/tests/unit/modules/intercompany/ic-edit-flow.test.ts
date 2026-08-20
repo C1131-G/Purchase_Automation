@@ -5,6 +5,7 @@ import {
   createIcEditLifecycle,
   resolveSinglePqBaseEntry,
 } from "@/modules/intercompany/api/ic-edit-lifecycle";
+import { createIcEditLocks } from "@/modules/intercompany/flows/shared/ic-edit-lock";
 import { createBpMappingQueries } from "@/modules/intercompany/config/bp-mapping/bp-mapping.queries";
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
@@ -180,6 +181,39 @@ describe("IC edit lifecycle", () => {
       statusCode: 409,
     } satisfies Partial<AppError>);
     await expect(stack.lifecycle.assertSqEditable("DB_B", 89)).resolves.toBeUndefined();
+  });
+
+  it("allows COMPLETED RFQ edit until PQ copies to PO", async () => {
+    const stack = createStack();
+    addRfq(stack.db, "COMPLETED");
+    const header = await stack.rfq.getById(1);
+    expect(header).toBeTruthy();
+    const locks = createIcEditLocks({ documentMap: stack.documentMap, rfq: stack.rfq });
+
+    await expect(locks.checkRfqEditLock(header!)).resolves.toEqual({ locked: false });
+
+    const flagged = await stack.lifecycle.attachRfqEditFlags(header!);
+    expect(flagged.pqCopiedToPo).toBe(false);
+
+    await addMap(stack, IC_OBJECT.PO);
+    await expect(locks.checkRfqEditLock(header!)).resolves.toEqual({
+      locked: true,
+      reason: "PQ already copied to PO",
+    });
+    const flaggedAfterPo = await stack.lifecycle.attachRfqEditFlags(header!);
+    expect(flaggedAfterPo.pqCopiedToPo).toBe(true);
+  });
+
+  it("locks SUBMITTED RFQ lines while convert is in flight", async () => {
+    const stack = createStack();
+    addRfq(stack.db, "SUBMITTED");
+    const header = await stack.rfq.getById(1);
+    const locks = createIcEditLocks({ documentMap: stack.documentMap, rfq: stack.rfq });
+
+    await expect(locks.checkRfqEditLock(header!)).resolves.toEqual({
+      locked: true,
+      reason: "RFQ cannot be edited while convert is in progress",
+    });
   });
 
   it("captures a DRAFT RFQ as an update", async () => {

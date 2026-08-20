@@ -89,6 +89,7 @@ const createFlow1TestStack = (opts?: {
 
   const documents: IcSlDocuments = {
     applyPricesToPq: opts?.documents?.applyPricesToPq ?? (async () => undefined),
+    applyPricesToSq: opts?.documents?.applyPricesToSq ?? (async () => undefined),
     convertDraftToDocument:
       opts?.documents?.convertDraftToDocument ??
       (async () => ({
@@ -206,6 +207,8 @@ const createFlow1TestStack = (opts?: {
   // Production default is runConvertInBackground: true (same split as PQ draft / PO).
   const fillWithConvert = createSellerFillRfqService({
     convert,
+    documentMap,
+    documents,
     notify: {
       notifyRfqCreated: async () => undefined,
       notifyRfqSubmitted: async (params) => {
@@ -660,6 +663,116 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     );
     expect(after?.status).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(convertStarted).toBe(true);
+  });
+
+  it("COMPLETED RFQ update re-applies commercials to PQ and SQ until PQ→PO", async () => {
+    let pqPatch: { draftEntry: number; documentLines: Record<string, unknown>[] } | undefined;
+    let sqPatch:
+      | { companyId: number; docEntry: number; documentLines: Record<string, unknown>[] }
+      | undefined;
+
+    const { orchestrator, fill, db, documentMap } = createFlow1TestStack({
+      documents: {
+        applyPricesToPq: async (input) => {
+          pqPatch = { documentLines: input.documentLines, draftEntry: input.draftEntry };
+        },
+        applyPricesToSq: async (input) => {
+          sqPatch = {
+            companyId: input.companyId,
+            docEntry: input.docEntry,
+            documentLines: input.documentLines,
+          };
+        },
+        createSalesQuotation: async () => ({ docEntry: 8100, docNum: 810 }),
+      },
+    });
+
+    await orchestrator.run({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 77,
+      docNum: 77,
+      lines: [{ ItemCode: "ITEM1", LineNum: 0, Quantity: 2, UnitPrice: 1 }],
+    });
+    const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
+
+    await fill.updateLines({
+      actorCompanyId: 2,
+      lines: [{ deliveryDate: "2026-05-01", discount: 5, lineNum: 0, quantity: 2, unitPrice: 20 }],
+      rfqId,
+    });
+    expect(pqPatch).toBeUndefined();
+    expect(sqPatch).toBeUndefined();
+
+    await fill.submit({ actorCompanyId: 2, rfqId });
+    pqPatch = undefined;
+    sqPatch = undefined;
+
+    const updated = await fill.updateLines({
+      actorCompanyId: 2,
+      lines: [{ deliveryDate: "2026-06-01", discount: 8, lineNum: 0, quantity: 3, unitPrice: 55 }],
+      rfqId,
+    });
+    expect(updated.status).toBe(IC_RFQ_STATUS.COMPLETED);
+    expect(pqPatch?.draftEntry).toBe(77);
+    expect(pqPatch?.documentLines[0]).toMatchObject({
+      DiscountPercent: 8,
+      LineNum: 0,
+      Quantity: 3,
+      UnitPrice: 55,
+    });
+    expect(sqPatch?.companyId).toBe(2);
+    expect(sqPatch?.docEntry).toBe(8100);
+    expect(sqPatch?.documentLines[0]).toMatchObject({
+      DiscountPercent: 8,
+      Quantity: 3,
+      UnitPrice: 55,
+    });
+    expect(sqPatch?.documentLines[0]).not.toHaveProperty("ReqDate");
+
+    await documentMap.create({
+      sourceCompanyId: 1,
+      sourceDocEntry: "77",
+      sourceObject: IC_OBJECT.PQ,
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetCompanyId: 1,
+      targetDocEntry: "900",
+      targetObject: IC_OBJECT.PO,
+    });
+
+    await expect(
+      fill.updateLines({
+        actorCompanyId: 2,
+        lines: [{ deliveryDate: "2026-06-02", lineNum: 0, quantity: 3, unitPrice: 60 }],
+        rfqId,
+      }),
+    ).rejects.toMatchObject({
+      errorCode: "IC_RFQ_PQ_CONVERTED_TO_PO",
+      statusCode: 409,
+    });
+  });
+
+  it("blocks RFQ line update while status is SUBMITTED", async () => {
+    const { orchestrator, fill, db } = createFlow1TestStack();
+    await orchestrator.run({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 78,
+      lines: [{ ItemCode: "ITEM1", LineNum: 0, Quantity: 1 }],
+    });
+    const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
+    db.tables.IC_RFQ_HEADER[0].STATUS = IC_RFQ_STATUS.SUBMITTED;
+
+    await expect(
+      fill.updateLines({
+        actorCompanyId: 2,
+        lines: [{ deliveryDate: "2026-05-01", lineNum: 0, quantity: 1, unitPrice: 10 }],
+        rfqId,
+      }),
+    ).rejects.toMatchObject({
+      errorCode: "IC_RFQ_NOT_EDITABLE",
+      statusCode: 409,
+    });
   });
 
   it("afterPqDraftSaved default path accepts immediately (IC runs in background)", async () => {

@@ -1,5 +1,5 @@
 import AppError from "@/core/errors/app-error";
-import type { UpdateRfqLineInput } from "@/modules/intercompany/domain/rfq/rfq.types";
+import type { IcRfqLine, UpdateRfqLineInput } from "@/modules/intercompany/domain/rfq/rfq.types";
 
 import type { FillRfqLineInput } from "./fill-rfq.types";
 
@@ -53,4 +53,25 @@ export const sanitizeFillLines = (lines: FillRfqLineInput[]): UpdateRfqLineInput
   }
 
   return sanitized;
+};
+
+/** Overlay seller fill patches onto existing RFQ lines by LineNum (no add/remove). */
+export const overlayRfqLinePatches = (
+  existing: IcRfqLine[],
+  patches: UpdateRfqLineInput[],
+): IcRfqLine[] => {
+  const byLineNum = new Map(patches.map((patch) => [patch.lineNum, patch]));
+  return existing.map((line) => {
+    const patch = byLineNum.get(line.lineNum);
+    if (!patch) {
+      return line;
+    }
+    return {
+      ...line,
+      deliveryDate: patch.deliveryDate !== undefined ? patch.deliveryDate : line.deliveryDate,
+      discount: patch.discount !== undefined ? patch.discount : line.discount,
+      quantity: patch.quantity != null ? patch.quantity : line.quantity,
+      unitPrice: patch.unitPrice,
+    };
+  });
 };

@@ -6,6 +6,7 @@ import { createDocumentMapService } from "@/modules/intercompany/domain/document
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createIcEditLocks } from "@/modules/intercompany/flows/shared/ic-edit-lock";
+import type { IcRfqHeader } from "@/modules/intercompany/domain/rfq/rfq.types";
 import { IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
@@ -78,6 +79,10 @@ export const createIcEditLifecycle = (deps?: {
         throw new AppError("IC Sales Quotation is read-only", 409, "IC_SQ_LOCKED");
       }
     },
+    attachRfqEditFlags: async (header: IcRfqHeader): Promise<IcRfqHeader> => ({
+      ...header,
+      pqCopiedToPo: await locks.isPqCopiedToPo(header.sourceCompanyId, header.pqDraftDocEntry),
+    }),
     recordPqToPoLink: async (input: {
       dbName: string;
       lines: SapBaseDocumentLine[];
@@ -114,4 +119,5 @@ const icEditLifecycle = createIcEditLifecycle();
 export const assertIcPoEditable = icEditLifecycle.assertPoEditable;
 export const assertIcPqEditable = icEditLifecycle.assertPqEditable;
 export const assertIcSqEditable = icEditLifecycle.assertSqEditable;
+export const attachIcRfqEditFlags = icEditLifecycle.attachRfqEditFlags;
 export const recordIcPqToPoLink = icEditLifecycle.recordPqToPoLink;

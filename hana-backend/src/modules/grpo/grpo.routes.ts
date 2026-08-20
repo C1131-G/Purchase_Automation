@@ -7,11 +7,21 @@ import { validateSession } from "@/core/middleware/auth.middleware";
 import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 import { grpoController } from "./grpo.controller";
 import { getGRPOByDocNum } from "./grpo.service";
-import { validateQuery } from "@/core/middleware/validation.middleware";
+import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "@/core/middleware/validation.middleware";
+import {
+  SapDocumentIdParamsSchema,
+  SapDocumentNumberParamsSchema,
+} from "@/validation/schemas/inputs/common.input";
 import {
   AvailablePOsQuerySchema,
+  CreateGRPOInputSchema,
   GRPODocNumLookupQuerySchema,
   GRPOQuerySchema,
+  UpdateGRPOInputSchema,
 } from "./grpo.schema";
 
 const router = express.Router();
@@ -36,21 +46,30 @@ router.get(
 );
 
 // GET /po-detail/:id: Fetches open lines from a specific PO to populate the GRPO creation form.
-router.get("/po-detail/:id", grpoController.getPODetail);
+router.get("/po-detail/:id", validateParams(SapDocumentIdParamsSchema), grpoController.getPODetail);
 
 // GET /:id: Fetches full details for a single completed GRPO.
-router.get("/:id", grpoController.getGRPO);
+router.get("/:id", validateParams(SapDocumentIdParamsSchema), grpoController.getGRPO);
 
 // POST /: Entry point for creating a new GRPO from a PO.
-router.post("/", grpoController.createGRPO);
+router.post("/", validateBody(CreateGRPOInputSchema), grpoController.createGRPO);
 
 // PATCH /:id: Updates non-locked fields of an existing GRPO.
-router.patch("/:id", grpoController.updateGRPO);
+router.patch(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  validateBody(UpdateGRPOInputSchema),
+  grpoController.updateGRPO,
+);
 
 // Export endpoints: Download saved document as PDF, Excel, or Word.
-router.get("/by-doc-num/:docNum/export/:format", createExportHandler(getGRPOByDocNum, "GRPO"));
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  validateParams(SapDocumentNumberParamsSchema),
+  createExportHandler(getGRPOByDocNum, "GRPO"),
+);
 
 // POST /:id/cancel: Cancels a GRPO (Note: SAP behavior for cancellation after document creation is complex).
-router.post("/:id/cancel", grpoController.cancelGRPO);
+router.post("/:id/cancel", validateParams(SapDocumentIdParamsSchema), grpoController.cancelGRPO);
 
 export const grpoRoutes = router;

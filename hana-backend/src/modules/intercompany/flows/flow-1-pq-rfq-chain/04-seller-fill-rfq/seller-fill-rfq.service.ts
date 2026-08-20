@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import AppError from "@/core/errors/app-error";
+import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
+import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import type { IcRfqHeader } from "@/modules/intercompany/domain/rfq/rfq.types";
 import type { IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
+import { createIcEditLocks } from "@/modules/intercompany/flows/shared/ic-edit-lock";
+import { IC_RFQ_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import {
   FLOW1_FILL_STEPS,
   FLOW1_SCOPE,
@@ -12,13 +16,21 @@ import {
   summarizeIcLines,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
 import { scheduleIcBackground } from "@/modules/intercompany/infrastructure/schedule-ic-background";
-import type { ConvertPqAndSqService } from "../05-convert-pq-and-sq/convert-pq-and-sq.service";
-import { createConvertPqAndSqService } from "../05-convert-pq-and-sq/convert-pq-and-sq.service";
+import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import type { NotifySellerService } from "../03-notify-seller/notify-seller.service";
 import { createNotifySellerService } from "../03-notify-seller/notify-seller.service";
+import type { ConvertPqAndSqService } from "../05-convert-pq-and-sq/convert-pq-and-sq.service";
+import { createConvertPqAndSqService } from "../05-convert-pq-and-sq/convert-pq-and-sq.service";
+import type { ReapplyRfqCommercialService } from "../05-convert-pq-and-sq/reapply-rfq-commercial.service";
+import { createReapplyRfqCommercialService } from "../05-convert-pq-and-sq/reapply-rfq-commercial.service";
 import type { FillRfqLineInput } from "./fill-rfq.types";
-import { assertRfqEditable, assertSellerCanAct, submitRfqHeader } from "./submit-rfq";
-import { sanitizeFillLines } from "./update-rfq-lines";
+import {
+  assertRfqSubmittable,
+  assertSellerCanAct,
+  submitRfqHeader,
+  throwIfRfqLocked,
+} from "./submit-rfq";
+import { overlayRfqLinePatches, sanitizeFillLines } from "./update-rfq-lines";
 
 export type SellerFillRfqService = {
   updateLines: (params: {
@@ -40,6 +52,9 @@ export type SellerFillRfqServiceOptions = {
   notify?: NotifySellerService;
   /** Optional — defaults to real convert (auto PQ+SQ after seller submit). */
   convert?: ConvertPqAndSqService;
+  documentMap?: DocumentMapService;
+  documents?: IcSlDocuments;
+  reapply?: ReapplyRfqCommercialService;
   /**
    * When true (default), buyer notify + auto convert run after the submit HTTP
    * response — same split as PQ / PO create IC hooks.
@@ -156,6 +171,14 @@ export const createSellerFillRfqService = (
   const rfq = deps?.rfq ?? createRfqService();
   const notify = deps?.notify ?? createNotifySellerService();
   const convert = deps?.convert ?? createConvertPqAndSqService();
+  const documentMap = deps?.documentMap ?? createDocumentMapService();
+  const locks = createIcEditLocks({ documentMap, rfq });
+  const reapply =
+    deps?.reapply ??
+    createReapplyRfqCommercialService({
+      documentMap,
+      documents: deps?.documents,
+    });
   const runConvertInBackground = deps?.runConvertInBackground !== false;
 
   return {
@@ -174,7 +197,7 @@ export const createSellerFillRfqService = (
         throw new AppError("RFQ not found", 404, "IC_RFQ_NOT_FOUND");
       }
       assertSellerCanAct(header, actorCompanyId);
-      assertRfqEditable(header);
+      throwIfRfqLocked(await locks.checkRfqEditLock(header));
 
       const lineSnap = summarizeIcLines(lines as unknown[]);
       logFlowStep(FLOW1_SCOPE, {
@@ -195,6 +218,15 @@ export const createSellerFillRfqService = (
       });
 
       const sanitized = sanitizeFillLines(lines);
+      const isCompleted = header.status === IC_RFQ_STATUS.COMPLETED;
+      if (isCompleted) {
+        const mergedLines = overlayRfqLinePatches(header.lines ?? [], sanitized);
+        if (mergedLines.length === 0) {
+          throw new AppError("RFQ has no lines", 400, "IC_RFQ_EMPTY");
+        }
+        await reapply.reapply({ header, lines: mergedLines });
+      }
+
       const updated = await rfq.updateLines(rfqId, sanitized);
       if (!updated) {
         throw new AppError("RFQ not found after update", 404, "IC_RFQ_NOT_FOUND");
@@ -209,7 +241,9 @@ export const createSellerFillRfqService = (
         detail: {
           durationMs: Date.now() - startedAt,
           lineCount: updated.lines?.length ?? 0,
-          note: "Line save only — convert runs on Submit",
+          note: isCompleted
+            ? "Line save + re-applied PQ and SQ commercials"
+            : "Line save only — convert runs on Submit",
           rfqStatus: updated.status,
         },
       });
@@ -232,7 +266,7 @@ export const createSellerFillRfqService = (
         throw new AppError("RFQ not found", 404, "IC_RFQ_NOT_FOUND");
       }
       assertSellerCanAct(header, actorCompanyId);
-      assertRfqEditable(header);
+      assertRfqSubmittable(header);
 
       // Optional one-shot fill: save lines then submit (avoids PUT + POST round-trip).
       if (fillLines && fillLines.length > 0) {

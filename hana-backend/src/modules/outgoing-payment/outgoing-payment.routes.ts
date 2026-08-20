@@ -5,8 +5,21 @@ import express from "express";
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/auth.middleware";
 import { outgoingPaymentController } from "./outgoing-payment.controller";
-import { validateQuery } from "@/core/middleware/validation.middleware";
-import { PaymentDocNumLookupQuerySchema, PaymentQuerySchema } from "./outgoing-payment.schema";
+import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "@/core/middleware/validation.middleware";
+import {
+  SapDocumentIdParamsSchema,
+  SapDocumentNumberParamsSchema,
+} from "@/validation/schemas/inputs/common.input";
+import {
+  CreatePaymentInputSchema,
+  PaymentDocNumLookupQuerySchema,
+  PaymentQuerySchema,
+  UpdatePaymentInputSchema,
+} from "./outgoing-payment.schema";
 import { AccountQuerySchema } from "./outgoing-payment.schema";
 
 const router = express.Router();
@@ -27,19 +40,32 @@ router.get(
 router.get("/accounts", validateQuery(AccountQuerySchema), outgoingPaymentController.getAccounts);
 
 // GET /:id: Fetches full details for a single outgoing payment.
-router.get("/:id", outgoingPaymentController.getPayment);
+router.get("/:id", validateParams(SapDocumentIdParamsSchema), outgoingPaymentController.getPayment);
 
 // GET /by-doc-num/:docNum: Fetches full details for a single outgoing payment using its DocNum.
-router.get("/by-doc-num/:docNum", outgoingPaymentController.getPaymentByDocNum);
+router.get(
+  "/by-doc-num/:docNum",
+  validateParams(SapDocumentNumberParamsSchema),
+  outgoingPaymentController.getPaymentByDocNum,
+);
 
 // POST /: Entry point for recording a payment made to a vendor.
-router.post("/", outgoingPaymentController.createPayment);
+router.post("/", validateBody(CreatePaymentInputSchema), outgoingPaymentController.createPayment);
 
 // PATCH /:id: Updates metadata (remarks) for an existing payment record.
-router.patch("/:id", outgoingPaymentController.updatePayment);
+router.patch(
+  "/:id",
+  validateParams(SapDocumentIdParamsSchema),
+  validateBody(UpdatePaymentInputSchema),
+  outgoingPaymentController.updatePayment,
+);
 
 // POST /:id/cancel: Triggers a cancellation for the payment in SAP.
-router.post("/:id/cancel", outgoingPaymentController.cancelPayment);
+router.post(
+  "/:id/cancel",
+  validateParams(SapDocumentIdParamsSchema),
+  outgoingPaymentController.cancelPayment,
+);
 
 // POST /backfill: Backfills U_Mode_Pay for legacy payments.
 router.post("/backfill", async (req, res, next) => {

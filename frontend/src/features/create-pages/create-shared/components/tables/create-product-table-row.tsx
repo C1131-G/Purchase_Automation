@@ -4,6 +4,7 @@ import React, { type ComponentProps, type ReactElement } from "react";
 import ReactDOM from "react-dom";
 
 import { Calendar } from "@/components/calendar/calendar";
+import { NumericInput } from "@/components/input/numeric-input";
 import { LookupPopup } from "@/components/lookup/lookup-popup";
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 
@@ -814,11 +815,6 @@ export function CreateProductTableRow({
           />
         </td>
       )}
-      <td className="min-w-0 px-2 py-2 text-sm text-neutral-600">
-        <span className="block truncate" title={row.foreignName || undefined}>
-          {row.foreignName || "—"}
-        </span>
-      </td>
       <td className="min-w-0 px-2 py-2">
         <div className="space-y-1">
           <Tooltip
@@ -1216,10 +1212,8 @@ export function CreateProductTableRow({
             </div>
           </td>
           <td className="min-w-0 px-2 py-2">
-            <input
-              type="number"
-              min={1}
-              step={1}
+            <NumericInput
+              profile="positiveIntegerQuantity"
               value={
                 rowDraft?.requiredQuantity !== undefined
                   ? rowDraft.requiredQuantity
@@ -1235,11 +1229,11 @@ export function CreateProductTableRow({
                   onInputRestrictedClick?.();
                 }
               }}
-              onChange={(event) => {
+              onValueChange={(value) => {
                 if (snapshotLocked) {
                   return;
                 }
-                setProductRowDraft(row.id, "requiredQuantity", event.target.value);
+                setProductRowDraft(row.id, "requiredQuantity", value);
               }}
               onBlur={(event) => {
                 if (snapshotLocked) {
@@ -1256,11 +1250,8 @@ export function CreateProductTableRow({
           <td className="min-w-0 px-2 py-2">
             {sellerFieldEditable ? (
               <Tooltip content={rfqQuantityMessage} className="block w-auto max-w-none">
-                <input
-                  type="number"
-                  min={1}
-                  max={rfqMaxQty}
-                  step="any"
+                <NumericInput
+                  profile="positiveQuantity"
                   placeholder="1"
                   aria-invalid={lineFieldInvalid?.quantity === true}
                   value={
@@ -1270,8 +1261,8 @@ export function CreateProductTableRow({
                         ? String(row.quantity)
                         : ""
                   }
-                  onChange={(event) => {
-                    setProductRowDraft(row.id, "quantity", event.target.value);
+                  onValueChange={(value) => {
+                    setProductRowDraft(row.id, "quantity", value);
                   }}
                   onBlur={(event) => {
                     const parsed = parseDocumentLineQuantity(event.target.value);
@@ -1294,10 +1285,9 @@ export function CreateProductTableRow({
                 />
               </Tooltip>
             ) : (
-              <input
-                type="number"
-                min={1}
-                step={1}
+              <NumericInput
+                profile="positiveIntegerQuantity"
+                onValueChange={() => undefined}
                 placeholder="1"
                 value={row.quantity > 0 ? String(row.quantity) : ""}
                 disabled
@@ -1318,10 +1308,8 @@ export function CreateProductTableRow({
         <td className="min-w-0 px-2 py-2">
           {enforceStockLimit ? (
             <Tooltip content={quantityMessage} className="block w-auto max-w-none">
-              <input
-                type="number"
-                min={1}
-                step={1}
+              <NumericInput
+                profile="positiveIntegerQuantity"
                 value={
                   rowDraft?.quantity !== undefined
                     ? rowDraft.quantity
@@ -1335,11 +1323,11 @@ export function CreateProductTableRow({
                     onInputRestrictedClick?.();
                   }
                 }}
-                onChange={(event) => {
+                onValueChange={(value) => {
                   if (effectiveDisableInputs) {
                     return;
                   }
-                  setProductRowDraft(row.id, "quantity", event.target.value);
+                  setProductRowDraft(row.id, "quantity", value);
                 }}
                 onBlur={(event) => {
                   if (effectiveDisableInputs) {
@@ -1371,10 +1359,8 @@ export function CreateProductTableRow({
               />
             </Tooltip>
           ) : (
-            <input
-              type="number"
-              min={1}
-              step={1}
+            <NumericInput
+              profile="positiveIntegerQuantity"
               value={
                 rowDraft?.quantity !== undefined
                   ? rowDraft.quantity
@@ -1386,11 +1372,11 @@ export function CreateProductTableRow({
                   onInputRestrictedClick?.();
                 }
               }}
-              onChange={(event) => {
+              onValueChange={(value) => {
                 if (effectiveDisableInputs) {
                   return;
                 }
-                setProductRowDraft(row.id, "quantity", event.target.value);
+                setProductRowDraft(row.id, "quantity", value);
               }}
               onBlur={(event) => {
                 if (effectiveDisableInputs) {
@@ -1436,20 +1422,17 @@ export function CreateProductTableRow({
             className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
           />
         ) : showPqLineDatesAndQtys && sellerFieldEditable ? (
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            inputMode="decimal"
+          <NumericInput
+            profile="sapDecimal"
             placeholder="0.00"
             aria-invalid={lineFieldInvalid?.price === true}
             value={priceInputValue}
             onFocus={() => {
               beginZeroNumericEdit("price", Number(row.price || 0));
             }}
-            onChange={(event) => {
+            onValueChange={(value) => {
               // Keep draft string so user can clear "0" and type a new price.
-              setProductRowDraft(row.id, "price", event.target.value);
+              setProductRowDraft(row.id, "price", value);
             }}
             onBlur={(event) => {
               const rawValue = event.target.value.trim();
@@ -1498,10 +1481,8 @@ export function CreateProductTableRow({
             className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
           />
         ) : (
-          <input
-            type="number"
-            step="0.001"
-            inputMode="decimal"
+          <NumericInput
+            profile="discountPercent"
             placeholder="0.00"
             aria-label="Discount percent"
             value={discountPercentInputValue}
@@ -1517,11 +1498,10 @@ export function CreateProductTableRow({
               }
               beginZeroNumericEdit("discountPercent", row.discountPercent);
             }}
-            onChange={(event) => {
+            onValueChange={(rawValue) => {
               if (discountInputsLocked) {
                 return;
               }
-              const rawValue = event.target.value;
               setProductRowDraft(row.id, "discountPercent", rawValue);
 
               const trimmedValue = rawValue.trim();
@@ -1575,10 +1555,8 @@ export function CreateProductTableRow({
             className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
           />
         ) : (
-          <input
-            type="number"
-            step="0.01"
-            inputMode="decimal"
+          <NumericInput
+            profile="currencyAmount"
             placeholder="0.00"
             aria-label="Discount amount"
             title=""
@@ -1595,11 +1573,10 @@ export function CreateProductTableRow({
               }
               beginZeroNumericEdit("discountAmount", clampedDiscountAmount);
             }}
-            onChange={(event) => {
+            onValueChange={(rawValue) => {
               if (discountInputsLocked) {
                 return;
               }
-              const rawValue = event.target.value;
               setProductRowDraft(row.id, "discountAmount", rawValue);
 
               const trimmedValue = rawValue.trim();

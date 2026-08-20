@@ -7,9 +7,14 @@ import type { ZodTypeAny } from "zod";
 
 import AppError from "@/core/errors/app-error";
 
+export type ValidationContext = {
+  feature: string;
+  operation: string;
+};
+
 // Generic validation middleware factory
 export const validate =
-  (schema: ZodTypeAny, source: "body" | "query" | "params" = "body") =>
+  (schema: ZodTypeAny, source: "body" | "query" | "params" = "body", context?: ValidationContext) =>
   (req: Request, _res: Response, next: NextFunction) => {
     try {
       // Parse and validate the data
@@ -23,9 +28,19 @@ export const validate =
       // Transform Zod errors into AppError format
       if (err instanceof ZodError) {
         const details = err.errors.map((zodErr) => ({
+          code: zodErr.code,
           field: zodErr.path.join("."),
           message: zodErr.message,
         }));
+        req.log?.warn(
+          {
+            feature: context?.feature,
+            operation: context?.operation,
+            source,
+            validationIssues: details.map(({ code, field }) => ({ code, field })),
+          },
+          "validation.failed",
+        );
 
         return next(new AppError("Validation failed", 400, "VALIDATION_ERROR", details));
       }
@@ -37,10 +52,13 @@ export const validate =
   };
 
 // Validate request body
-export const validateBody = (schema: ZodTypeAny) => validate(schema, "body");
+export const validateBody = (schema: ZodTypeAny, context?: ValidationContext) =>
+  validate(schema, "body", context);
 
 // Validate query parameters
-export const validateQuery = (schema: ZodTypeAny) => validate(schema, "query");
+export const validateQuery = (schema: ZodTypeAny, context?: ValidationContext) =>
+  validate(schema, "query", context);
 
 // Validate route parameters
-export const validateParams = (schema: ZodTypeAny) => validate(schema, "params");
+export const validateParams = (schema: ZodTypeAny, context?: ValidationContext) =>
+  validate(schema, "params", context);

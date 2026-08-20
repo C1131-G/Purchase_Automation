@@ -6,6 +6,8 @@ import {
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
   getRfqLineFieldErrors,
+  canEditRfqLines,
+  isRfqCompleted,
   isRfqDraft,
   isRfqReadyToSubmit,
   isRfqSubmitted,
@@ -263,5 +265,15 @@ describe("rfq-form.utils", () => {
     expect(isRfqDraft("draft")).toBe(true);
     expect(isRfqSubmitted("SUBMITTED")).toBe(true);
     expect(isRfqSubmitted("DRAFT")).toBe(false);
+    expect(isRfqCompleted("COMPLETED")).toBe(true);
+  });
+
+  it("allows RFQ line edit on DRAFT and COMPLETED until PQ copies to PO", () => {
+    expect(canEditRfqLines("DRAFT")).toBe(true);
+    expect(canEditRfqLines("SUBMITTED")).toBe(false);
+    expect(canEditRfqLines("COMPLETED")).toBe(true);
+    expect(canEditRfqLines("COMPLETED", false)).toBe(true);
+    expect(canEditRfqLines("COMPLETED", true)).toBe(false);
+    expect(canEditRfqLines("CANCELLED")).toBe(false);
   });
 });

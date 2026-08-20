@@ -10,6 +10,12 @@ import {
   sapRequiredText,
 } from "@/validation/schemas/inputs/sap-document-fields";
 import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
+import {
+  sapDiscountPercentSchema,
+  sapNonnegativeAmountSchema,
+  sapPositiveQuantitySchema,
+  strictDecimalQuerySchema,
+} from "@/validation/schemas/inputs/sap-numeric-fields";
 
 extendZodWithOpenApi(z);
 
@@ -49,7 +55,7 @@ export const CreditNoteQuerySchema = z
       .optional()
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
-    DocTotal: z.coerce.number().optional(),
+    DocTotal: strictDecimalQuerySchema.optional(),
 
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
@@ -100,11 +106,11 @@ const CreditNoteLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: sapDiscountPercentSchema.optional(),
   ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
-  Quantity: z.number().positive(),
+  Quantity: sapPositiveQuantitySchema,
   U_ReturnReason: z.string().optional(),
-  UnitPrice: z.number().nonnegative(),
+  UnitPrice: sapNonnegativeAmountSchema,
   UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
@@ -112,27 +118,29 @@ const CreditNoteLineItemSchema = z.object({
 });
 
 // CreateCreditNoteInputSchema: Validates new credit note creation.
-export const CreateCreditNoteInputSchema = z.object({
-  Address: sapOptionalText(SAP_FIELD_MAX.address),
-  Address2: sapOptionalText(SAP_FIELD_MAX.address),
-  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
-  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
-  DocDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocDueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
-  DocumentLines: z.array(CreditNoteLineItemSchema).min(1),
-  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
-  SalesPersonCode: z.coerce.number().int().optional(),
-  attachments: z.array(AttachmentInputSchema).optional(),
-  isDraft: z.boolean().optional(),
-  draftDocEntry: z.coerce.number().int().optional(),
-  ...sapDocumentSeriesFields,
-});
+export const CreateCreditNoteInputSchema = z
+  .object({
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocumentLines: z.array(CreditNoteLineItemSchema).min(1),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
+    SalesPersonCode: z.coerce.number().int().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    draftDocEntry: z.coerce.number().int().optional(),
+    ...sapDocumentSeriesFields,
+  })
+  .strict();
 
 // UpdateCreditNoteInputSchema: Allows modification of credit note drafts.
 export const UpdateCreditNoteInputSchema = z

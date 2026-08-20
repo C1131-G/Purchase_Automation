@@ -12,6 +12,7 @@ import {
   mapTaxCodeForSide,
   taxRateForCode,
 } from "@/features/create-pages/create-shared/utils/product-tax-codes";
+import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
 
 export type RfqEditableLine = {
   deliveryDate: string;
@@ -57,6 +58,15 @@ export const isRfqSubmitted = (status: string | undefined): boolean =>
   String(status ?? "")
     .trim()
     .toUpperCase() === "SUBMITTED";
+
+export const isRfqCompleted = (status: string | undefined): boolean =>
+  String(status ?? "")
+    .trim()
+    .toUpperCase() === "COMPLETED";
+
+/** DRAFT always; COMPLETED until the buyer PQ is copied to a PO. */
+export const canEditRfqLines = (status: string | undefined, pqCopiedToPo?: boolean): boolean =>
+  isRfqDraft(status) || (isRfqCompleted(status) && pqCopiedToPo !== true);
 
 const toDateInputValue = (value: string | null | undefined): string => {
   const raw = String(value ?? "").trim();
@@ -196,8 +206,7 @@ export const parseOptionalNumber = (raw: string): number | null => {
   if (!trimmed) {
     return null;
   }
-  const value = Number(trimmed);
-  return Number.isFinite(value) ? value : null;
+  return parseNumericDraft(trimmed, "sapDecimal") ?? null;
 };
 
 /** Gross line amount before discount. */

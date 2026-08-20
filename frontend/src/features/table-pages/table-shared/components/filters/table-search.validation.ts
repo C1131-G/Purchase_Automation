@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import {
+  decimalDraftSchemas,
+  parseNumericDraft,
+} from "@/shared/validation/numeric-input.validation";
+
 export const NUMBER_ONLY_COLUMN_IDS = new Set(["DocNum"]);
 export const ALPHANUMERIC_COLUMN_IDS = new Set(["CardCode", "Filler", "ToWhsCode"]);
 export const LETTERS_SYMBOLS_COLUMN_IDS = new Set<string>([]);
@@ -23,8 +28,6 @@ const lettersSymbolsSchema = z
   .string()
   .regex(/^[^0-9]*$/)
   .max(LETTERS_SYMBOLS_MAX_LENGTH);
-const docTotalDraftSchema = z.string().regex(/^\d{0,9}(\.\d{0,4})?$/);
-const docTotalValueSchema = z.number().min(DOC_TOTAL_MIN).max(DOC_TOTAL_MAX);
 
 export const normalizeSearchInputByColumn = (columnId: string | undefined, value: string) => {
   if (columnId && NUMBER_ONLY_COLUMN_IDS.has(columnId)) {
@@ -46,15 +49,7 @@ export const normalizeSearchInputByColumn = (columnId: string | undefined, value
 };
 
 export const normalizeDocTotalInput = (value: string) => {
-  const cleaned = value.replaceAll(/[^0-9.]/g, "");
-  const [integerPart = "", ...rest] = cleaned.split(".");
-  const decimalPart = rest.join("");
-  const candidate =
-    rest.length === 0
-      ? integerPart.slice(0, 9)
-      : `${integerPart.slice(0, 9)}.${decimalPart.slice(0, 4)}`;
-
-  return docTotalDraftSchema.safeParse(candidate).success ? candidate : "";
+  return decimalDraftSchemas.documentTotal.safeParse(value).success ? value : "";
 };
 
 export const parseDocTotalFilterValue = (value: string) => {
@@ -62,10 +57,6 @@ export const parseDocTotalFilterValue = (value: string) => {
   if (trimmed === "") {
     return null;
   }
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) {
-    return null;
-  }
-  const result = docTotalValueSchema.safeParse(parsed);
-  return result.success ? result.data : null;
+  const parsed = parseNumericDraft(trimmed, "documentTotal");
+  return parsed === undefined || parsed < DOC_TOTAL_MIN || parsed > DOC_TOTAL_MAX ? null : parsed;
 };

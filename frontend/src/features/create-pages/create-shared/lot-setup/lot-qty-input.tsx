@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { Input } from "@/components/input/input";
+import { NumericInput } from "@/components/input/numeric-input";
 import { LOT_TEXT_FIELD_CLASS } from "@/features/create-pages/create-shared/lot-setup/lot-field-styles";
+import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
 
 interface LotQtyInputProps {
   ariaLabel: string;
@@ -31,19 +32,16 @@ export function LotQtyInput({ ariaLabel, className, min = 0, onCommit, value }: 
       setDraft(null);
       return;
     }
-    const parsed = Number(trimmed);
-    onCommit(Number.isFinite(parsed) ? Math.max(min, parsed) : min);
+    onCommit(Math.max(min, parseNumericDraft(trimmed, "sapDecimal") ?? min));
     setDraft(null);
   };
 
   return (
-    <Input
+    <NumericInput
       aria-label={ariaLabel}
       className={className ?? LOT_TEXT_FIELD_CLASS}
-      inputMode="decimal"
-      min={min}
       onBlur={(event) => commit(event.target.value)}
-      onChange={(event) => setDraft(event.target.value)}
+      onValueChange={setDraft}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -51,8 +49,7 @@ export function LotQtyInput({ ariaLabel, className, min = 0, onCommit, value }: 
         }
       }}
       placeholder="0"
-      step="any"
-      type="text"
+      profile="sapDecimal"
       value={display}
     />
   );

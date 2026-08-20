@@ -1,4 +1,6 @@
 /** Smallest quantity a create/edit document line may keep after input. */
+import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
+
 export const MIN_DOCUMENT_LINE_QUANTITY = 1;
 
 export const parseDocumentLineQuantity = (raw: string, options?: { integer?: boolean }): number => {
@@ -7,12 +9,12 @@ export const parseDocumentLineQuantity = (raw: string, options?: { integer?: boo
     return MIN_DOCUMENT_LINE_QUANTITY;
   }
 
-  const parsed = options?.integer ? Math.trunc(Number(trimmed)) : Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed < MIN_DOCUMENT_LINE_QUANTITY) {
+  const parsed = parseNumericDraft(trimmed, "positiveQuantity");
+  if (parsed === undefined) {
     return MIN_DOCUMENT_LINE_QUANTITY;
   }
 
-  return parsed;
+  return options?.integer ? Math.trunc(parsed) : parsed;
 };
 
 export const clampDocumentLineQuantity = (

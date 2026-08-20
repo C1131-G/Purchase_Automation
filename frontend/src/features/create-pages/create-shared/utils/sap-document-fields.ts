@@ -3,38 +3,13 @@
  * (DI API / HANA table lengths). Typed values longer than these
  * are rejected by Service Layer.
  */
-export const SAP_FIELD_MAX = {
-  address: 254,
-  attachmentFreeText: 254,
-  bankAccount: 50,
-  bankBranch: 50,
-  bankCode: 30,
-  cardCode: 15,
-  cardName: 100,
-  checkNumberDigits: 10,
-  comments: 254,
-  countryCode: 3,
-  docCurrency: 3,
-  glAccount: 15,
-  itemCode: 50,
-  itemDescription: 200,
-  issuedBy: 100,
-  journalMemo: 50,
-  lotNumber: 36,
-  manufacturerSerial: 20,
-  numAtCard: 100,
-  salesEmployeeName: 155,
-  transferReference: 27,
-  uomCode: 20,
-  vatGroup: 8,
-  warehouseCode: 8,
-} as const;
+export { SAP_FIELD_MAX };
 
 /** Letters, digits, and hyphen — DistNumber / InternalSerialNumber. */
-export const SAP_LOT_NUMBER_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
+export const SAP_LOT_NUMBER_PATTERN = VALIDATION_PATTERN.lotNumber;
 
 /** Cheque CheckNumber is an integer in PaymentChecks. */
-export const SAP_CHECK_NUMBER_PATTERN = /^\d+$/;
+export const SAP_CHECK_NUMBER_PATTERN = VALIDATION_PATTERN.digits;
 
 export const clipSapText = (value: string, max: number): string =>
   value.length <= max ? value : value.slice(0, max);
@@ -93,3 +68,4 @@ export const sapDocumentTextErrors = (fields: {
   }
   return errors;
 };
+import { SAP_FIELD_MAX, VALIDATION_PATTERN } from "@vendor-portal/validation-contracts";
