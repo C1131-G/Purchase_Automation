@@ -9,6 +9,7 @@ export const vendorAddressSchema = z.object({
 export const lookupItemSchema = z.object({
   billToAddress: z.string().optional(),
   code: z.string(),
+  foreignName: z.string().optional(),
   name: z.string(),
   rate: z.number().optional(),
   /** OVTG.Category — I = purchase input, O = sales output. */

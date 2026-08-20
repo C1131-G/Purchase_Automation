@@ -8,6 +8,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
+import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
@@ -15,7 +16,8 @@ import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-docume
 export const createCreditNote = async (
   sessionId: string,
   payload: Record<string, unknown>,
-  dbName?: string,
+  dbName: string | undefined,
+  portalCreatedBy: string,
 ) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
   const attachments = payload.attachments as any[];
@@ -97,6 +99,7 @@ export const createCreditNote = async (
         return line;
       }),
       SalesPersonCode: payload.SalesPersonCode,
+      U_CreatedBy: portalCreatedBy,
     };
 
     if (isDraft) {
@@ -135,6 +138,14 @@ export const createCreditNote = async (
       isDraft ? "/Drafts" : "/PurchaseCreditNotes",
       sapPayload,
     )) as SAPDocumentResponse;
+
+    await syncBuyerRemarksAfterCreate({
+      createdComments: result.Comments,
+      docEntry: result.DocEntry,
+      endpoint: isDraft ? "/Drafts" : "/PurchaseCreditNotes",
+      originalComments: sapPayload.Comments,
+      sessionId,
+    });
 
     // Purge cached dashboard metrics as this new document impacts credit/balance totals.
     if (resolvedDbName) {

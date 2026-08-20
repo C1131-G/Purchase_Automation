@@ -14,7 +14,11 @@ import type { SAPDocumentResponse } from "@/services/types/sap.types";
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
 // matching the Purchase Order reference implementation.
 
-export const createSalesQuotation = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createSalesQuotation = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  portalCreatedBy: string,
+) => {
   try {
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
@@ -110,6 +114,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
         }),
       ),
       SalesPersonCode: payload.SalesPersonCode,
+      U_CreatedBy: portalCreatedBy,
       Rounding: payload.Rounding,
       RoundingDiffAmount: payload.RoundingDiffAmount,
     };

@@ -60,7 +60,7 @@ function mockRes() {
 function authReq(overrides: Record<string, unknown> = {}) {
   return {
     user: { dbName: "TEST_COMPANY", userName: "u" },
-    session: { sessionId: "sess" },
+    session: { portalUsername: "Vedha1", sessionId: "sess" },
     query: {},
     params: {},
     body: {},
@@ -117,6 +117,12 @@ describe("purchaseOrder controller (HANA)", () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.body).toBeDefined();
+    expect(serviceCreate).toHaveBeenCalledWith(
+      "sess",
+      { CardCode: "V1" },
+      undefined,
+      "Portal_Vedha1",
+    );
   });
 
   it("returns success on cancel", async () => {

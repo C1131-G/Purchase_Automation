@@ -117,6 +117,7 @@ export async function loadProductsForTenant(
     .select([
       "item.ItemCode",
       "item.ItemName",
+      "item.FrgnName",
       "item.SalUnitMsr",
       "item.BuyUnitMsr",
       "item.AvgPrice",

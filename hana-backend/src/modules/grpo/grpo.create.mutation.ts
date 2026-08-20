@@ -10,6 +10,7 @@ import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { assertPqLinesCopyAllowed, commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
+import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
@@ -17,7 +18,8 @@ import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-docume
 export const createGRPO = async (
   sessionId: string,
   payload: Record<string, unknown>,
-  dbName?: string,
+  dbName: string | undefined,
+  portalCreatedBy: string,
 ) => {
   try {
     const isDraft = payload.isDraft === true;
@@ -107,6 +109,7 @@ export const createGRPO = async (
       }),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       SalesPersonCode: payload.SalesPersonCode,
+      U_CreatedBy: portalCreatedBy,
     };
 
     if (isDraft) {
@@ -149,6 +152,14 @@ export const createGRPO = async (
       isDraft ? "/Drafts" : "/PurchaseDeliveryNotes",
       sapPayload,
     )) as SAPDocumentResponse;
+
+    await syncBuyerRemarksAfterCreate({
+      createdComments: result.Comments,
+      docEntry: result.DocEntry,
+      endpoint: isDraft ? "/Drafts" : "/PurchaseDeliveryNotes",
+      originalComments: sapPayload.Comments,
+      sessionId,
+    });
 
     // Purge purchase dashboard cache as the PO statues and totals have likely changed.
     if (resolvedDbName) {

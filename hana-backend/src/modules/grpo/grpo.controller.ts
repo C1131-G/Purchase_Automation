@@ -3,6 +3,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import type { GRPOQuery } from "./grpo.types";
 import { grpoService } from "./grpo.service";
 import { CreateGRPOInputSchema, UpdateGRPOInputSchema } from "./grpo.schema";
@@ -143,7 +144,12 @@ export const createGRPO = async (req: Request, res: Response, next: NextFunction
     // Validate the payload to ensure all required fields for document creation are present.
     const validatedPayload = CreateGRPOInputSchema.parse(payload);
 
-    const result = await grpoService.createGRPO(sessionId, validatedPayload, dbName);
+    const result = await grpoService.createGRPO(
+      sessionId,
+      validatedPayload,
+      dbName,
+      requirePortalCreatedBy(authReq.session),
+    );
 
     res.status(201).json({
       data: result,

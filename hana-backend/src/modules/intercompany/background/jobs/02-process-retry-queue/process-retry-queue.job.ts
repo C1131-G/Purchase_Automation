@@ -78,7 +78,7 @@ export type ProcessOneRetryResult =
 export type ProcessRetryQueueJob = {
   run: (limit?: number) => Promise<ProcessRetryQueueResult>;
   /** Manual UI path: force WAITING, claim one row, run handler. */
-  runOne: (retryId: number) => Promise<ProcessOneRetryResult>;
+  runOne: (retryId: number, portalCreatedBy?: string) => Promise<ProcessOneRetryResult>;
 };
 
 const parsePayload = (raw: string | null): Record<string, unknown> => {
@@ -94,6 +94,47 @@ const parsePayload = (raw: string | null): Record<string, unknown> => {
   } catch {
     return {};
   }
+};
+
+const withFallbackPortalCreatedBy = (
+  item: IcRetryQueueItem,
+  portalCreatedBy?: string,
+): IcRetryQueueItem => {
+  if (!portalCreatedBy) {
+    return item;
+  }
+
+  const payload = parsePayload(item.payloadJson);
+  if (item.actionCode === IC_ACTION.FLOW1_CONVERT_PQ_SQ) {
+    if (String(payload.portalCreatedBy ?? "").trim()) {
+      return item;
+    }
+    return { ...item, payloadJson: JSON.stringify({ ...payload, portalCreatedBy }) };
+  }
+
+  if (item.actionCode !== IC_ACTION.FLOW2_CREATE_AR_DRAFT) {
+    return item;
+  }
+
+  const draftPayload =
+    payload.arInvoiceDraftPayload ?? payload.arInvoicePayload ?? payload.draftPayload;
+  if (!draftPayload || typeof draftPayload !== "object") {
+    return item;
+  }
+  const currentDraftPayload = draftPayload as Record<string, unknown>;
+  const stampedDraftPayload = {
+    ...currentDraftPayload,
+    U_CreatedBy: currentDraftPayload.U_CreatedBy ?? portalCreatedBy,
+  };
+  return {
+    ...item,
+    payloadJson: JSON.stringify({
+      ...payload,
+      arInvoiceDraftPayload: stampedDraftPayload,
+      arInvoicePayload: stampedDraftPayload,
+      draftPayload: stampedDraftPayload,
+    }),
+  };
 };
 
 const createDefaultHandlers = (deps: {
@@ -116,6 +157,9 @@ const createDefaultHandlers = (deps: {
     }
     if (!invoicePayload || typeof invoicePayload !== "object") {
       throw new Error("FLOW2_CREATE_AR_DRAFT payload missing AR invoice draft body");
+    }
+    if (!String((invoicePayload as Record<string, unknown>).U_CreatedBy ?? "").trim()) {
+      throw new Error("FLOW2_CREATE_AR_DRAFT payload missing portal creator");
     }
 
     const created = await deps.documents.createArInvoiceDraft({
@@ -189,6 +233,7 @@ const createDefaultHandlers = (deps: {
     const buyerCustomerCode = String(payload.buyerCustomerCode ?? "").trim();
     const pqDocEntry = Number(payload.pqDocEntry);
     const remarksTag = String(payload.remarksTag ?? `IC-RETRY-${item.retryId}`);
+    const portalCreatedBy = String(payload.portalCreatedBy ?? "").trim();
 
     if (!Number.isFinite(rfqId) || rfqId <= 0) {
       throw new Error("FLOW1_CONVERT_PQ_SQ payload missing rfqId");
@@ -198,6 +243,9 @@ const createDefaultHandlers = (deps: {
     }
     if (!buyerCustomerCode) {
       throw new Error("FLOW1_CONVERT_PQ_SQ payload missing buyerCustomerCode");
+    }
+    if (!portalCreatedBy) {
+      throw new Error("FLOW1_CONVERT_PQ_SQ payload missing portal creator");
     }
 
     const header = await deps.rfq.getById(rfqId);
@@ -255,6 +303,7 @@ const createDefaultHandlers = (deps: {
       documents: deps.documents,
       lines,
       numAtCard: vendorRefNo,
+      portalCreatedBy,
       remarks: sqRemarks,
       resolveLineTax,
       sapDbName: sellerCompany?.sapDbName ?? null,
@@ -546,7 +595,7 @@ export const createProcessRetryQueueJob = (deps?: {
       }
     },
 
-    runOne: async (retryId) => {
+    runOne: async (retryId, portalCreatedBy) => {
       const existing = await retry.findById(retryId);
       if (!existing) {
         throw new Error(`IC_RETRY_QUEUE row not found id=${retryId}`);
@@ -568,7 +617,7 @@ export const createProcessRetryQueueJob = (deps?: {
         throw new Error(`Retry ${retryId} claim failed`);
       }
 
-      return executeClaimed(claimed);
+      return executeClaimed(withFallbackPortalCreatedBy(claimed, portalCreatedBy));
     },
   };
 };

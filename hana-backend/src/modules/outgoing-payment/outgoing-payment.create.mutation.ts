@@ -6,7 +6,11 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of Outgoing Payments from HANA.
 
-export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createPayment = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  portalCreatedBy: string,
+) => {
   let sapPayload: Record<string, unknown> = {};
 
   try {
@@ -66,6 +70,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       Reference: payload.Reference,
       Remarks: toSapCreateCommentsField(payload.Remarks),
       TransferSum: payload.TransferSum || payload.TrsfrSum || 0,
+      U_CreatedBy: portalCreatedBy,
     };
 
     const modes: string[] = [];

@@ -29,6 +29,7 @@ export type SellerFillRfqService = {
   submit: (params: {
     rfqId: number;
     actorCompanyId: number;
+    portalCreatedBy?: string;
     /** Optional — save seller fill in the same request (skip separate PUT). */
     lines?: FillRfqLineInput[];
   }) => Promise<IcRfqHeader>;
@@ -96,8 +97,9 @@ const runAutoConvert = async (params: {
   rfqId: number;
   startedAt: number;
   submitted: IcRfqHeader;
+  portalCreatedBy?: string;
 }): Promise<IcHookResult> => {
-  const { convert, corrId, rfqId, startedAt, submitted } = params;
+  const { convert, corrId, portalCreatedBy, rfqId, startedAt, submitted } = params;
 
   logFlowStep(FLOW1_SCOPE, {
     ...FLOW1_FILL_STEPS.CONVERT_START,
@@ -120,6 +122,7 @@ const runAutoConvert = async (params: {
   try {
     const convertResult = await convert.convert({
       actorCompanyId: submitted.sourceCompanyId,
+      portalCreatedBy,
       rfqId,
     });
     logConvertOutcome({ convertResult, corrId, rfqId, startedAt, submitted });
@@ -214,7 +217,7 @@ export const createSellerFillRfqService = (
       return updated;
     },
 
-    submit: async ({ rfqId, actorCompanyId, lines: fillLines }) => {
+    submit: async ({ rfqId, actorCompanyId, lines: fillLines, portalCreatedBy }) => {
       const startedAt = Date.now();
       const corrId = randomUUID();
       const logCtx = {
@@ -338,7 +341,14 @@ export const createSellerFillRfqService = (
                 title: "Flow 1 — buyer notify failed (background)",
               });
             }
-            return runAutoConvert({ convert, corrId, rfqId, startedAt, submitted });
+            return runAutoConvert({
+              convert,
+              corrId,
+              portalCreatedBy,
+              rfqId,
+              startedAt,
+              submitted,
+            });
           },
         );
         // Main submit response: RFQ is SUBMITTED; notify + PQ+SQ convert run off-request.
@@ -346,7 +356,14 @@ export const createSellerFillRfqService = (
       }
 
       await notify.notifyRfqSubmitted({ rfq: submitted });
-      await runAutoConvert({ convert, corrId, rfqId, startedAt, submitted });
+      await runAutoConvert({
+        convert,
+        corrId,
+        portalCreatedBy,
+        rfqId,
+        startedAt,
+        submitted,
+      });
       return (await rfq.getById(rfqId)) ?? submitted;
     },
   };

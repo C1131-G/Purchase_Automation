@@ -58,23 +58,27 @@ export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSea
 
   const score = (item: ProductLookupItem) => {
     const code = item.code.toLowerCase();
+    const foreignName = item.foreignName?.toLowerCase() ?? "";
     const name = item.name.toLowerCase();
-    if (code === term || name === term) {
+    if (code === term || name === term || foreignName === term) {
       return 0;
     }
-    if (code.startsWith(term) || name.startsWith(term)) {
+    if (code.startsWith(term) || name.startsWith(term) || foreignName.startsWith(term)) {
       return 1;
     }
     const allWordsStart = words.every(
       (word) =>
         code.startsWith(word) ||
+        foreignName.startsWith(word) ||
         name.startsWith(word) ||
         name.split(/\s+/).some((n) => n.startsWith(word)),
     );
     if (allWordsStart) {
       return 2;
     }
-    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    const allWordsIncluded = words.every(
+      (word) => code.includes(word) || foreignName.includes(word) || name.includes(word),
+    );
     if (allWordsIncluded) {
       return 3;
     }

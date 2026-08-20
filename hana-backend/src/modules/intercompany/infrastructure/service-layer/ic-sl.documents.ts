@@ -47,6 +47,8 @@ export type CreateSalesQuotationInput = {
    * NNM1.Series for Sales Quotation (Obj 23). When set, SAP assigns DocNum from that series' NextNumber.
    */
   series?: number | null;
+  /** Server-derived U_CreatedBy value from the portal flow initiator. */
+  portalCreatedBy?: string;
 };
 
 export type ApplyPricesToDraftInput = {
@@ -1094,6 +1096,9 @@ export const createIcSlDocuments = (deps?: {
       const series = input.series != null ? Math.trunc(Number(input.series)) : null;
       if (series != null && Number.isFinite(series) && series > 0) {
         body.Series = series;
+      }
+      if (input.portalCreatedBy) {
+        body.U_CreatedBy = input.portalCreatedBy;
       }
       const lineSnap = Array.isArray(input.lines)
         ? input.lines.map((line, index) => {

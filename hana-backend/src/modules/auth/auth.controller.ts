@@ -35,6 +35,7 @@ export const login: RequestHandler = async (req, res, next) => {
       session.sessionId = loginResponse.sessionId;
       session.dbName = companyDB;
       session.dbServer = loginResponse.user.dbServer;
+      session.portalUsername = loginResponse.portalUsername;
       session.user = { ...loginResponse.user, companyName };
       session.userAgent = req.headers["user-agent"];
       const slSession = authService.getSessionInfo(loginResponse.sessionId);

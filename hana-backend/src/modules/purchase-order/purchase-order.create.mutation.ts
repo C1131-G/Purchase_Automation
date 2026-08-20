@@ -15,6 +15,7 @@ import {
   commentsWithoutSapBaseAutoLines,
   recordIcPqToPoLink,
 } from "@/modules/intercompany";
+import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
@@ -25,7 +26,8 @@ import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-docume
 export const createPurchaseOrder = async (
   sessionId: string,
   payload: Record<string, unknown>,
-  dbName?: string,
+  dbName: string | undefined,
+  portalCreatedBy: string,
 ) => {
   try {
     const isDraft = payload.isDraft === true;
@@ -147,6 +149,7 @@ export const createPurchaseOrder = async (
       SalesPersonCode: payload.SalesPersonCode,
       Rounding: payload.Rounding,
       RoundingDiffAmount: payload.RoundingDiffAmount,
+      U_CreatedBy: portalCreatedBy,
     };
 
     if (isDraft) {
@@ -254,6 +257,14 @@ export const createPurchaseOrder = async (
       sapPayload,
     )) as SAPDocumentResponse;
 
+    await syncBuyerRemarksAfterCreate({
+      createdComments: result.Comments,
+      docEntry: result.DocEntry,
+      endpoint: isDraft ? "/Drafts" : "/PurchaseOrders",
+      originalComments: sapPayload.Comments,
+      sessionId,
+    });
+
     logger.info({
       cardCode: result.CardCode,
       companyDB: resolvedDbName,
@@ -324,6 +335,7 @@ export const createPurchaseOrder = async (
           isDraft: false,
           lines: documentLines,
           numAtCard: sapPayload.NumAtCard,
+          portalCreatedBy,
           remarks: sapPayload.Comments == null ? undefined : String(sapPayload.Comments),
         });
       } catch (icErr: unknown) {

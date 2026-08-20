@@ -51,8 +51,8 @@ export const createSharedKeys = {
   productWarehouseStocks: () => [...createSharedKeys.all, "product-warehouse-stocks"] as const,
   productWarehouseStocksBatch: () =>
     [...createSharedKeys.all, "product-warehouse-stocks-batch"] as const,
-  products: () => [...createSharedKeys.all, "products-v3"] as const,
-  productsByCodes: () => [...createSharedKeys.all, "products-by-codes"] as const,
+  products: () => [...createSharedKeys.all, "products-v4"] as const,
+  productsByCodes: () => [...createSharedKeys.all, "products-by-codes-v2"] as const,
   salesEmployees: () => [...createSharedKeys.all, "sales-employees"] as const,
   taxCodes: () => [...createSharedKeys.all, "tax-codes"] as const,
   uoms: () => [...createSharedKeys.all, "uoms"] as const,

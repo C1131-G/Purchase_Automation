@@ -132,6 +132,7 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
     Comments: comments,
     DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
     DocumentLines: documentLines,
+    U_CreatedBy: input.portalCreatedBy,
   };
 
   if (docDate) {

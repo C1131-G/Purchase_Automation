@@ -291,6 +291,8 @@ export const createSellerSq = async (params: {
   sapDbName?: string | null;
   /** Optional explicit PQ warehouse; defaults to first RFQ line warehouse. */
   pqWarehouseCode?: string | null;
+  /** Server-derived U_CreatedBy value from the portal user who initiated conversion. */
+  portalCreatedBy?: string;
   warehouseMasters?: PartnerWarehouseMasters;
 }): Promise<CreateSellerSqResult> => {
   const pqWarehouseCode =
@@ -395,6 +397,7 @@ export const createSellerSq = async (params: {
     defaultBranchId: documentBranchId,
     lines: documentLines,
     numAtCard: params.numAtCard ?? null,
+    portalCreatedBy: params.portalCreatedBy,
     remarks: params.remarks,
     series: seriesResolve?.series ?? null,
   });

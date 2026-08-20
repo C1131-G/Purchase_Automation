@@ -158,6 +158,7 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
         record.defaultWarehouse ??
         "",
     ).trim(),
+    foreignName: String(record.FrgnName ?? record.frgnName ?? record.foreignName ?? "").trim(),
     name: String(record.ItemName ?? record.itemName ?? record.name ?? record.Name ?? ""),
     price: toNumberOrZero(record.Price ?? record.price ?? record.AvgPrice),
     purchaseUomCode: String(

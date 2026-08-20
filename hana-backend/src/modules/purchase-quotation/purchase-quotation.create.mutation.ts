@@ -27,7 +27,8 @@ const normalizeSapDateValue = (value: unknown) => {
 export const createPurchaseQuotation = async (
   sessionId: string,
   payload: Record<string, unknown>,
-  dbName?: string,
+  dbName: string | undefined,
+  portalCreatedBy: string,
 ) => {
   try {
     const isDraft = payload.isDraft === true;
@@ -131,6 +132,7 @@ export const createPurchaseQuotation = async (
       SalesPersonCode: payload.SalesPersonCode,
       Rounding: payload.Rounding,
       RoundingDiffAmount: payload.RoundingDiffAmount,
+      U_CreatedBy: portalCreatedBy,
     };
 
     if (isDraft) {
@@ -224,6 +226,7 @@ export const createPurchaseQuotation = async (
           docNum: result.DocNum != null ? Number(result.DocNum) : null,
           lines: Array.isArray(lines) ? lines : [],
           numAtCard: payload.NumAtCard != null ? String(payload.NumAtCard) : null,
+          portalCreatedBy,
           requiredDate:
             (payload as Record<string, unknown>).RequriedDate ??
             payload.DocDueDate ??

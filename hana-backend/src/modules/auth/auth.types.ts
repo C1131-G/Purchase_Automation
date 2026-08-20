@@ -1,4 +1,5 @@
 export interface LoginResponse {
+  portalUsername: string;
   sessionId: string;
   sessionTimeout: number;
   user: {

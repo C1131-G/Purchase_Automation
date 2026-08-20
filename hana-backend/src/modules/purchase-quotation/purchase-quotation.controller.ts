@@ -3,6 +3,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import type { PurchaseQuotationQuery } from "./purchase-quotation.types";
 import { purchaseQuotationService } from "./purchase-quotation.service";
 import { masterDataService } from "@/modules/master-data/master-data.service";
@@ -111,6 +112,7 @@ export const createPurchaseQuotation = async (req: Request, res: Response, next:
       sessionId,
       validatedPayload,
       dbName,
+      requirePortalCreatedBy(authReq.session),
     );
 
     res.status(201).json({ data: result, message: result.message, success: true });

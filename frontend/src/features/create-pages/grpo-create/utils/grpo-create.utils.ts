@@ -28,23 +28,31 @@ export const filterAndRankLookups = <T extends LookupItem>(items: T[], term: str
 
   const score = (item: T) => {
     const code = item.code.toLowerCase();
+    const foreignName = item.foreignName?.toLowerCase() ?? "";
     const name = item.name.toLowerCase();
-    if (code === normalized || name === normalized) {
+    if (code === normalized || name === normalized || foreignName === normalized) {
       return 0;
     }
-    if (code.startsWith(normalized) || name.startsWith(normalized)) {
+    if (
+      code.startsWith(normalized) ||
+      name.startsWith(normalized) ||
+      foreignName.startsWith(normalized)
+    ) {
       return 1;
     }
     const allWordsStart = words.every(
       (word) =>
         code.startsWith(word) ||
+        foreignName.startsWith(word) ||
         name.startsWith(word) ||
         name.split(/\s+/).some((n) => n.startsWith(word)),
     );
     if (allWordsStart) {
       return 2;
     }
-    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    const allWordsIncluded = words.every(
+      (word) => code.includes(word) || foreignName.includes(word) || name.includes(word),
+    );
     if (allWordsIncluded) {
       return 3;
     }
@@ -54,8 +62,11 @@ export const filterAndRankLookups = <T extends LookupItem>(items: T[], term: str
   return [...items]
     .filter((item) => {
       const code = item.code.toLowerCase();
+      const foreignName = item.foreignName?.toLowerCase() ?? "";
       const name = item.name.toLowerCase();
-      return words.every((word) => code.includes(word) || name.includes(word));
+      return words.every(
+        (word) => code.includes(word) || foreignName.includes(word) || name.includes(word),
+      );
     })
     .toSorted((a, b) => {
       const byScore = score(a) - score(b);

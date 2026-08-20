@@ -3,6 +3,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import type { PurchaseOrderQuery } from "./purchase-order.types";
 import { purchaseOrderService } from "./purchase-order.service";
 import {
@@ -118,7 +119,12 @@ export const createPurchaseOrder = async (req: Request, res: Response, next: Nex
     // Validate the deep object structure against the SAP-compliant Zod schema.
     const validatedPayload = CreatePurchaseOrderInputSchema.parse(payload);
 
-    const result = await purchaseOrderService.createPurchaseOrder(sessionId, validatedPayload);
+    const result = await purchaseOrderService.createPurchaseOrder(
+      sessionId,
+      validatedPayload,
+      undefined,
+      requirePortalCreatedBy(authReq.session),
+    );
 
     res.status(201).json({
       data: result,

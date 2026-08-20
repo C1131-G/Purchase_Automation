@@ -112,6 +112,7 @@ export const login = async (
     // Map internal SAP data to a unified user session object for the frontend.
     // companyName comes from already-fetched credentials — no extra org DB round-trip.
     return {
+      portalUsername: localUser.USER_CODE || username,
       sessionId: sessionInfo.sessionId,
       sessionTimeout: sessionInfo.sessionTimeout,
       user: {

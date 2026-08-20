@@ -8,6 +8,7 @@ import {
   uniqueHydrateItemCodes,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
+import { createSharedKeys } from "@/features/create-pages/create-shared/api/create-shared.queries";
 
 const product = (code: string, taxRate = 0): ProductLookupItem =>
   ({
@@ -48,8 +49,7 @@ describe("resolveHydrateProductMeta", () => {
     });
     const fetchQuery = vi.spyOn(queryClient, "fetchQuery").mockImplementation(async (options) => {
       const key = (options as { queryKey: unknown[] }).queryKey;
-      // productsByCodes key: ["create-shared","products-by-codes", codesKey, type, ...]
-      if (key.includes("products-by-codes")) {
+      if (key.includes(createSharedKeys.productsByCodes()[1])) {
         return [product("SKU-1", 5), product("SKU-2", 10)];
       }
       return [];
@@ -67,12 +67,12 @@ describe("resolveHydrateProductMeta", () => {
     // One batch call, not N limit-1 product searches.
     const batchCalls = fetchQuery.mock.calls.filter((call) => {
       const key = (call[0] as { queryKey: unknown[] }).queryKey;
-      return key.includes("products-by-codes");
+      return key.includes(createSharedKeys.productsByCodes()[1]);
     });
     expect(batchCalls).toHaveLength(1);
     const limit1Calls = fetchQuery.mock.calls.filter((call) => {
       const key = (call[0] as { queryKey: unknown[] }).queryKey;
-      return key.includes("products-v3");
+      return key.includes(createSharedKeys.products()[1]);
     });
     expect(limit1Calls).toHaveLength(0);
 
@@ -117,11 +117,11 @@ describe("resolveHydrateProductMeta", () => {
     });
     const fetchQuery = vi.spyOn(queryClient, "fetchQuery").mockImplementation(async (options) => {
       const key = (options as { queryKey: unknown[] }).queryKey;
-      if (key.includes("products-by-codes")) {
+      if (key.includes(createSharedKeys.productsByCodes()[1])) {
         throw new Error("batch unavailable");
       }
       // products key includes search near warehouse / limit / type / cardCode
-      if (key.includes("products-v3")) {
+      if (key.includes(createSharedKeys.products()[1])) {
         const search = String(key[4] ?? "");
         return [product(search || "X")];
       }
@@ -137,7 +137,7 @@ describe("resolveHydrateProductMeta", () => {
     expect(
       fetchQuery.mock.calls.some((call) => {
         const key = (call[0] as { queryKey: unknown[] }).queryKey;
-        return key.includes("products-v3");
+        return key.includes(createSharedKeys.products()[1]);
       }),
     ).toBe(true);
 

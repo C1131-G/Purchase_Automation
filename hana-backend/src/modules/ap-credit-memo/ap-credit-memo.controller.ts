@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import type { CreditNoteQuery } from "./ap-credit-memo.types";
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import { apCreditMemoService } from "./ap-credit-memo.service";
 import { CreateCreditNoteInputSchema, UpdateCreditNoteInputSchema } from "./ap-credit-memo.schema";
 import type { CreditNoteDocNumLookupQuery } from "./ap-credit-memo.schema";
@@ -81,7 +82,12 @@ export const createCreditNote = async (req: Request, res: Response, next: NextFu
     // Zod Body Validation ensures the payload strictly follows the SAP creation requirements.
     const validatedPayload = CreateCreditNoteInputSchema.parse(payload);
 
-    const result = await apCreditMemoService.createCreditNote(sessionId, validatedPayload, dbName);
+    const result = await apCreditMemoService.createCreditNote(
+      sessionId,
+      validatedPayload,
+      dbName,
+      requirePortalCreatedBy(authReq.session),
+    );
 
     res.status(201).json({ data: result, message: result.message, success: true });
   } catch (error) {

@@ -12,6 +12,8 @@ declare module "express-session" {
       companyName?: string;
     };
     userAgent?: string;
+    /** Canonical OUSR.USER_CODE used for server-owned SAP creator attribution. */
+    portalUsername?: string;
     lastActivity?: number;
     /** SAP B1SESSION cookie — used to rehydrate SL after a backend restart. */
     sapCookie?: string;
@@ -30,6 +32,7 @@ declare module "express-session" {
       companyName?: string;
     };
     userAgent?: string;
+    portalUsername?: string;
     lastActivity?: number;
     sapCookie?: string;
     slUsername?: string;

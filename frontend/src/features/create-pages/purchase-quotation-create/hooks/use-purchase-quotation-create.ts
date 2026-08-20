@@ -488,6 +488,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             id: `row-${hydrationKey}-${index}`,
             lineNum: typeof line.LineNum === "number" ? line.LineNum : index,
             productCode: itemCode,
+            foreignName: productMeta?.foreignName,
             productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
             stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
             price,

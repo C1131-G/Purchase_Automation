@@ -228,6 +228,7 @@ export const createFlow1Orchestrator = (deps?: {
           existingRemarks: input.comments ?? null,
           lines: input.lines,
           partner: captured.partner,
+          createdBy: input.portalCreatedBy ?? null,
           remarksTag: captured.remarksTag,
           sourceDocEntry: captured.sourceDocEntry,
           sourceDocNum: captured.sourceDocNum,

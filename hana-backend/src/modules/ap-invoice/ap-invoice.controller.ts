@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import type { InvoiceQuery } from "./ap-invoice.types";
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import { apInvoiceService } from "./ap-invoice.service";
 import { CreateInvoiceInputSchema, UpdateInvoiceInputSchema } from "./ap-invoice.schema";
 import type { InvoiceDocNumLookupQuery } from "./ap-invoice.schema";
@@ -83,7 +84,12 @@ export const createInvoice = async (req: Request, res: Response, next: NextFunct
     // Validate the payload against the creation schema.
     const validatedPayload = CreateInvoiceInputSchema.parse(payload);
 
-    const result = await apInvoiceService.createInvoice(sessionId, validatedPayload, dbName);
+    const result = await apInvoiceService.createInvoice(
+      sessionId,
+      validatedPayload,
+      dbName,
+      requirePortalCreatedBy(authReq.session),
+    );
 
     res.status(201).json({ data: result, message: result.message, success: true });
   } catch (error) {

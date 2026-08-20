@@ -38,6 +38,18 @@ export type IcRemarkLink = {
   cardName?: string;
 };
 
+export const IC_REMARK_PROFILE = {
+  BUYER: "buyer",
+  SELLER: "seller",
+} as const;
+
+export type IcRemarkProfile = (typeof IC_REMARK_PROFILE)[keyof typeof IC_REMARK_PROFILE];
+
+const REMARK_KEYS_BY_PROFILE: Record<IcRemarkProfile, readonly string[]> = {
+  [IC_REMARK_PROFILE.BUYER]: ["PQ", "RFQ", "PO"],
+  [IC_REMARK_PROFILE.SELLER]: ["RFQ", "SQ"],
+};
+
 /** Buyer owns PQ/PO; seller owns RFQ/SQ/AR. Prefer IC_COMPANY.COMPANY_NAME. */
 export type IcDocOwnerNames = {
   /** Buyer company display name (PQ / PO owner). */
@@ -332,6 +344,37 @@ export const appendIcRemarkLines = (
 
   const next = [...kept, ...toAdd];
   return next.join("\n");
+};
+
+/** True only when remarks already contain a portal-managed IC document link. */
+export const hasIcRemarkChain = (remarks: string | null | undefined): boolean =>
+  parseIcRemarkLinks(remarks).some((link) => ["PQ", "RFQ", "PO", "SQ"].includes(link.key));
+
+/**
+ * Rebuild IC lines in their side-specific business order while retaining user text.
+ * A seller never receives buyer-side PQ/PO references.
+ */
+export const normalizeIcRemarks = (
+  remarks: string | null | undefined,
+  profile: IcRemarkProfile,
+  additions: IcRemarkLink[] = [],
+): string => {
+  const allowedKeys = REMARK_KEYS_BY_PROFILE[profile];
+  const linksByKey = new Map<string, IcRemarkLink>();
+
+  for (const link of [...parseIcRemarkLinks(remarks), ...additions]) {
+    const key = normalizeRemarkKey(link.key);
+    const text = link.text.trim();
+    if (allowedKeys.includes(key) && text) {
+      linksByKey.set(key, { ...link, key, text });
+    }
+  }
+
+  const orderedLinks = allowedKeys.flatMap((key) => {
+    const link = linksByKey.get(key);
+    return link ? [link] : [];
+  });
+  return appendIcRemarkLines(collectUserRemarkLines(remarks).join("\n"), orderedLinks);
 };
 
 /** SAP object type → IC remark key. Copy-to Comments omit these; SAP stamps its own line. */
@@ -657,8 +700,7 @@ export const compactPoTag = (docNum: number | null | undefined, docEntry: number
 
 /**
  * RFQ header remarks at create / open time.
- * Keeps any prior user text; adds **PQ only** (buyer owner name).
- * RFQ line is added after submit on PQ/SQ.
+ * A seller-side RFQ has no prior seller document, so it keeps user text only.
  */
 export const buildFlow1RfqRemarks = (
   params: {
@@ -669,15 +711,12 @@ export const buildFlow1RfqRemarks = (
     rfqId?: number | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { buyer } = resolveOwnerNames(params);
-  return appendIcRemarkLines(params.existing, [
-    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry, buyer),
-  ]);
+  return normalizeIcRemarks(params.existing, IC_REMARK_PROFILE.SELLER);
 };
 
 /**
  * Convert chain remarks after RFQ submit (PQ updated).
- * PQ (buyer owner) + RFQ (seller owner) — no SQ yet.
+ * The PQ is the current document, so buyer comments reference only its RFQ.
  */
 export const buildFlow1ConvertRemarks = (
   params: {
@@ -690,14 +729,10 @@ export const buildFlow1ConvertRemarks = (
     pqDocEntry?: number | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { buyer, seller } = resolveOwnerNames(params);
-  const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry! : params.pqDraftDocEntry;
-  const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
-  const links: IcRemarkLink[] = [
-    icLinkPq(pqNum, pqEntry, buyer),
+  const { seller } = resolveOwnerNames(params);
+  return normalizeIcRemarks(params.existing, IC_REMARK_PROFILE.BUYER, [
     icLinkRfq(params.rfqNumber, params.rfqId, seller),
-  ];
-  return appendIcRemarkLines(params.existing, links);
+  ]);
 };
 
 /**
@@ -729,7 +764,7 @@ export const ensureVendorRefInRemarks = (
 };
 
 /**
- * Seller SQ Comments: vendor ref (user line) + PQ (buyer) + RFQ (seller) only.
+ * Seller SQ Comments: vendor ref (user line) + RFQ only.
  */
 export const buildFlow1SqRemarks = (
   params: {
@@ -746,21 +781,16 @@ export const buildFlow1SqRemarks = (
     vendorRefNo?: string | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { buyer, seller } = resolveOwnerNames(params);
+  const { seller } = resolveOwnerNames(params);
   const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);
-  const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry : params.pqDraftDocEntry;
-  const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
-  // SQ only carries PQ + RFQ (two details). SQ self-link is not written here.
-  const links: IcRemarkLink[] = [
-    icLinkPq(pqNum, pqEntry, buyer),
+  return normalizeIcRemarks(withVendorRef, IC_REMARK_PROFILE.SELLER, [
     icLinkRfq(params.rfqNumber, params.rfqId, seller),
-  ];
-  return appendIcRemarkLines(withVendorRef, links);
+  ]);
 };
 
 /**
- * AR invoice draft Comments: keep PO user remarks + ensure PQ (buyer) + RFQ (seller) + SQ (seller).
- * Does not append PO or AR self-links.
+ * Seller A/R draft Comments: keep user remarks + ensure RFQ + SQ only.
+ * Neither buyer-side links nor the A/R draft self-link are retained.
  */
 export const buildFlow2ArRemarks = (
   params: {
@@ -782,13 +812,8 @@ export const buildFlow2ArRemarks = (
     arDocNum?: number | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { buyer, seller } = resolveOwnerNames(params);
+  const { seller } = resolveOwnerNames(params);
   const links: IcRemarkLink[] = [];
-  if (hasDocNum(params.pqDocNum)) {
-    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry ?? params.pqDocNum, buyer));
-  } else if (hasEntry(params.pqDocEntry)) {
-    links.push(icLinkPq(null, params.pqDocEntry, buyer));
-  }
   const rfqNum = params.rfqNumber != null ? String(params.rfqNumber).trim() : "";
   if (rfqNum || hasEntry(params.rfqId)) {
     links.push(icLinkRfq(rfqNum || null, params.rfqId, seller));
@@ -798,5 +823,5 @@ export const buildFlow2ArRemarks = (
   } else if (hasEntry(params.sqDocEntry)) {
     links.push(icLinkSq(null, params.sqDocEntry, seller));
   }
-  return appendIcRemarkLines(params.existingComments, links);
+  return normalizeIcRemarks(params.existingComments, IC_REMARK_PROFILE.SELLER, links);
 };

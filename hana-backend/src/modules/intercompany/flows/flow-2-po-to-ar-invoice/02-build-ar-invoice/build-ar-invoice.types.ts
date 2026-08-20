@@ -10,6 +10,7 @@ export type SqBaseLineInput = {
 };
 
 export type BuildArInvoiceInput = {
+  portalCreatedBy?: string;
   buyerCustomerCode: string;
   remarksTag: string;
   /**

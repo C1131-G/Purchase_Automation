@@ -97,10 +97,10 @@ export async function loadOscnMatchedItemCodes(
   }
 
   const itemRepository = await getTenantRepository(dbName, ItemSchema);
-  // Select ItemName so search can match tenant item master (not only OSCN.Descriptio).
+  // Search against both SAP item-master names, not only OSCN.Descriptio.
   const query = itemRepository
     .createQueryBuilder("item")
-    .select(["item.ItemCode", "item.ItemName"])
+    .select(["item.ItemCode", "item.ItemName", "item.FrgnName"])
     .where("item.ItemCode IN (:...itemCodes)", { itemCodes: candidateCodes })
     .andWhere("item.frozenFor = :active", { active: "N" });
 
@@ -122,7 +122,7 @@ export async function loadOscnMatchedItemCodes(
       const code = toTrimmed(item.ItemCode);
       const oscn = oscnByCode.get(code);
       const hay =
-        `${code} ${toTrimmed(item.ItemName)} ${oscn?.Substitute ?? ""} ${oscn?.Descriptio ?? ""}`.toLowerCase();
+        `${code} ${toTrimmed(item.ItemName)} ${toTrimmed(item.FrgnName)} ${oscn?.Substitute ?? ""} ${oscn?.Descriptio ?? ""}`.toLowerCase();
       return words.every((word) => hay.includes(word));
     });
   }

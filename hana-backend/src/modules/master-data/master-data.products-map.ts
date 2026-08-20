@@ -140,6 +140,7 @@ export function mapProductResults(args: {
 
     return {
       Currency: resolvedCurrency,
+      FrgnName: toTrimmed(item.FrgnName),
       ItemCode: normalizedItemCode,
       ItemName: item.ItemName,
       ManBtchNum: manBtchNum,
@@ -164,6 +165,7 @@ export function mapProductResults(args: {
       manBtchNum,
       manSerNum,
       productCode: normalizedItemCode,
+      foreignName: toTrimmed(item.FrgnName),
       productName: item.ItemName,
       stock: resolvedStock,
       taxCode: resolvedTaxCode,

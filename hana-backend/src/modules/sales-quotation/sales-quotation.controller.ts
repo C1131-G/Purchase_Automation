@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 // Core
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import type { SalesQuotationQuery } from "./sales-quotation.types";
 // Services
 import { masterDataService } from "@/modules/master-data/master-data.service";
@@ -107,7 +108,11 @@ export const createSalesQuotation = async (req: Request, res: Response, next: Ne
     // Validate the incoming sales quotation payload against the Zod schema for SAP compatibility.
     const validatedPayload = CreateSalesQuotationInputSchema.parse(payload);
 
-    const result = await salesQuotationService.createSalesQuotation(sessionId, validatedPayload);
+    const result = await salesQuotationService.createSalesQuotation(
+      sessionId,
+      validatedPayload,
+      requirePortalCreatedBy(authReq.session),
+    );
 
     res.status(201).json({ data: result, message: result.message, success: true });
   } catch (error) {

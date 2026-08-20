@@ -81,6 +81,7 @@ describe("product lookup prefers resolved TaxCode", () => {
       await import("@/features/create-pages/create-shared/api/create-shared.mapper");
     const mapped = mapProductLookup({
       ItemCode: "SKU-1",
+      FrgnName: "Vendor item description",
       ItemName: "Item",
       TaxCode: "OUT-18",
       TaxRate: 18,
@@ -89,6 +90,7 @@ describe("product lookup prefers resolved TaxCode", () => {
     });
     expect(mapped.vatGroup).toBe("OUT-18");
     expect(mapped.taxRate).toBe(18);
+    expect(mapped.foreignName).toBe("Vendor item description");
   });
 
   it("applies item tax to the row without a user-selected code", () => {

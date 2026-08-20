@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 // Core
 import type { AuthenticatedRequest } from "@/types/express.types";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import type { PaymentQuery } from "./outgoing-payment.types";
 import type { AccountQuery } from "./outgoing-payment-account.types";
 // Services
@@ -99,7 +100,11 @@ export const createPayment = async (req: Request, res: Response, next: NextFunct
     // Validate the incoming payment payload ensures compliance with SAP's data structure requirements.
     const validatedPayload = CreatePaymentInputSchema.parse(payload);
 
-    const result = await outgoingPaymentService.createPayment(sessionId, validatedPayload);
+    const result = await outgoingPaymentService.createPayment(
+      sessionId,
+      validatedPayload,
+      requirePortalCreatedBy(authReq.session),
+    );
 
     res.status(201).json({ data: result, message: result.message, success: true });
   } catch (error) {

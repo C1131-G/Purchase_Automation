@@ -29,6 +29,8 @@ export type IcDocumentLineInput = {
 };
 
 export type IcPqDraftHookInput = {
+  /** Server-derived U_CreatedBy value from the portal request. */
+  portalCreatedBy?: string;
   dbName: string;
   docEntry: number;
   docNum?: number | null;
@@ -47,6 +49,8 @@ export type IcPqDraftHookInput = {
 };
 
 export type IcPoHookInput = {
+  /** Server-derived U_CreatedBy value from the portal request. */
+  portalCreatedBy?: string;
   dbName: string;
   docEntry: number;
   docNum?: number | null;

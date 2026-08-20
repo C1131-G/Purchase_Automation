@@ -288,9 +288,9 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // RFQ open: PQ only (short); never CardCode (V-B).
+    // Seller RFQ has no parent seller document; never expose buyer PQ.
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("PQ 9001");
+    expect(storedRemarks).not.toContain("PQ 9001");
     expect(storedRemarks).not.toContain("RFQ ");
     expect(storedRemarks).not.toContain("Auto Generated");
     expect(storedRemarks).not.toContain("V-B");
@@ -364,6 +364,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     let sqRemarks: string | undefined;
     let sqNumAtCard: string | null | undefined;
     let sqCommentsOnPatch: string | null | undefined;
+    let sqPortalCreatedBy: string | undefined;
 
     const { orchestrator, fill, convert, db } = createFlow1TestStack({
       documents: {
@@ -383,6 +384,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
           sqCreated = true;
           sqRemarks = input.remarks;
           sqNumAtCard = input.numAtCard ?? null;
+          sqPortalCreatedBy = input.portalCreatedBy;
           return { docEntry: 8100, docNum: 810 };
         },
         getDraftHeaderFields: async () => ({
@@ -424,7 +426,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       rfqId,
     });
     // Submit auto-runs convert (no separate buyer convert click).
-    await fill.submit({ actorCompanyId: 2, rfqId });
+    await fill.submit({ actorCompanyId: 2, portalCreatedBy: "Portal_Seller1", rfqId });
 
     const result = await convert.convert({ actorCompanyId: 1, rfqId });
     expect(result.status).toBe("success");
@@ -442,16 +444,16 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(appliedLines[0]?.ItemCode).toBeUndefined();
     expect(appliedLines[0]?.ItemDescription).toBeUndefined();
     expect(appliedLines[0]?.VatGroup).toBeUndefined();
-    // Parent remarks (one path): patch apply keeps parent text + PQ/RFQ after submit.
+    // Buyer PQ references its RFQ after seller submit.
     expect(sqCommentsOnPatch).toContain("Parent typed on PQ");
-    expect(sqCommentsOnPatch).toContain("PQ 70");
     expect(sqCommentsOnPatch).toContain("RFQ 70");
     // Vendor ref must reach seller SQ NumAtCard + remarks (was missing before).
     expect(sqNumAtCard).toBe("VENDOR-REF-99");
+    expect(sqPortalCreatedBy).toBe("Portal_Seller1");
     expect(sqRemarks).toContain("Vendor Ref No: VENDOR-REF-99");
     expect(sqRemarks).toContain("Parent typed on PQ");
-    // SQ remarks: PQ + RFQ only (short), never CardCode or SQ self-link.
-    expect(sqRemarks).toContain("PQ 70");
+    // Seller SQ: RFQ only, never buyer PQ or SQ self-link.
+    expect(sqRemarks).not.toContain("PQ 70");
     expect(sqRemarks).toContain("RFQ 70");
     expect(sqRemarks).not.toContain("SQ ");
     expect(sqRemarks).not.toContain("Auto Generated");

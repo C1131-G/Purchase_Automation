@@ -224,6 +224,7 @@ export function usePqProducts({
           // PQ: always start at 0; user can edit when line inputs are enabled.
           price: 0,
           productCode: product.code,
+          foreignName: product.foreignName,
           productName: product.name,
           // Quoted qty/date stay empty until the vendor fills them.
           quantity: 0,
@@ -264,6 +265,7 @@ export function usePqProducts({
           // PQ: always start at 0; user can edit when line inputs are enabled.
           price: 0,
           productCode: product.code,
+          foreignName: product.foreignName,
           productName: product.name,
           // Quoted qty/date stay empty until the vendor fills them.
           quantity: 0,

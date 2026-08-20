@@ -357,6 +357,7 @@ export const createBuildArInvoiceService = (deps?: {
         numAtCard: input.numAtCard,
         poDocEntry: input.docEntry,
         poDocNum: input.docNum ?? null,
+        portalCreatedBy: input.portalCreatedBy,
         pqDocEntry: chain.pqDocEntry,
         pqDocNum: chain.pqDocNum,
         remarksTag,

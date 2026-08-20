@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import AppError from "@/core/errors/app-error";
+import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import { createProcessRetryQueueJob } from "@/modules/intercompany/background/jobs/02-process-retry-queue/process-retry-queue.job";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
@@ -143,6 +144,7 @@ export const submitRfq = async (req: Request, res: Response, next: NextFunction)
     const submitted = await fill.submit({
       actorCompanyId: companyId,
       lines: body.lines,
+      portalCreatedBy: requirePortalCreatedBy(req.session),
       rfqId,
     });
     // Fast path: no enrich / no wait for notify or convert (those run in background).
@@ -162,7 +164,11 @@ export const convertRfq = async (
     const companyId = await resolveActorCompanyId(req);
     const rfqId = parseIdParam(String(req.params.id));
     const convert = createConvertPqAndSqService();
-    const result = await convert.convert({ actorCompanyId: companyId, rfqId });
+    const result = await convert.convert({
+      actorCompanyId: companyId,
+      portalCreatedBy: requirePortalCreatedBy(req.session),
+      rfqId,
+    });
     res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
@@ -270,7 +276,10 @@ export const runRetry = async (req: Request, res: Response, next: NextFunction):
     }
 
     try {
-      const result = await createProcessRetryQueueJob().runOne(retryId);
+      const result = await createProcessRetryQueueJob().runOne(
+        retryId,
+        requirePortalCreatedBy(req.session),
+      );
       res.status(200).json({ data: result, success: true });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

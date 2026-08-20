@@ -154,7 +154,7 @@ export function CreateProductTable({
   const lotRow = lotRowId ? (productRows.find((row) => row.id === lotRowId) ?? null) : null;
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   const emptyColSpan =
-    9 +
+    11 +
     pqExtraCols +
     (showSelection ? 1 : 0) +
     (showReturnReason ? 1 : 0) +
@@ -204,13 +204,19 @@ export function CreateProductTable({
         <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
           <table
             className={`w-full table-fixed text-left text-sm text-ink-900 ${
-              showPqLineDatesAndQtys ? "min-w-[1900px]" : "min-w-[1520px]"
+              showPqLineDatesAndQtys ? "min-w-[2100px]" : "min-w-[1720px]"
             }`}
           >
+            <caption className="sr-only">Document product lines</caption>
             <thead className="sticky top-0 z-10 bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
               <tr>
-                {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
-                <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
+                {showSelection && <th scope="col" className="w-[4%] px-2 py-2 text-center" />}
+                <th scope="col" className={`${showUom ? "w-[12%]" : "w-[14%]"} px-2 py-2`}>
+                  Foreign Name
+                </th>
+                <th scope="col" className={`${showUom ? "w-[12%]" : "w-[14%]"} px-2 py-2`}>
+                  Description
+                </th>
                 <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>
                 {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
                 {showUom && <th className="w-[7%] px-2 py-2 text-left">UoM</th>}

@@ -51,15 +51,14 @@ const ProductPopupRow = memo(function ProductPopupRow({
   style: React.CSSProperties;
 }) {
   return (
-    <div
+    <button
+      type="button"
       style={style}
-      className={`grid grid-cols-[40px_140px_1fr_80px_100px] items-center border-b border-linen-100 px-3 py-2 cursor-pointer transition-all text-sm ${
+      aria-pressed={selected}
+      className={`grid w-full grid-cols-[40px_120px_150px_minmax(0,1fr)_80px_100px] items-center border-b border-linen-100 px-3 py-2 text-left text-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-600 ${
         selected ? "bg-teal-50/60 hover:bg-teal-100/70" : "hover:bg-teal-50/40"
       }`}
-      onClick={(e) => {
-        e.preventDefault();
-        onToggle();
-      }}
+      onClick={onToggle}
     >
       <div className="flex items-center justify-center -ml-[4px]">
         <div
@@ -73,10 +72,11 @@ const ProductPopupRow = memo(function ProductPopupRow({
         </div>
       </div>
       <div className="text-ink-900 truncate pr-3">{product.code}</div>
+      <div className="text-neutral-600 truncate pr-3">{product.foreignName || "—"}</div>
       <div className="text-ink-900 truncate pr-3">{product.name}</div>
       <div className="text-ink-900 truncate">{product.stock}</div>
       <div className="text-ink-900 truncate">{product.price.toFixed(2)}</div>
-    </div>
+    </button>
   );
 });
 
@@ -229,12 +229,13 @@ export function ProductPopupModal({
         }));
 
   return (
-    <AnimatedModalShell open={open} onClose={handleInternalClose} panelClassName="max-w-4xl">
+    <AnimatedModalShell open={open} onClose={handleInternalClose} panelClassName="max-w-5xl">
       <div className="flex items-center justify-between border-b border-linen-100 px-4 py-3">
         <h3 className="text-sm font-semibold text-ink-900">Search Products</h3>
         <div className="flex items-center gap-2">
           {selectedCodes.size > 0 && onSelectMultiple && (
             <button
+              type="button"
               onClick={handleAddSelected}
               className="flex h-8 items-center rounded-full border border-teal-600 bg-teal-600 px-4 text-xs font-medium text-surface transition hover:bg-teal-700"
             >
@@ -254,9 +255,13 @@ export function ProductPopupModal({
       <div className="p-4">
         <div className="mb-3 flex items-center gap-3">
           <div className="relative w-full">
+            <label className="sr-only" htmlFor="product-popup-search">
+              Search product code, foreign name, or description
+            </label>
             <input
+              id="product-popup-search"
               className="h-10 w-full rounded-xl border border-linen-200 bg-field-silver px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
-              placeholder="Search product code or name"
+              placeholder="Search product code, foreign name, or description"
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               autoComplete="off"
@@ -282,6 +287,7 @@ export function ProductPopupModal({
               </p>
               {onRetry && (
                 <button
+                  type="button"
                   onClick={onRetry}
                   className="mt-2 rounded-full border border-red-200 bg-surface px-4 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50"
                 >
@@ -295,10 +301,11 @@ export function ProductPopupModal({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-[40px_140px_1fr_80px_100px] items-center border-b border-linen-200 bg-linen-50 pl-3 pr-[29px] py-2 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_120px_150px_minmax(0,1fr)_80px_100px] items-center border-b border-linen-200 bg-linen-50 py-2 pl-3 pr-[29px] text-left text-xs font-medium uppercase tracking-wider text-neutral-500 sticky top-0 z-10">
                 <div />
                 <div>Code</div>
-                <div>Name</div>
+                <div>Foreign Name</div>
+                <div>Description</div>
                 <div>Stock</div>
                 <div>Price</div>
               </div>

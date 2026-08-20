@@ -814,6 +814,11 @@ export function CreateProductTableRow({
           />
         </td>
       )}
+      <td className="min-w-0 px-2 py-2 text-sm text-neutral-600">
+        <span className="block truncate" title={row.foreignName || undefined}>
+          {row.foreignName || "—"}
+        </span>
+      </td>
       <td className="min-w-0 px-2 py-2">
         <div className="space-y-1">
           <Tooltip

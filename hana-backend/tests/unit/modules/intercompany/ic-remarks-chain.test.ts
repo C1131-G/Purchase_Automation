@@ -10,11 +10,13 @@ import {
   commentsWithoutSapBaseAutoLines,
   ensureVendorRefInRemarks,
   formatIcDocLabel,
+  IC_REMARK_PROFILE,
   mergeUserAndIcRemarks,
+  normalizeIcRemarks,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 
 describe("ic-remarks-chain", () => {
-  it("RFQ open remarks are PQ only (Based on PQ)", () => {
+  it("RFQ open remarks retain user text without a buyer PQ reference", () => {
     const merged = buildFlow1RfqRemarks({
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
@@ -26,7 +28,7 @@ describe("ic-remarks-chain", () => {
 
     expect(merged).toContain("Please match last quote");
     expect(merged).toContain("Urgent for plant B");
-    expect(merged).toContain("Based on PQ 9001");
+    expect(merged).not.toContain("Based on PQ");
     expect(merged).not.toContain("Auto Generated");
     expect(merged).not.toContain("AJAX Industries");
     expect(merged).not.toContain("Request For Quotation");
@@ -35,7 +37,7 @@ describe("ic-remarks-chain", () => {
     expect(merged).not.toContain("V-B");
   });
 
-  it("after RFQ submit convert remarks are PQ + RFQ (Based on)", () => {
+  it("after RFQ submit buyer PQ remarks reference only RFQ", () => {
     const remarks = buildFlow1ConvertRemarks({
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
@@ -47,8 +49,8 @@ describe("ic-remarks-chain", () => {
       rfqId: 9,
       rfqNumber: "9001",
     });
-    expect(remarks).toContain("Based on PQ 2042");
     expect(remarks).toContain("Based on RFQ 9001");
+    expect(remarks).not.toContain("Based on PQ");
     expect(remarks).not.toContain("Auto Generated");
     expect(remarks).not.toContain("Sales Quotation");
   });
@@ -82,7 +84,7 @@ describe("ic-remarks-chain", () => {
     expect(merged).toBe("Offline Sync\nBased on PQ 8000590\nBased on RFQ 8000590");
   });
 
-  it("buildFlow2ArRemarks keeps PO user comments and PQ + RFQ + SQ Based on lines", () => {
+  it("buildFlow2ArRemarks keeps PO user comments and seller RFQ + SQ lines", () => {
     const comments = buildFlow2ArRemarks({
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
@@ -95,7 +97,7 @@ describe("ic-remarks-chain", () => {
       sqDocNum: 810,
     });
     expect(comments).toContain("Ship to dock 3");
-    expect(comments).toBe("Ship to dock 3\nBased on PQ 2042\nBased on RFQ 9001\nBased on SQ 810");
+    expect(comments).toBe("Ship to dock 3\nBased on RFQ 9001\nBased on SQ 810");
     expect(comments).not.toContain("Auto Generated");
     expect(comments).not.toContain("Purchase Order");
     expect(comments).not.toContain("AR Invoice");
@@ -144,7 +146,7 @@ describe("ic-remarks-chain", () => {
     expect(second).toBe(first);
   });
 
-  it("buildFlow1SqRemarks is PQ + RFQ only (two Based on lines)", () => {
+  it("buildFlow1SqRemarks is seller RFQ only", () => {
     const remarks = buildFlow1SqRemarks({
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
@@ -161,13 +163,31 @@ describe("ic-remarks-chain", () => {
     });
     expect(remarks).toContain("Ship ASAP");
     expect(remarks).toContain("Vendor Ref No: BUYER-REF-42");
-    expect(remarks).toContain("Based on PQ 2042");
     expect(remarks).toContain("Based on RFQ 9001");
+    expect(remarks).not.toContain("Based on PQ");
     // SQ does not self-link even when sqDocEntry is passed.
     expect(remarks).not.toContain("Based on SQ");
     expect(remarks).not.toContain("Auto Generated");
-    expect(remarks.indexOf("Ship ASAP")).toBeLessThan(remarks.indexOf("Based on PQ 2042"));
-    expect(remarks.indexOf("Vendor Ref No")).toBeLessThan(remarks.indexOf("Based on PQ 2042"));
+    expect(remarks.indexOf("Ship ASAP")).toBeLessThan(remarks.indexOf("Based on RFQ 9001"));
+    expect(remarks.indexOf("Vendor Ref No")).toBeLessThan(remarks.indexOf("Based on RFQ 9001"));
+  });
+
+  it("normalizes buyer chains to PQ, RFQ, then PO", () => {
+    const remarks = normalizeIcRemarks(
+      "User note\nBased on PO 300\nBased on PQ 100\nBased on RFQ 200\nBased on PQ 999",
+      IC_REMARK_PROFILE.BUYER,
+    );
+
+    expect(remarks).toBe("User note\nBased on PQ 999\nBased on RFQ 200\nBased on PO 300");
+  });
+
+  it("normalizes seller chains to RFQ then SQ and removes buyer links", () => {
+    const remarks = normalizeIcRemarks(
+      "Seller note\nBased on PQ 100\nBased on SQ 300\nBased on PO 200\nBased on RFQ 250",
+      IC_REMARK_PROFILE.SELLER,
+    );
+
+    expect(remarks).toBe("Seller note\nBased on RFQ 250\nBased on SQ 300");
   });
 
   it("parses multi-word company name legacy Based on lines for merge/idempotency", () => {

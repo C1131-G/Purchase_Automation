@@ -55,7 +55,11 @@ const LOG_SCOPE = FLOW1_SCOPE;
 const CONVERT_SCOPE = IC_LOG_SCOPE.FLOW1_CONVERT;
 
 export type ConvertPqAndSqService = {
-  convert: (params: { rfqId: number; actorCompanyId: number }) => Promise<IcHookResult>;
+  convert: (params: {
+    rfqId: number;
+    actorCompanyId: number;
+    portalCreatedBy?: string;
+  }) => Promise<IcHookResult>;
 };
 
 export const createConvertPqAndSqService = (deps?: {
@@ -89,7 +93,7 @@ export const createConvertPqAndSqService = (deps?: {
     });
 
   return {
-    convert: async ({ rfqId, actorCompanyId }) => {
+    convert: async ({ rfqId, actorCompanyId, portalCreatedBy }) => {
       const startedAt = Date.now();
       const logCtx = {
         actorCompanyId,
@@ -428,6 +432,7 @@ export const createConvertPqAndSqService = (deps?: {
           documents,
           lines,
           numAtCard: vendorRefNo,
+          portalCreatedBy,
           remarks: sqRemarks,
           resolveLineTax,
           sapDbName: sellerCompany.sapDbName,
@@ -628,6 +633,7 @@ export const createConvertPqAndSqService = (deps?: {
               buyerCustomerCode: bpMap.buyerCustomerCode,
               pqDocEntry: purchaseQuotation.docEntry,
               pqDocNum: purchaseQuotation.docNum ?? null,
+              portalCreatedBy,
               remarks: remarksWithPq,
               remarksTag,
               rfqId: header.rfqId,

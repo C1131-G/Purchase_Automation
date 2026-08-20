@@ -231,6 +231,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
       docDate: "20260315",
       poDocEntry: 100,
       poDocNum: 100,
+      portalCreatedBy: "Portal_Vedha1",
       pqDocEntry: 55,
       pqDocNum: 2042,
       buyerCompanyName: "AJAX Industries",
@@ -253,11 +254,12 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     // A/R Invoice Draft body — DocObjectCode 13 for POST /Drafts.
     expect(payload.DocObjectCode).toBe("13");
     expect(payload.CardCode).toBe("C-A-ON-B");
+    expect(payload.U_CreatedBy).toBe("Portal_Vedha1");
     // Do not stamp U_Origin on IC auto-created drafts.
     expect(payload.U_Origin).toBeUndefined();
-    // Existing remarks preserved; AR IC chain = PQ + RFQ + SQ (short).
+    // Existing remarks preserved; seller AR draft chain = RFQ + SQ (short).
     expect(payload.Comments).toContain("User note keep me");
-    expect(payload.Comments).toContain("PQ 2042");
+    expect(payload.Comments).not.toContain("PQ 2042");
     expect(payload.Comments).toContain("RFQ 9001");
     expect(payload.Comments).toContain("SQ 810");
     expect(payload.Comments).not.toContain("Auto Generated");

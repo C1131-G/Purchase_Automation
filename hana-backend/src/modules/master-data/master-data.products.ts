@@ -24,7 +24,7 @@ const buildProductsCacheKey = (
   priceListToken: string,
   cardCodeToken: string,
 ) =>
-  `master:${dbName}:Products:v17:${warehouseCode || "default"}:${searchKey}:${limitToken}:${type}:pl${priceListToken}:bp${cardCodeToken || "none"}`;
+  `master:${dbName}:Products:v18:${warehouseCode || "default"}:${searchKey}:${limitToken}:${type}:pl${priceListToken}:bp${cardCodeToken || "none"}`;
 
 export const getProducts = async (
   dbName: string,

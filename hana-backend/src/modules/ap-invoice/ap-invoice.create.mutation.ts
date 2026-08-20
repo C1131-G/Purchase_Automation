@@ -8,6 +8,7 @@ import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { assertPqLinesCopyAllowed, commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
+import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
@@ -15,7 +16,8 @@ import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-docume
 export const createInvoice = async (
   sessionId: string,
   payload: Record<string, unknown>,
-  dbName?: string,
+  dbName: string | undefined,
+  portalCreatedBy: string,
 ) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
   const attachments = payload.attachments as any[];
@@ -97,6 +99,7 @@ export const createInvoice = async (
     }),
     NumAtCard: payload.NumAtCard ?? draftNumAtCard,
     SalesPersonCode: payload.SalesPersonCode,
+    U_CreatedBy: portalCreatedBy,
   };
 
   if (isDraft) {
@@ -148,6 +151,14 @@ export const createInvoice = async (
       isDraft ? "/Drafts" : "/PurchaseInvoices",
       sapPayload,
     )) as SAPDocumentResponse;
+
+    await syncBuyerRemarksAfterCreate({
+      createdComments: result.Comments,
+      docEntry: result.DocEntry,
+      endpoint: isDraft ? "/Drafts" : "/PurchaseInvoices",
+      originalComments: sapPayload.Comments,
+      sessionId,
+    });
 
     // Cache Invalidation: Clear dashboard stats for this tenant since a new invoice affects outstanding totals.
     if (resolvedDbName) {
@@ -209,6 +220,14 @@ export const createInvoice = async (
           "/PurchaseInvoices",
           sapPayload,
         )) as SAPDocumentResponse;
+
+        await syncBuyerRemarksAfterCreate({
+          createdComments: result.Comments,
+          docEntry: result.DocEntry,
+          endpoint: "/PurchaseInvoices",
+          originalComments: sapPayload.Comments,
+          sessionId,
+        });
 
         if (resolvedDbName) {
           purgeCache(`dashboard:overview:${resolvedDbName}`);

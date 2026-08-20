@@ -437,6 +437,7 @@ export function useExcelImport({
           return {
             id: `row-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             productCode: catalogProduct.code,
+            foreignName: catalogProduct.foreignName,
             productName: catalogProduct.name,
             quantity: row.quantity,
             price: price,

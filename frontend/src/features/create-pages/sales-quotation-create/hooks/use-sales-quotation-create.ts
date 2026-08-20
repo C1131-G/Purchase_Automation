@@ -409,6 +409,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           return {
             id: `row-${currentDocNum}-${index}`,
             productCode: itemCode,
+            foreignName: productMeta?.foreignName,
             productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
             stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
             price,

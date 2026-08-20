@@ -11,6 +11,7 @@ describe("mapProductResults lot flags", () => {
       items: [
         {
           ItemCode: "SKU-1",
+          FrgnName: "Imported item description",
           ItemName: "Batch item",
           ManBtchNum: "Y",
           ManSerNum: "N",
@@ -29,5 +30,7 @@ describe("mapProductResults lot flags", () => {
     expect(row?.ManSerNum).toBe("N");
     expect(row?.manBtchNum).toBe("Y");
     expect(row?.manSerNum).toBe("N");
+    expect(row?.FrgnName).toBe("Imported item description");
+    expect(row?.foreignName).toBe("Imported item description");
   });
 });

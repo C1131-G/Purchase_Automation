@@ -37,6 +37,7 @@ export type CreateSectionCardProps = PropsWithChildren<{
 }>;
 
 export interface ProductGridRow {
+  foreignName?: string | undefined;
   id: string;
   productCode: string;
   productName: string;
