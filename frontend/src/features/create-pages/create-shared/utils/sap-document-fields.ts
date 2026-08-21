@@ -1,3 +1,5 @@
+import { SAP_FIELD_MAX, VALIDATION_PATTERN } from "@vendor-portal/validation-contracts";
+
 /**
  * SAP Business One marketing-document and payment field limits
  * (DI API / HANA table lengths). Typed values longer than these
@@ -68,4 +70,3 @@ export const sapDocumentTextErrors = (fields: {
   }
   return errors;
 };
-import { SAP_FIELD_MAX, VALIDATION_PATTERN } from "@vendor-portal/validation-contracts";

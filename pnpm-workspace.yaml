@@ -10,6 +10,8 @@ allowBuilds:
   lefthook: true
   protobufjs: true
 minimumReleaseAgeExclude:
+  - "@vitejs/plugin-react@6.0.3"
+  - vite@8.1.0
   - "@typescript/typescript-aix-ppc64@7.0.2"
   - "@typescript/typescript-darwin-arm64@7.0.2"
   - "@typescript/typescript-darwin-x64@7.0.2"
