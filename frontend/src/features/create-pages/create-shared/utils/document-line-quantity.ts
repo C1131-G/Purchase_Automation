@@ -59,3 +59,22 @@ export const capQuantityDraftToMax = (raw: string, max: number | null | undefine
   }
   return String(cap);
 };
+
+/**
+ * Cap a sales quantity draft to a stock-derived limit, including zero stock.
+ * Empty and partial decimal drafts stay editable until the value is complete.
+ */
+export const capSalesQuantityDraftToMax = (raw: string, max: number): string => {
+  if (!Number.isFinite(max) || max < 0) {
+    return raw;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.endsWith(".")) {
+    return raw;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= max) {
+    return raw;
+  }
+  return String(max);
+};

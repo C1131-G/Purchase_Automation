@@ -221,7 +221,9 @@ export function CreateProductTable({
                   <>
                     <th className="w-[8%] px-2 py-2 text-left">Required Date</th>
                     <th className="w-[8%] px-2 py-2 text-left">Quoted Date</th>
-                    <th className="w-[7%] px-2 py-2 text-left">Required Qty</th>
+                    <th className="w-[7%] px-2 py-2 text-left">
+                      {rfqSellerFill ? "Max Allowed Qty" : "Required Qty"}
+                    </th>
                     <th className="w-[7%] px-2 py-2 text-left">Quoted Qty</th>
                   </>
                 ) : (

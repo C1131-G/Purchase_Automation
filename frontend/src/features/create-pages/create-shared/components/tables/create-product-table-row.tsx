@@ -37,6 +37,7 @@ import {
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import {
+  capSalesQuantityDraftToMax,
   capQuantityDraftToMax,
   capQuantityToMax,
   parseDocumentLineQuantity,
@@ -648,11 +649,23 @@ export function CreateProductTableRow({
 
   const maxAllowed = Math.max(0, Math.floor(row.stock) - stockLimitReserve);
 
+  const salesMaxAllowed =
+    effectiveMaxQuantity !== undefined
+      ? Math.min(maxAllowed, Math.max(0, effectiveMaxQuantity))
+      : maxAllowed;
+  const quantityMaxAllowed = row.warehouseCode ? salesMaxAllowed : effectiveMaxQuantity;
+
   const quantityMessage =
     row.stock > 0 ? (
-      <span className="flex items-center gap-1.5">
-        <span className="font-normal text-neutral-500">Max allowed limit: </span>
-        <span className="font-bold text-teal-600">{maxAllowed}</span>
+      <span className="flex flex-col gap-0.5">
+        <span>
+          <span className="font-normal text-neutral-500">Stock Qty: </span>
+          <span className="font-bold text-ink-900">{row.stock}</span>
+        </span>
+        <span>
+          <span className="font-normal text-neutral-500">Max Allowed Qty: </span>
+          <span className="font-bold text-teal-600">{salesMaxAllowed}</span>
+        </span>
       </span>
     ) : (
       <span className="font-bold text-rose-500">Item is out of stock</span>
@@ -660,14 +673,6 @@ export function CreateProductTableRow({
 
   const rfqMaxQty =
     row.requiredQuantity && row.requiredQuantity > 0 ? row.requiredQuantity : undefined;
-  const rfqQuantityMessage =
-    rfqMaxQty !== undefined ? (
-      <span className="flex items-center gap-1.5">
-        <span className="font-normal text-neutral-500">Max allowed limit: </span>
-        <span className="font-bold text-teal-600">{rfqMaxQty}</span>
-      </span>
-    ) : null;
-
   React.useEffect(() => {
     setUomInput(row.uomCode ?? "");
   }, [row.uomCode]);
@@ -1242,35 +1247,22 @@ export function CreateProductTableRow({
           {/* Quoted Qty — locked on PQ; editable on RFQ seller fill. */}
           <td className="min-w-0 px-2 py-2">
             {sellerFieldEditable ? (
-              <Tooltip content={rfqQuantityMessage} className="block w-auto max-w-none">
-                <NumericInput
-                  profile="positiveQuantity"
-                  placeholder="1"
-                  aria-invalid={lineFieldInvalid?.quantity === true}
-                  value={
-                    rowDraft?.quantity !== undefined
-                      ? rowDraft.quantity
-                      : row.quantity > 0
-                        ? String(row.quantity)
-                        : ""
-                  }
-                  onValueChange={(value) => {
-                    const capped = capQuantityDraftToMax(value, rfqMaxQty);
-                    setProductRowDraft(row.id, "quantity", capped);
-                    if (capped !== value) {
-                      const next = capQuantityToMax(Number(capped), rfqMaxQty);
-                      const newGross = row.price * next;
-                      const newDiscountAmount =
-                        Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
-                      updateProductRow(row.id, {
-                        discountAmount: newDiscountAmount,
-                        quantity: next,
-                      });
-                    }
-                  }}
-                  onBlur={(event) => {
-                    const parsed = parseDocumentLineQuantity(event.target.value);
-                    const next = capQuantityToMax(Math.max(1, parsed), rfqMaxQty);
+              <NumericInput
+                profile="positiveQuantity"
+                placeholder="1"
+                aria-invalid={lineFieldInvalid?.quantity === true}
+                value={
+                  rowDraft?.quantity !== undefined
+                    ? rowDraft.quantity
+                    : row.quantity > 0
+                      ? String(row.quantity)
+                      : ""
+                }
+                onValueChange={(value) => {
+                  const capped = capQuantityDraftToMax(value, rfqMaxQty);
+                  setProductRowDraft(row.id, "quantity", capped);
+                  if (capped !== value) {
+                    const next = capQuantityToMax(Number(capped), rfqMaxQty);
                     const newGross = row.price * next;
                     const newDiscountAmount =
                       Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
@@ -1278,13 +1270,24 @@ export function CreateProductTableRow({
                       discountAmount: newDiscountAmount,
                       quantity: next,
                     });
-                    clearProductRowDraft(row.id, "quantity");
-                  }}
-                  className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
-                    lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
-                  }`}
-                />
-              </Tooltip>
+                  }
+                }}
+                onBlur={(event) => {
+                  const parsed = parseDocumentLineQuantity(event.target.value);
+                  const next = capQuantityToMax(Math.max(1, parsed), rfqMaxQty);
+                  const newGross = row.price * next;
+                  const newDiscountAmount =
+                    Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                  updateProductRow(row.id, {
+                    discountAmount: newDiscountAmount,
+                    quantity: next,
+                  });
+                  clearProductRowDraft(row.id, "quantity");
+                }}
+                className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
+                  lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
+                }`}
+              />
             ) : (
               <NumericInput
                 profile="positiveIntegerQuantity"
@@ -1328,7 +1331,11 @@ export function CreateProductTableRow({
                   if (effectiveDisableInputs) {
                     return;
                   }
-                  setProductRowDraft(row.id, "quantity", value);
+                  const capped =
+                    quantityMaxAllowed !== undefined
+                      ? capSalesQuantityDraftToMax(value, quantityMaxAllowed)
+                      : value;
+                  setProductRowDraft(row.id, "quantity", capped);
                 }}
                 onBlur={(event) => {
                   if (effectiveDisableInputs) {
@@ -1336,15 +1343,10 @@ export function CreateProductTableRow({
                   }
                   const rawValue = event.target.value.trim();
                   const typedQuantityVal = parseDocumentLineQuantity(rawValue, { integer: true });
-                  const clamped = row.warehouseCode
-                    ? Math.max(1, Math.min(maxAllowed, typedQuantityVal))
-                    : typedQuantityVal;
-
-                  if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
-                    updateProductRow(row.id, { quantity: effectiveMaxQuantity });
-                    clearProductRowDraft(row.id, "quantity");
-                    return;
-                  }
+                  const clamped =
+                    quantityMaxAllowed !== undefined
+                      ? Math.min(quantityMaxAllowed, typedQuantityVal)
+                      : typedQuantityVal;
 
                   // Preserve existing discount percent and recompute discount amount based on new quantity
                   const newGross = row.price * clamped;

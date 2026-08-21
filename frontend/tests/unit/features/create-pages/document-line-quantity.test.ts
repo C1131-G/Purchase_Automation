@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  capSalesQuantityDraftToMax,
   capQuantityDraftToMax,
   capQuantityToMax,
   clampDocumentLineQuantity,
@@ -36,5 +37,13 @@ describe("document line quantity", () => {
     expect(capQuantityDraftToMax("40", 25)).toBe("25");
     expect(capQuantityDraftToMax("2.", 25)).toBe("2.");
     expect(capQuantityDraftToMax("10", 25)).toBe("10");
+  });
+
+  it("caps sales quantity drafts to a stock limit, including zero stock", () => {
+    expect(capSalesQuantityDraftToMax("12", 9)).toBe("9");
+    expect(capSalesQuantityDraftToMax("4", 9)).toBe("4");
+    expect(capSalesQuantityDraftToMax("3.", 0)).toBe("3.");
+    expect(capSalesQuantityDraftToMax("1", 0)).toBe("0");
+    expect(capSalesQuantityDraftToMax("", 0)).toBe("");
   });
 });
