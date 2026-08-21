@@ -172,7 +172,11 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
     ).trim(),
     purchaseUomEntry:
       toNumberOrZero(
-        record.PurchaseUoMEntry ?? record.purchaseUomEntry ?? record.PurchaseUomEntry,
+        record.PurchaseUoMEntry ??
+          record.purchaseUomEntry ??
+          record.PurchaseUomEntry ??
+          record.PUoMEntry ??
+          record.pUoMEntry,
       ) || undefined,
     stock: toNumberOrZero(stockValue),
     taxRate: toNumberOrZero(record.TaxRate ?? record.taxRate ?? record.Rate),
@@ -197,7 +201,14 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
           record.uomCode ??
           "",
       ).trim() || undefined,
-    uomEntry: toNumberOrZero(record.UoMEntry ?? record.uomEntry ?? record.UomEntry) || undefined,
+    uomEntry:
+      toNumberOrZero(
+        record.UoMEntry ??
+          record.uomEntry ??
+          record.UomEntry ??
+          record.SUoMEntry ??
+          record.sUoMEntry,
+      ) || undefined,
     uomList: (() => {
       const rawList = record.UomList ?? record.uomList ?? record.UoMList;
       if (!Array.isArray(rawList)) return undefined;

@@ -7,6 +7,8 @@ import { logFlowStep } from "@/modules/intercompany/infrastructure/flow-step-log
 import { buildFlow1RfqRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
+import { partnerWarehouseMasters } from "@/modules/intercompany/config/warehouse/partner-warehouse.masters";
+import { resolveItemSalesUom } from "@/modules/master-data/master-data.warehouses-series.queries";
 
 import {
   mapSourceItemsToPartnerItems,
@@ -32,6 +34,17 @@ export const createCreateRfqService = (deps?: {
     itemCodes: string[];
     targetDbName: string;
   }) => Promise<Map<string, PartnerItemMapEntry>>;
+  /** Seller item-master sales UoM stored on RFQ — convert copies this, does not re-pick. */
+  resolveSalesUom?: (
+    itemCode: string,
+  ) => Promise<{ uomCode: string; uomEntry: number | null } | null>;
+  /**
+   * OSCN.U_Warehouse / U_Warhouse (code or description) → seller OWHS.
+   * Convert copies this RFQ warehouse; buyer PQ warehouse is never stored.
+   */
+  resolveWarehouse?: (
+    warehouseHint: string,
+  ) => Promise<{ warehouseCode: string; branchId: number | null } | null>;
 }): CreateRfqService => {
   const rfq = deps?.rfq ?? createRfqService();
   const documentMap = deps?.documentMap ?? createDocumentMapService();
@@ -89,19 +102,49 @@ export const createCreateRfqService = (deps?: {
         targetDbName: input.partner.sellerCompany.sapDbName,
       });
 
-      const lines = mapDraftLinesToRfqLines(input.lines).map((line) => {
+      const sellerDb = input.partner.sellerCompany.sapDbName?.trim() || "";
+      const resolveSalesUom =
+        deps?.resolveSalesUom ??
+        (sellerDb && process.env.VITEST !== "true"
+          ? (itemCode: string) => resolveItemSalesUom(sellerDb, itemCode)
+          : null);
+      const resolveWarehouse =
+        deps?.resolveWarehouse ??
+        (sellerDb && process.env.VITEST !== "true"
+          ? (warehouseHint: string) =>
+              partnerWarehouseMasters.resolveWarehouseByCodeOrName(sellerDb, warehouseHint)
+          : null);
+
+      const mappedLines = mapDraftLinesToRfqLines(input.lines);
+      const lines: ReturnType<typeof mapDraftLinesToRfqLines> = [];
+      for (const line of mappedLines) {
         const mapped = partnerItemMap.get(line.itemCode);
         if (!mapped) {
           throw new Error(
             `IC OSCN mapping missing for buyer ItemCode=${line.itemCode} CardCode=${input.partner.vendorCode}`,
           );
         }
-        return {
+        const sales =
+          resolveSalesUom != null ? await resolveSalesUom(mapped.partnerItemCode) : null;
+        const salesCode = sales?.uomCode?.trim() || "";
+        const useSales = Boolean(salesCode) && !/^manual$/i.test(salesCode);
+        const warehouseHint = mapped.warehouseHint?.trim() || "";
+        const sellerWh =
+          resolveWarehouse != null && warehouseHint ? await resolveWarehouse(warehouseHint) : null;
+        const sellerWarehouse = sellerWh?.warehouseCode?.trim() || "";
+        lines.push({
           ...line,
           itemCode: mapped.partnerItemCode,
           description: line.description || mapped.description || null,
-        };
-      });
+          uomCode: useSales ? salesCode : line.uomCode,
+          uomEntry:
+            useSales && sales?.uomEntry != null && sales.uomEntry > 0
+              ? sales.uomEntry
+              : line.uomEntry,
+          // Seller WH from OSCN only — never keep buyer PQ WarehouseCode.
+          warehouse: sellerWarehouse || null,
+        });
+      }
       const rfqNumber = buildRfqNumber(Number(input.sourceDocEntry), input.sourceDocNum);
       logFlowStep(SCOPE, {
         step: 5,
@@ -118,6 +161,7 @@ export const createCreateRfqService = (deps?: {
             taxCode: line.taxCode ?? null,
             quantity: line.quantity,
             unitPrice: line.unitPrice,
+            uomCode: line.uomCode ?? null,
             warehouse: line.warehouse,
           })),
           remarksTag: input.remarksTag,

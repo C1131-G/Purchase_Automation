@@ -553,6 +553,16 @@ export const createMemorySqlClient = (
     }
 
     if (statement.startsWith('UPDATE "IC_RFQ_LINE"')) {
+      if (statement.includes('"WAREHOUSE"') && !statement.includes('"UNIT_PRICE"')) {
+        const warehouse = params[0] ?? null;
+        const rfqId = Number(params[1]);
+        for (const row of db.tables.IC_RFQ_LINE) {
+          if (row.RFQ_ID === rfqId) {
+            row.WAREHOUSE = warehouse;
+          }
+        }
+        return [] as T[];
+      }
       // params: unitPrice, deliveryDate, discount, quantity, taxCode, rfqId, lineNum
       const rfqId = Number(params[5]);
       const lineNum = Number(params[6]);

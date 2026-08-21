@@ -5,7 +5,7 @@
 import { In } from "typeorm";
 
 import { getCachedData } from "@/core/utils/cache";
-import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
+import { getTenantRepository } from "@/db/tenant-query";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
@@ -45,7 +45,7 @@ export const getProductsByCodes = async (
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
   const codesKey = [...itemCodes].sort().join("|");
-  const cacheKey = `master:${dbName}:ProductsByCodes:v5:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
+  const cacheKey = `master:${dbName}:ProductsByCodes:v6:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
 
   return getCachedData(
     cacheKey,
@@ -70,7 +70,7 @@ async function loadProductsByCodesForTenant(
   normalizedWarehouseCode: string,
   normalizedCardCode: string,
 ) {
-  const [adminSettings, taxGroups, uoms, ugpLines, displayCurrency, catalog] = await Promise.all([
+  const [adminSettings, taxGroups, uoms, displayCurrency, catalog] = await Promise.all([
     getCachedData(
       `master:${dbName}:AdminSettings`,
       async () => {
@@ -104,29 +104,6 @@ async function loadProductsByCodesForTenant(
       },
       1000 * 60 * 60,
     ),
-    getCachedData(
-      `master:${dbName}:UgpLines`,
-      async () => {
-        try {
-          const rows = (await executeTenantQuery(
-            dbName,
-            `SELECT ugp."UgpEntry", ugp."UomEntry", ouom."UomCode", ouom."UomName"
-                 FROM UGP1 ugp
-                 INNER JOIN OUOM ouom ON ugp."UomEntry" = ouom."UomEntry"
-                 WHERE ugp."IsActive" = 'Y'`,
-          )) as Array<{
-            UgpEntry: unknown;
-            UomEntry: unknown;
-            UomCode: unknown;
-            UomName: unknown;
-          }>;
-          return rows;
-        } catch {
-          return [];
-        }
-      },
-      1000 * 60 * 60,
-    ),
     getDisplayCurrency(dbName),
     loadOscnMatchedItemCodes(dbName, normalizedCardCode, type, { itemCodes }),
   ]);
@@ -146,6 +123,8 @@ async function loadProductsByCodesForTenant(
       "item.FrgnName",
       "item.SalUnitMsr",
       "item.BuyUnitMsr",
+      "item.SUoMEntry",
+      "item.PUoMEntry",
       "item.AvgPrice",
       "item.LstEvlPric",
       "item.LastPurPrc",
@@ -153,7 +132,6 @@ async function loadProductsByCodesForTenant(
       "item.VatGroupPu",
       "item.VatGroupSa",
       "item.DfltWH",
-      "item.UgpEntry",
       "item.ManBtchNum",
       "item.ManSerNum",
     ])
@@ -228,7 +206,6 @@ async function loadProductsByCodesForTenant(
     defaultCurrency,
     taxGroups,
     uoms,
-    ugpLines,
     normalizedWarehouseCode,
   });
 }

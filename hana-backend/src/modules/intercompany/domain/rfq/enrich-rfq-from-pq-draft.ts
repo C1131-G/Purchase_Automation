@@ -16,6 +16,7 @@ import {
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
 import { attachRfqSellerSalesTax } from "./attach-rfq-sales-tax";
+import { attachRfqSellerSalesUom } from "./attach-rfq-sales-uom";
 import { resolveRfqCustomerDisplay, withRfqCustomerDisplay } from "./resolve-rfq-customer-display";
 import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
 
@@ -338,8 +339,8 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
   const deliveryDate =
     toDateOnly(line.deliveryDate) ?? toDateOnly(source.ShipDate ?? source.shipDate) ?? null;
 
-  const warehouse =
-    toStr(line.warehouse) ?? toStr(source.WhsCode ?? source.whsCode ?? source.WarehouseCode);
+  // RFQ warehouse is seller-side (OSCN.U_Warehouse → seller OWHS). Never overlay buyer PQ WH.
+  const warehouse = toStr(line.warehouse);
 
   const uomCode = toStr(line.uomCode) ?? toStr(source.UomCode ?? source.uomCode ?? source.UoMCode);
   const uomEntryRaw = toNum(source?.UomEntry ?? source?.uomEntry ?? source?.UoMEntry);
@@ -493,10 +494,7 @@ const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeade
             } satisfies IcRfqLine;
           });
 
-    const firstWh =
-      resolvedLines.find((line) => line.warehouse)?.warehouse ??
-      toStr(source.lines[0]?.WhsCode) ??
-      null;
+    const firstWh = resolvedLines.find((line) => line.warehouse)?.warehouse ?? null;
 
     const draftComments = toStr(srcHeader.Comments ?? srcHeader.comments);
     const draftVendorRef = toStr(srcHeader.NumAtCard ?? srcHeader.numAtCard);
@@ -537,8 +535,9 @@ const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeade
   }
 };
 
-/** Buyer PQ merge + seller sales tax so RFQ UI never shows purchase VatGroup. */
+/** Buyer PQ merge + seller sales tax/UoM so RFQ UI never shows purchase masters. */
 export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
   const enriched = await enrichRfqFromPqDraftCore(header);
-  return attachRfqSellerSalesTax(enriched);
+  const withSalesTax = await attachRfqSellerSalesTax(enriched);
+  return attachRfqSellerSalesUom(withSalesTax);
 };

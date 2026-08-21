@@ -1,5 +1,14 @@
 import { toTrimmed, toNullableInt, toNumberOrZero } from "./master-data.lookup-cache";
 
+type MasterUom = { code: string; name: string; entry?: number };
+
+const isUsableUomCode = (code: string): boolean => Boolean(code) && !/^manual$/i.test(code);
+
+const usableUomEntry = (value: unknown): number | undefined => {
+  const entry = toNullableInt(value);
+  return entry !== undefined && entry > 0 ? entry : undefined;
+};
+
 export function mapProductResults(args: {
   items: any[];
   itemStocks: Array<{ ItemCode?: unknown; OnHand?: unknown }>;
@@ -9,7 +18,6 @@ export function mapProductResults(args: {
   defaultCurrency: string;
   taxGroups: Array<{ Code?: string; Rate?: unknown }>;
   uoms: Array<{ UomCode?: string; UomName?: string; UomEntry?: unknown; AbsEntry?: unknown }>;
-  ugpLines: Array<{ UgpEntry?: unknown; UomEntry?: unknown; UomCode?: unknown; UomName?: unknown }>;
   normalizedWarehouseCode: string;
 }) {
   const {
@@ -20,7 +28,6 @@ export function mapProductResults(args: {
     type,
     taxGroups,
     uoms,
-    ugpLines,
     normalizedWarehouseCode,
   } = args;
   let { defaultCurrency } = args;
@@ -69,29 +76,36 @@ export function mapProductResults(args: {
     if (code) taxRateByCode.set(code, toNumberOrZero(taxGroup.Rate));
   }
 
-  const uomByNormalizedValue = new Map<string, { code: string; entry?: number }>();
+  const uomByEntry = new Map<number, MasterUom>();
+  const uomByNormalizedValue = new Map<string, MasterUom>();
   for (const uom of uoms) {
     const code = toTrimmed(uom.UomCode);
-    const name = toTrimmed(uom.UomName);
-    const entry = toNullableInt(uom.UomEntry ?? uom.AbsEntry);
-    if (code) uomByNormalizedValue.set(code.toLowerCase(), { code, entry });
-    if (name && code) uomByNormalizedValue.set(name.toLowerCase(), { code, entry });
+    const name = toTrimmed(uom.UomName) || code;
+    const entry = usableUomEntry(uom.UomEntry ?? uom.AbsEntry);
+    if (!code || !isUsableUomCode(code)) continue;
+    const resolved: MasterUom = entry !== undefined ? { code, name, entry } : { code, name };
+    if (entry !== undefined) uomByEntry.set(entry, resolved);
+    uomByNormalizedValue.set(code.toLowerCase(), resolved);
+    if (name) uomByNormalizedValue.set(name.toLowerCase(), resolved);
   }
 
-  const ugpUomMap = new Map<number, { code: string; name: string; entry?: number }[]>();
-  for (const ugpLine of ugpLines) {
-    const ugpEntry = toNullableInt(ugpLine.UgpEntry);
-    if (ugpEntry === undefined || ugpEntry === -1) continue;
-    const uomCode = toTrimmed(ugpLine.UomCode);
-    const uomName = toTrimmed(ugpLine.UomName) || uomCode;
-    const uomEntry = toNullableInt(ugpLine.UomEntry);
-    if (!uomCode) continue;
-    const list = ugpUomMap.get(ugpEntry) ?? [];
-    if (!list.some((uom) => uom.code === uomCode)) {
-      list.push({ code: uomCode, name: uomName, entry: uomEntry });
+  const resolveMasterUom = (text: string, entryFromItem: unknown): MasterUom | null => {
+    const entry = usableUomEntry(entryFromItem);
+    if (entry !== undefined) {
+      const byEntry = uomByEntry.get(entry);
+      if (byEntry) return byEntry;
+      const fallbackCode = isUsableUomCode(text) ? text : "";
+      if (fallbackCode) return { code: fallbackCode, name: fallbackCode, entry };
     }
-    ugpUomMap.set(ugpEntry, list);
-  }
+    if (!isUsableUomCode(text)) return null;
+    return uomByNormalizedValue.get(text.toLowerCase()) ?? { code: text, name: text };
+  };
+
+  const pushUniqueUom = (list: MasterUom[], next: MasterUom | null) => {
+    if (!next || !isUsableUomCode(next.code)) return;
+    if (list.some((uom) => uom.code === next.code)) return;
+    list.push(next);
+  };
 
   return items.map((item) => {
     const normalizedItemCode = toTrimmed(item.ItemCode);
@@ -105,32 +119,17 @@ export function mapProductResults(args: {
     const resolvedTaxRate = taxRateByCode.get(resolvedTaxCode) ?? 0;
     const salesUomText = toTrimmed(item.SalUnitMsr);
     const purchaseUomText = toTrimmed(item.BuyUnitMsr);
-    const resolvedSalesUom = uomByNormalizedValue.get(salesUomText.toLowerCase());
-    const resolvedSalesUomCode = resolvedSalesUom?.code || salesUomText;
+    const resolvedSalesUom = resolveMasterUom(salesUomText, item.SUoMEntry);
+    const resolvedPurchaseUom = resolveMasterUom(purchaseUomText, item.PUoMEntry);
+    const resolvedSalesUomCode = resolvedSalesUom?.code || "";
     const resolvedSalesUomEntry = resolvedSalesUom?.entry;
-    const resolvedPurchaseUom = uomByNormalizedValue.get(purchaseUomText.toLowerCase());
-    const resolvedPurchaseUomCode = resolvedPurchaseUom?.code || resolvedSalesUomCode;
-    const resolvedPurchaseUomEntry = resolvedPurchaseUom?.entry ?? resolvedSalesUomEntry;
-    const itemUgpEntry = toNullableInt(item.UgpEntry);
-    let uomList: { code: string; name: string; entry?: number }[] = [];
-    if (itemUgpEntry !== undefined && itemUgpEntry !== -1) {
-      uomList = ugpUomMap.get(itemUgpEntry) ?? [];
-    }
-    if (uomList.length === 0) {
-      if (resolvedPurchaseUomCode) {
-        uomList.push({
-          code: resolvedPurchaseUomCode,
-          name: resolvedPurchaseUomCode,
-          entry: resolvedPurchaseUomEntry,
-        });
-      }
-      if (resolvedSalesUomCode && resolvedSalesUomCode !== resolvedPurchaseUomCode) {
-        uomList.push({
-          code: resolvedSalesUomCode,
-          name: resolvedSalesUomCode,
-          entry: resolvedSalesUomEntry,
-        });
-      }
+    const resolvedPurchaseUomCode = resolvedPurchaseUom?.code || "";
+    const resolvedPurchaseUomEntry = resolvedPurchaseUom?.entry;
+    const uomList: MasterUom[] = [];
+    if (type === "purchase") {
+      pushUniqueUom(uomList, resolvedPurchaseUom);
+    } else {
+      pushUniqueUom(uomList, resolvedSalesUom);
     }
 
     const substitute = toTrimmed(item.Substitute);
@@ -155,7 +154,9 @@ export function mapProductResults(args: {
       UoMCode: resolvedSalesUomCode,
       UoMEntry: resolvedSalesUomEntry,
       UoMName:
-        uomList.find((uom) => uom.code === resolvedSalesUomCode)?.name ?? resolvedSalesUomCode,
+        resolvedSalesUom?.name ||
+        uomList.find((uom) => uom.code === resolvedSalesUomCode)?.name ||
+        resolvedSalesUomCode,
       Uom: salesUomText,
       UomList: uomList,
       Warehouse: normalizedWarehouseCode || item.DfltWH || "",

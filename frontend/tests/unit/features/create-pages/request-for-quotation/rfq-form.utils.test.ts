@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyRfqQuotedQtyCap,
   applyRfqSalesTaxToRows,
   buildUpdateRfqLinesPayload,
   buildUpdateRfqLinesPayloadFromProductRows,
@@ -43,6 +44,10 @@ describe("rfq-form.utils", () => {
     expect(mapped[0]?.discount).toBe("5");
     expect(mapped[0]?.deliveryDate).toBe("2026-08-01");
     expect(mapped[0]?.taxCode).toBe("VAT");
+    expect(mapped[0]?.uomCode).toBe("EA");
+
+    const salesMapped = mapRfqLinesToEditable([{ ...lines[0]!, sqUomCode: "PCS" }]);
+    expect(salesMapped[0]?.uomCode).toBe("PCS");
   });
 
   it("populates product-row vatGroup from seller sqTaxCode and omits tax from PUT", () => {
@@ -68,9 +73,17 @@ describe("rfq-form.utils", () => {
     const rows = mapRfqLinesToProductRows(lines);
     expect(rows[0]?.vatGroup).toBe("OUT-18");
     expect(rows[0]?.taxRate).toBe(0);
+    expect(rows[0]?.uomCode).toBe("EA");
 
     const fallback = mapRfqLinesToProductRows([{ ...lines[0]!, sqTaxCode: null }]);
     expect(fallback[0]?.vatGroup).toBe("IN-18");
+
+    const salesUomRows = mapRfqLinesToProductRows([
+      { ...lines[0]!, uomCode: "BOX", sqUomCode: "PCS", sqUomEntry: 7 },
+    ]);
+    expect(salesUomRows[0]?.uomCode).toBe("PCS");
+    expect(salesUomRows[0]?.salesUomCode).toBe("PCS");
+    expect(salesUomRows[0]?.uomList).toEqual([{ code: "PCS", name: "PCS", uomEntry: 7 }]);
 
     const quoted: ProductRow[] = [
       {
@@ -250,6 +263,23 @@ describe("rfq-form.utils", () => {
     expect(ok.lines[0]?.deliveryDate).toBe("2026-08-20");
     expect(ok.lines[0]?.quantity).toBe(5);
     expect(ok.lines[0]?.unitPrice).toBe(10);
+
+    const overRequired: ProductRow[] = [
+      {
+        ...complete[0]!,
+        quantity: 40,
+        requiredQuantity: 25,
+      },
+    ];
+    const capped = buildUpdateRfqLinesPayloadFromProductRows(overRequired, {
+      requireAllPrices: true,
+    });
+    expect(capped.errors).toHaveLength(0);
+    expect(capped.lines[0]?.quantity).toBe(25);
+
+    expect(
+      applyRfqQuotedQtyCap([{ ...complete[0]!, quantity: 99, requiredQuantity: 25 }])[0]?.quantity,
+    ).toBe(25);
 
     const fieldErrors = getRfqLineFieldErrors(emptyRows);
     expect(fieldErrors[emptyRows[0]!.id]).toEqual({

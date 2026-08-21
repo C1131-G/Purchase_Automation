@@ -26,7 +26,10 @@ import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-
 import { buildRfqCommercialDocumentLines } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/apply-prices-to-pq";
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
 import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/flow-1.orchestrator";
-import { sanitizeFillLines } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/04-seller-fill-rfq/update-rfq-lines";
+import {
+  overlayRfqLinePatches,
+  sanitizeFillLines,
+} from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/04-seller-fill-rfq/update-rfq-lines";
 import { mergeDocumentLinesByLineNum } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import {
   IC_CONFIG_KEY,
@@ -136,6 +139,7 @@ const createFlow1TestStack = (opts?: {
           description: "",
           partnerItemCode: sourceItemCode,
           sourceItemCode,
+          warehouseHint: "",
         });
       }
       return map;
@@ -325,6 +329,31 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
         unitPrice: 12.5,
       },
     ]);
+  });
+
+  it("caps quoted qty to required qty on overlay", () => {
+    const merged = overlayRfqLinePatches(
+      [
+        {
+          deliveryDate: null,
+          description: null,
+          discount: 0,
+          itemCode: "A",
+          lineNum: 0,
+          quantity: 1,
+          remarks: null,
+          requiredQuantity: 10,
+          rfqId: 1,
+          rfqLineId: 1,
+          taxCode: null,
+          unitPrice: 1,
+          uomCode: null,
+          warehouse: null,
+        },
+      ],
+      [{ lineNum: 0, quantity: 99, unitPrice: 2 }],
+    );
+    expect(merged[0]?.quantity).toBe(10);
   });
 
   it("T6.4 submit → status + notification", async () => {

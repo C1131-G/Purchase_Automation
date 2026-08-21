@@ -5,7 +5,11 @@
  * Substitute = partner company ItemCode; must exist on target OITM.
  * Missing OSCN row, empty Substitute, or missing target OITM → hard fail (IC retry).
  */
-import { loadItemNamesByCodes, loadOscnForCardCode } from "@/modules/master-data/master-data.oscn";
+import {
+  loadItemNamesByCodes,
+  loadOscnForCardCode,
+  loadOscnWarehouseHints,
+} from "@/modules/master-data/master-data.oscn";
 import { toTrimmed } from "@/modules/master-data/master-data.lookup-cache";
 
 export class IcItemCodeMappingError extends Error {
@@ -32,6 +36,11 @@ export type PartnerItemMapEntry = {
   sourceItemCode: string;
   partnerItemCode: string;
   description: string;
+  /**
+   * OSCN.U_Warehouse / U_Warhouse on buyer books (code or warehouse description).
+   * RFQ matches this onto seller OWHS; never copy buyer PQ warehouse.
+   */
+  warehouseHint: string;
 };
 
 export type MapSourceItemsToPartnerInput = {
@@ -67,7 +76,10 @@ export async function mapSourceItemsToPartnerItems(
     return new Map();
   }
 
-  const oscnRows = await loadOscnForCardCode(sourceDbName, partnerCardCode, requested);
+  const [oscnRows, warehouseHints] = await Promise.all([
+    loadOscnForCardCode(sourceDbName, partnerCardCode, requested),
+    loadOscnWarehouseHints(sourceDbName, partnerCardCode, requested),
+  ]);
   const bySource = new Map(oscnRows.map((row) => [row.ItemCode, row]));
 
   const missingSourceCodes: string[] = [];
@@ -121,6 +133,7 @@ export async function mapSourceItemsToPartnerItems(
       partnerItemCode: row.partnerItemCode,
       // Prefer partner item master name; fall back to OSCN catalog text only if empty.
       description: partnerItemName || row.description,
+      warehouseHint: warehouseHints.get(row.sourceItemCode) ?? "",
     });
   }
   return result;

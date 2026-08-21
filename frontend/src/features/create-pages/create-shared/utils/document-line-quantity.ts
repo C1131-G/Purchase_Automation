@@ -27,3 +27,35 @@ export const clampDocumentLineQuantity = (
 
   return parseDocumentLineQuantity(String(value), options);
 };
+
+/** Cap a committed quantity to a positive max (RFQ quoted ≤ required). */
+export const capQuantityToMax = (value: number, max: number | null | undefined): number => {
+  if (!Number.isFinite(value)) {
+    return value;
+  }
+  const cap = Number(max);
+  if (!Number.isFinite(cap) || cap <= 0) {
+    return value;
+  }
+  return value > cap ? cap : value;
+};
+
+/**
+ * When the typed draft is a complete number above max, return the capped display.
+ * Partial drafts (`""`, `"1."`) are left alone so the user can keep typing.
+ */
+export const capQuantityDraftToMax = (raw: string, max: number | null | undefined): string => {
+  const cap = Number(max);
+  if (!Number.isFinite(cap) || cap <= 0) {
+    return raw;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.endsWith(".")) {
+    return raw;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= cap) {
+    return raw;
+  }
+  return String(cap);
+};

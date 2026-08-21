@@ -94,6 +94,7 @@ const createBackgroundStack = () => {
         map.set(sourceItemCode, {
           description: "",
           partnerItemCode: sourceItemCode,
+          warehouseHint: "",
           sourceItemCode,
         });
       }

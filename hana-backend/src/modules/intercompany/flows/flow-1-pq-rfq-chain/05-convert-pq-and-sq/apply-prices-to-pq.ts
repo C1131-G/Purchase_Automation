@@ -12,7 +12,7 @@ const toFinite = (value: unknown, fallback = 0): number => {
  * Only commercial fields (matched by LineNum onto existing PQ lines):
  *   Quantity, UnitPrice, DiscountPercent, ShipDate (quoted date), ReqDate (required date).
  *
- * Never send ItemCode, ItemDescription, tax, WH, UoM — buyer PQ keeps original
+ * Never send ItemCode, ItemDescription, tax, WH, UoM, BPL — buyer PQ keeps original
  * item master code/description (and other non-commercial line data) from GET.
  * RFQ ItemCode may be partner OSCN.Substitute; overwriting causes SL 404 -2028.
  * Disc amount in SAP follows DiscountPercent on the line (no separate RFQ field).

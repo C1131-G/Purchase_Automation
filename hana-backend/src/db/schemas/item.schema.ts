@@ -11,6 +11,9 @@ export interface Item {
   FrgnName?: string;
   ItmsGrpCod?: number;
   InvntryUom?: string;
+  IUoMEntry?: number;
+  SUoMEntry?: number;
+  PUoMEntry?: number;
   OnHand?: number;
   IsCommited?: number;
   OnOrder?: number;
@@ -132,6 +135,21 @@ export const ItemSchema = new EntitySchema<Item>({
       name: "InvntryUom",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    IUoMEntry: {
+      name: "IUoMEntry",
+      nullable: true,
+      type: "integer" as HANAColumnType,
+    },
+    SUoMEntry: {
+      name: "SUoMEntry",
+      nullable: true,
+      type: "integer" as HANAColumnType,
+    },
+    PUoMEntry: {
+      name: "PUoMEntry",
+      nullable: true,
+      type: "integer" as HANAColumnType,
     },
     OnHand: {
       name: "OnHand",

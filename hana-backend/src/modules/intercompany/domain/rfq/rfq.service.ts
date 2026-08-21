@@ -2,7 +2,12 @@ import { IC_RFQ_STATUS } from "@/modules/intercompany/infrastructure/constants";
 
 import { createRfqMutations, type RfqMutations } from "./rfq.mutations";
 import { createRfqQueries, type RfqQueries } from "./rfq.queries";
-import type { CreateRfqFromDraftInput, IcRfqHeader, UpdateRfqLineInput } from "./rfq.types";
+import type {
+  CreateRfqFromDraftInput,
+  IcRfqHeader,
+  UpdateRfqExtras,
+  UpdateRfqLineInput,
+} from "./rfq.types";
 
 export type RfqService = {
   createFromDraft: (input: CreateRfqFromDraftInput) => Promise<IcRfqHeader>;
@@ -23,7 +28,11 @@ export type RfqService = {
   /** Seller inbox — only RFQs where company is target (not buyer). */
   listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
   listSubmittedSourcePqEntries: (sourceCompanyId: number) => Promise<number[]>;
-  updateLines: (rfqId: number, lines: UpdateRfqLineInput[]) => Promise<IcRfqHeader | null>;
+  updateLines: (
+    rfqId: number,
+    lines: UpdateRfqLineInput[],
+    extras?: UpdateRfqExtras,
+  ) => Promise<IcRfqHeader | null>;
   submit: (rfqId: number) => Promise<IcRfqHeader | null>;
   complete: (rfqId: number) => Promise<IcRfqHeader | null>;
 };
@@ -64,7 +73,7 @@ export const createRfqService = (deps?: {
 
     submit: (rfqId) => mutations.setStatus(rfqId, IC_RFQ_STATUS.SUBMITTED),
 
-    updateLines: (rfqId, lines) => mutations.updateLines(rfqId, lines),
+    updateLines: (rfqId, lines, extras) => mutations.updateLines(rfqId, lines, extras),
   };
 };
 

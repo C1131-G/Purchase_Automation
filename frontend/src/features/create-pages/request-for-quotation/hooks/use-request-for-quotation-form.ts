@@ -14,14 +14,17 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
 import {
-  branchIdFromWarehouse,
-  formatBranchDisplay,
   toPositiveBranchId,
-  type BranchLookupItem,
   type WarehouseWithBranch,
 } from "@/features/create-pages/create-shared/utils/document-branch";
-import { capIsoDateToMax } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  capIsoDateToMax,
+  formatWarehouseDisplay,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { capQuantityToMax } from "@/features/create-pages/create-shared/utils/document-line-quantity";
+import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 import {
   useConvertIcRfq,
   useSubmitIcRfq,
@@ -31,6 +34,7 @@ import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { toSafeErrorMessage } from "@/shared/utils/error-message";
 
 import {
+  applyRfqQuotedQtyCap,
   applyRfqSalesTaxToRows,
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
@@ -51,11 +55,18 @@ export function useRequestForQuotationForm(rfqId: number) {
   const detailQuery = useIcRfq(rfqId, Number.isFinite(rfqId) && rfqId > 0);
   const header = detailQuery.data?.data;
 
-  // Seller company masters — resolve RFQ warehouse → branch (OWHS.BPLid / OBPL) for display.
+  // Seller company masters — RFQ warehouse/branch are seller-side (OSCN.U_Warehouse).
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
-  const branchesQuery = useQuery(createSharedQueries.branches());
   const taxCodesQuery = useQuery(createSharedQueries.taxCodes());
   const taxCodes = taxCodesQuery.data ?? EMPTY_TAX_CODES;
+  const warehouses = useMemo(
+    () =>
+      ((warehousesQuery.data ?? []) as WarehouseWithBranch[]).map((item) => ({
+        ...item,
+        name: item.name?.trim() || item.code,
+      })),
+    [warehousesQuery.data],
+  );
 
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
@@ -67,6 +78,10 @@ export function useRequestForQuotationForm(rfqId: number) {
   const lastBatchQuotedDateRef = useRef<string | null>(null);
   /** Header-level Quoted Date display (Document Dates) — batch-fills all lines. */
   const [batchQuotedDate, setBatchQuotedDate] = useState("");
+  const [warehouseCode, setWarehouseCode] = useState("");
+  const [warehouseInput, setWarehouseInput] = useState("");
+  const [warehouseFocused, setWarehouseFocused] = useState(false);
+  const [headerBranchId, setHeaderBranchId] = useState<number | null>(null);
 
   const submitMutation = useSubmitIcRfq();
   const updateMutation = useUpdateIcRfq();
@@ -133,6 +148,12 @@ export function useRequestForQuotationForm(rfqId: number) {
     requiredQtyByIdRef.current = requiredMap;
     setProductRows(rows);
     setProductRowDrafts({});
+    const serverWarehouse =
+      header.warehouseCode?.trim() ||
+      rows.find((row) => row.warehouseCode?.trim())?.warehouseCode?.trim() ||
+      "";
+    setWarehouseCode(serverWarehouse);
+    setWarehouseFocused(false);
     // Seed header Quoted Date display: only when every line shares one date.
     const lineDates = rows.map((row) => (row.quotedDate ?? "").trim().slice(0, 10)).filter(Boolean);
     const commonDate =
@@ -159,8 +180,15 @@ export function useRequestForQuotationForm(rfqId: number) {
       return productRows.length > 0;
     }
     const server = mapRfqLinesToProductRows(header.lines);
-    return productRowsFingerprint(server) !== productRowsFingerprint(productRows);
-  }, [header?.lines, productRows]);
+    const serverWarehouse =
+      header.warehouseCode?.trim() ||
+      server.find((row) => row.warehouseCode?.trim())?.warehouseCode?.trim() ||
+      "";
+    return (
+      productRowsFingerprint(server) !== productRowsFingerprint(productRows) ||
+      serverWarehouse !== warehouseCode.trim()
+    );
+  }, [header?.lines, header?.warehouseCode, productRows, warehouseCode]);
 
   const updateProductRow = useCallback(
     (id: string, patch: Partial<ProductRow>) => {
@@ -177,9 +205,7 @@ export function useRequestForQuotationForm(rfqId: number) {
           allowed.price = patch.price;
         }
         if (patch.quantity !== undefined) {
-          const maxReq = requiredQtyByIdRef.current[id];
-          allowed.quantity =
-            maxReq !== undefined && maxReq > 0 && patch.quantity > maxReq ? maxReq : patch.quantity;
+          allowed.quantity = capQuantityToMax(patch.quantity, requiredQtyByIdRef.current[id]);
         }
         if (patch.discountPercent !== undefined) {
           allowed.discountPercent = patch.discountPercent;
@@ -304,7 +330,8 @@ export function useRequestForQuotationForm(rfqId: number) {
     setSubmitAttempted(true);
     setFormError(null);
 
-    const { errors, lines: payloadLines } = buildUpdateRfqLinesPayloadFromProductRows(productRows, {
+    const rowsForSave = applyRfqQuotedQtyCap(productRows, productRowDrafts);
+    const { errors, lines: payloadLines } = buildUpdateRfqLinesPayloadFromProductRows(rowsForSave, {
       requireAllPrices: true,
     });
     if (errors.length > 0 || payloadLines.length === 0) {
@@ -317,7 +344,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       // run server-side in background — do not PUT then POST.
       const submitted = await submitMutation.mutateAsync({
         rfqId: header.rfqId,
-        body: { lines: payloadLines },
+        body: { lines: payloadLines, warehouse: warehouseCode.trim() || null },
       });
       const status = String(submitted.data?.status ?? "").toUpperCase();
       notifyActionSuccess(
@@ -336,7 +363,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       setFormError(message);
       notifyCreateApiError(message, "rfq");
     }
-  }, [canSubmit, header, productRows, submitMutation]);
+  }, [canSubmit, header, productRowDrafts, productRows, submitMutation, warehouseCode]);
 
   const handleUpdate = useCallback(async () => {
     if (!header || !canUpdate) {
@@ -346,7 +373,8 @@ export function useRequestForQuotationForm(rfqId: number) {
     setSubmitAttempted(true);
     setFormError(null);
 
-    const { errors, lines: payloadLines } = buildUpdateRfqLinesPayloadFromProductRows(productRows, {
+    const rowsForSave = applyRfqQuotedQtyCap(productRows, productRowDrafts);
+    const { errors, lines: payloadLines } = buildUpdateRfqLinesPayloadFromProductRows(rowsForSave, {
       requireAllPrices: true,
     });
     if (errors.length > 0 || payloadLines.length === 0) {
@@ -356,7 +384,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     try {
       await updateMutation.mutateAsync({
         rfqId: header.rfqId,
-        body: { lines: payloadLines },
+        body: { lines: payloadLines, warehouse: warehouseCode.trim() || null },
       });
       notifyActionSuccess(
         "RFQ updated — purchase quotation and sales quotation synced",
@@ -372,7 +400,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       setFormError(message);
       notifyCreateApiError(message, "rfq");
     }
-  }, [canUpdate, header, productRows, updateMutation]);
+  }, [canUpdate, header, productRowDrafts, productRows, updateMutation, warehouseCode]);
 
   const handleConvert = useCallback(async () => {
     if (!header || !canConvert) {
@@ -410,28 +438,126 @@ export function useRequestForQuotationForm(rfqId: number) {
   const isSubmitting =
     submitMutation.isPending || updateMutation.isPending || convertMutation.isPending;
 
-  const defaultWarehouseCode = header?.warehouseCode?.trim() || productRows[0]?.warehouseCode || "";
+  const defaultWarehouseCode = warehouseCode.trim();
 
-  /** Read-only branch for logistics: WH BPLid → OBPL name; empty → "No Branch". */
-  const branchDisplay = useMemo(() => {
-    const warehouses = (warehousesQuery.data ?? []) as WarehouseWithBranch[];
-    const branches = (branchesQuery.data ?? []) as BranchLookupItem[];
-    const branchId = branchIdFromWarehouse(warehouses, defaultWarehouseCode);
-    if (branchId == null) {
-      return { branchId: null as number | null, branchInput: "" };
+  const applyWarehouse = useCallback((code: string, display?: string) => {
+    const next = code.trim();
+    setWarehouseCode(next);
+    if (display !== undefined) {
+      setWarehouseInput(display);
     }
-    const matched = branches.find((b) => toPositiveBranchId(b.branchId ?? b.code) === branchId);
-    const branchInput = matched
-      ? formatBranchDisplay(matched.name, matched.code)
-      : formatBranchDisplay(`Branch ${branchId}`, branchId);
-    return { branchId, branchInput };
-  }, [warehousesQuery.data, branchesQuery.data, defaultWarehouseCode]);
+    setWarehouseFocused(false);
+    setProductRows((prev) => prev.map((row) => ({ ...row, warehouseCode: next })));
+    setFormError(null);
+  }, []);
+
+  const selectWarehouse = useCallback(
+    (item: { code: string; name: string }) => {
+      applyWarehouse(item.code, formatWarehouseDisplay(item.name, item.code));
+    },
+    [applyWarehouse],
+  );
+
+  const findWarehouse = useCallback(
+    (value: string) => {
+      const term = value.trim().toLowerCase();
+      if (!term) {
+        return undefined;
+      }
+      const bracket = term.match(/\[([^\]]+)\]$/) || term.match(/^\[([^\]]+)\]/);
+      const codeOrName = bracket ? bracket[1]!.trim() : term;
+      return warehouses.find(
+        (item) =>
+          String(item.code).toLowerCase() === codeOrName ||
+          String(item.name ?? "").toLowerCase() === codeOrName ||
+          formatWarehouseDisplay(item.name ?? "", item.code).toLowerCase() === term,
+      );
+    },
+    [warehouses],
+  );
+
+  const handleWarehouseChange = useCallback(
+    (value: string) => {
+      if (!canEditLines) {
+        return;
+      }
+      setWarehouseInput(value);
+      if (!value.trim()) {
+        applyWarehouse("");
+        setWarehouseFocused(true);
+        return;
+      }
+      const matched = findWarehouse(value);
+      if (matched) {
+        selectWarehouse(matched);
+        return;
+      }
+      setWarehouseCode("");
+      setWarehouseFocused(true);
+    },
+    [applyWarehouse, canEditLines, findWarehouse, selectWarehouse],
+  );
+
+  useEffect(() => {
+    if (!warehouseCode || warehouses.length === 0 || warehouseFocused) {
+      return;
+    }
+    const matched = warehouses.find((item) => String(item.code).trim() === warehouseCode);
+    const display = matched
+      ? formatWarehouseDisplay(matched.name ?? "", matched.code)
+      : warehouseCode;
+    if (warehouseInput !== display) {
+      setWarehouseInput(display);
+    }
+  }, [warehouseCode, warehouseFocused, warehouseInput, warehouses]);
+
+  const warehouseSuggestions = useMemo(
+    () => rankAndLimitLookupOptions(warehouses, warehouseInput),
+    [warehouseInput, warehouses],
+  );
+
+  const branchField = useDocumentBranchField({
+    branchId: headerBranchId,
+    disabled: !canEditLines,
+    setBranchId: setHeaderBranchId,
+    warehouseCode,
+    warehouses,
+  });
+
+  const selectBranch = useCallback(
+    (item: { code: string; name: string }) => {
+      if (!canEditLines) {
+        return;
+      }
+      branchField.selectBranch(item);
+      const branchId = toPositiveBranchId(item.code);
+      if (branchId == null) {
+        return;
+      }
+      const currentOk = warehouses.some(
+        (wh) =>
+          String(wh.code).trim() === warehouseCode && toPositiveBranchId(wh.branchId) === branchId,
+      );
+      if (currentOk) {
+        return;
+      }
+      const firstOnBranch = warehouses.find((wh) => toPositiveBranchId(wh.branchId) === branchId);
+      if (firstOnBranch) {
+        selectWarehouse(firstOnBranch);
+      }
+    },
+    [branchField, canEditLines, selectWarehouse, warehouseCode, warehouses],
+  );
 
   return {
     batchQuotedDate,
-    branchId: branchDisplay.branchId,
-    branchInput: branchDisplay.branchInput,
-    branchesLoading: branchesQuery.isLoading || warehousesQuery.isLoading,
+    branchDisabled: branchField.branchDisabled || !canEditLines,
+    branchFocused: branchField.branchFocused,
+    branchId: branchField.effectiveBranchId,
+    branchInput: branchField.branchInput,
+    branchPlaceholder: branchField.branchPlaceholder,
+    branchSuggestions: branchField.branchSuggestions,
+    branchesLoading: branchField.branchesQuery.isLoading || warehousesQuery.isLoading,
     canConvert,
     canEditLines,
     canSubmit,
@@ -440,9 +566,11 @@ export function useRequestForQuotationForm(rfqId: number) {
     defaultWarehouseCode,
     detailQuery,
     formError,
+    handleBranchChange: branchField.handleBranchChange,
     handleConvert,
     handleSubmit,
     handleUpdate,
+    handleWarehouseChange,
     header,
     isDirty,
     isSubmitting,
@@ -452,10 +580,18 @@ export function useRequestForQuotationForm(rfqId: number) {
     productRowDrafts,
     productRows,
     removeProductRow,
-    setProductRowDraft,
+    selectBranch,
+    selectWarehouse,
     setAllQuotedDate,
+    setBranchFocused: branchField.setBranchFocused,
+    setProductRowDraft,
+    setWarehouseFocused,
     showBranch: true,
     totals,
     updateProductRow,
+    warehouseFocused,
+    warehouseInput,
+    warehouseSuggestions,
+    warehousesLoading: warehousesQuery.isLoading,
   };
 }

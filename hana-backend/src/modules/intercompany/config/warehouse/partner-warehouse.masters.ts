@@ -2,14 +2,15 @@
  * Resolve seller warehouses for multi-branch SAP companies.
  * Used when IC sets BPL_IDAssignedToInvoice — line WH must share that BPL.
  *
- * SQ policy:
- * 1. Prefer buyer PQ warehouse when that WhsCode exists on seller OWHS → switch BPL to WH.BPLid
+ * SQ / RFQ policy:
+ * 1. Prefer RFQ warehouse (OSCN.U_Warehouse / U_Warhouse matched on seller OWHS
+ *    by WhsCode then WhsName). Branch = OWHS.BPLid.
  * 2. Else DEFAULT_BRANCH_ID (e.g. 1) warehouse
  * 3. Else first active branch+WH with BPLid
  * 4. Else any active WH (BPL optional — single-branch / Ajax-style tenants)
  * 5. Else first active OBPL → WH on that place
- * Never invent warehouse from item default WH (OITM.DfltWH).
- * UoM is independent: SQ keeps PQ/RFQ line UoM (not OITM.SalUnitMsr).
+ * Never copy buyer PQ warehouse onto RFQ. Never invent WH from OITM.DfltWH.
+ * UoM is independent of warehouse: SQ copies RFQ UoM (seller sales stored on RFQ).
  */
 
 import { logger } from "@/core/logger/pino-logger";
@@ -28,11 +29,19 @@ export type PartnerWarehouseMasters = {
   getWarehouseForBranch: (sapDbName: string, branchId: number) => Promise<string | null>;
   /**
    * If WhsCode exists and is active on seller books, return its BPLid (and code).
-   * Used to align SQ branch with PQ warehouse when the code is shared across companies.
+   * Used when RFQ already stores a seller warehouse code.
    */
   resolveWarehouseIfExists: (
     sapDbName: string,
     warehouseCode: string,
+  ) => Promise<BranchWarehouse | null>;
+  /**
+   * Match OSCN.U_Warehouse / U_Warhouse (code or description) onto seller OWHS.
+   * Prefers WhsCode, then WhsName (case-insensitive). Skips inactive rows.
+   */
+  resolveWarehouseByCodeOrName: (
+    sapDbName: string,
+    warehouseHint: string,
   ) => Promise<BranchWarehouse | null>;
   /**
    * First active warehouse with a valid BPL anywhere in the company.
@@ -218,6 +227,46 @@ export const createPartnerWarehouseMasters = (deps?: {
           err,
           extra: { warehouseCode: whs },
           operation: "resolveWarehouseIfExists",
+          sapDbName: db,
+        });
+        return null;
+      }
+    },
+
+    resolveWarehouseByCodeOrName: async (sapDbName, warehouseHint) => {
+      const db = sapDbName.trim();
+      const hint = String(warehouseHint ?? "").trim();
+      if (!db || !hint) {
+        return null;
+      }
+      try {
+        const rows = (await queryTenant(
+          db,
+          `SELECT TOP 1 "WhsCode", "BPLid"
+             FROM "OWHS"
+            WHERE COALESCE("Inactive", 'N') = 'N'
+              AND (
+                UPPER("WhsCode") = UPPER(?)
+                OR UPPER("WhsName") = UPPER(?)
+              )
+            ORDER BY
+              CASE WHEN UPPER("WhsCode") = UPPER(?) THEN 0 ELSE 1 END,
+              "WhsCode" ASC`,
+          [hint, hint, hint],
+        )) as Array<Record<string, unknown>>;
+        const code = toWhs(rows[0]?.WhsCode ?? rows[0]?.whsCode);
+        if (!code) {
+          return null;
+        }
+        return {
+          branchId: toBranchId(rows[0]?.BPLid ?? rows[0]?.bplId ?? rows[0]?.BPLId),
+          warehouseCode: code,
+        };
+      } catch (err) {
+        logOwHsFailure({
+          err,
+          extra: { warehouseHint: hint },
+          operation: "resolveWarehouseByCodeOrName",
           sapDbName: db,
         });
         return null;

@@ -1,7 +1,7 @@
 import { In } from "typeorm";
 
 import { getCachedData } from "@/core/utils/cache";
-import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
+import { getTenantRepository } from "@/db/tenant-query";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
@@ -37,7 +37,7 @@ export async function loadProductsForTenant(
 
   // Product catalog, currency, and setup lookups are independent. Start them together
   // so an uncached product request pays for one parallel batch instead of a waterfall.
-  const [adminSettings, taxGroups, uoms, ugpLines, displayCurrency, catalog] = await Promise.all([
+  const [adminSettings, taxGroups, uoms, displayCurrency, catalog] = await Promise.all([
     getCachedData(
       `master:${dbName}:AdminSettings`,
       async () => {
@@ -71,29 +71,6 @@ export async function loadProductsForTenant(
       },
       1000 * 60 * 60,
     ),
-    getCachedData(
-      `master:${dbName}:UgpLines`,
-      async () => {
-        try {
-          const rows = (await executeTenantQuery(
-            dbName,
-            `SELECT ugp."UgpEntry", ugp."UomEntry", ouom."UomCode", ouom."UomName"
-                 FROM UGP1 ugp
-                 INNER JOIN OUOM ouom ON ugp."UomEntry" = ouom."UomEntry"
-                 WHERE ugp."IsActive" = 'Y'`,
-          )) as Array<{
-            UgpEntry: unknown;
-            UomEntry: unknown;
-            UomCode: unknown;
-            UomName: unknown;
-          }>;
-          return rows;
-        } catch {
-          return [];
-        }
-      },
-      1000 * 60 * 60,
-    ),
     getDisplayCurrency(dbName),
     loadOscnMatchedItemCodes(dbName, normalizedCardCode, type, {
       search: normalizedSearch,
@@ -120,6 +97,8 @@ export async function loadProductsForTenant(
       "item.FrgnName",
       "item.SalUnitMsr",
       "item.BuyUnitMsr",
+      "item.SUoMEntry",
+      "item.PUoMEntry",
       "item.AvgPrice",
       "item.LstEvlPric",
       "item.LastPurPrc",
@@ -127,7 +106,6 @@ export async function loadProductsForTenant(
       "item.VatGroupPu",
       "item.VatGroupSa",
       "item.DfltWH",
-      "item.UgpEntry",
       "item.ManBtchNum",
       "item.ManSerNum",
     ])
@@ -205,7 +183,6 @@ export async function loadProductsForTenant(
     defaultCurrency,
     taxGroups,
     uoms,
-    ugpLines,
     normalizedWarehouseCode,
   });
 }

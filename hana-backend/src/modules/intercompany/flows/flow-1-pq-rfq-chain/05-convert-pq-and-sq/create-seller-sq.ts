@@ -27,10 +27,10 @@ export type ResolveSqLineTax = (input: {
 /**
  * Build SQ lines for the seller company.
  * - VatGroup only when resolver returns a **seller** tax code (never buyer tax).
- * - Warehouse: resolved once (PQ WH if on seller, else default/fallback branch WH).
- *   Do not change warehouse again after resolve. No item-WH switch.
- * - UoM: keep buyer PQ/RFQ line UoM only. Never replace with OITM.SalUnitMsr
- *   (item sales default) when WH/branch is resolved — that was rewriting UoM.
+ * - Warehouse: RFQ line only (OSCN.U_Warehouse matched on seller, or seller-edited).
+ *   Convert does not copy buyer PQ warehouse. Do not change warehouse again after resolve.
+ * - UoM: RFQ line only (seller sales UoM stored on RFQ). Convert does not
+ *   re-pick item-master UoM. Resolve UoMEntry on seller books by code/name.
  */
 export type BuildSqLinesResult = {
   documentLines: Record<string, unknown>[];
@@ -38,8 +38,8 @@ export type BuildSqLinesResult = {
   taxUsage: IcLineTaxUsage[];
 };
 
-/** First non-empty warehouse from RFQ/PQ lines (buyer PQ warehouse code). */
-export const pickPqWarehouseCode = (lines: IcRfqLine[]): string | null => {
+/** First non-empty warehouse from RFQ lines (seller OSCN / seller-edited). */
+export const pickRfqWarehouseCode = (lines: IcRfqLine[]): string | null => {
   for (const line of lines) {
     const warehouseCode = line.warehouse?.trim();
     if (warehouseCode) {
@@ -48,6 +48,9 @@ export const pickPqWarehouseCode = (lines: IcRfqLine[]): string | null => {
   }
   return null;
 };
+
+/** @deprecated Use pickRfqWarehouseCode — RFQ warehouse is seller-side, not buyer PQ. */
+export const pickPqWarehouseCode = pickRfqWarehouseCode;
 
 export const buildSalesQuotationLines = async (
   lines: IcRfqLine[],
@@ -62,7 +65,7 @@ export const buildSalesQuotationLines = async (
     sapDbName?: string | null;
     /**
      * Optional UoM resolver (injectable in unit tests).
-     * Buyer UoMEntry is never trusted — always resolve on seller.
+     * Uses RFQ UoMCode; buyer UoMEntry is never trusted — resolve entry on seller.
      */
     resolveUom?: (input: {
       itemCode: string;
@@ -127,12 +130,13 @@ export const buildSalesQuotationLines = async (
       docLine.WarehouseCode = branchWh;
     }
 
-    // Keep RFQ/PQ UoM code, but always re-resolve UoMEntry on seller SAP.
+    // RFQ UoM only (seller sales stored on RFQ). Do not re-pick item master here.
     // Buyer UoMEntry is not portable; missing seller UoMEntry → SAP posts Manual.
-    const sourceUom = line.uomCode?.trim() || null;
-    if (sourceUom) {
+    const itemCode = String(line.itemCode ?? "").trim();
+    const sourceUom = line.sqUomCode?.trim() || line.uomCode?.trim() || "";
+    if (sourceUom && !/^manual$/i.test(sourceUom)) {
       const resolved = await resolveUom({
-        itemCode: String(line.itemCode ?? "").trim(),
+        itemCode,
         uomCode: sourceUom,
       });
       const sellerCode = resolved?.uomCode?.trim() || sourceUom;
@@ -151,17 +155,17 @@ export const buildSalesQuotationLines = async (
 };
 
 /**
- * SQ warehouse + branch (buyer WH codes rarely exist on seller books):
- * 1. If PQ warehouse exists on seller OWHS → use it (BPL from WH when set)
+ * SQ warehouse + branch:
+ * 1. If RFQ warehouse exists on seller OWHS → use it (BPL from WH when set)
  * 2. Else DEFAULT_BRANCH_ID / OBPL default warehouse
  * 3. Else first active branch+WH with BPLid
  * 4. Else any active WH (BPL optional — Ajax-style single-branch)
- * Never pick from item default warehouse.
+ * Never pick from item default warehouse. Never copy buyer PQ warehouse here.
  */
 export const resolveSqWarehouseContext = async (params: {
   sapDbName?: string | null;
   defaultBranchId?: number | null;
-  /** Buyer PQ / RFQ line warehouse code — prefer when present on seller books. */
+  /** RFQ seller warehouse code — prefer when present on seller books. */
   pqWarehouseCode?: string | null;
   warehouseMasters?: PartnerWarehouseMasters;
 }): Promise<{
@@ -171,6 +175,7 @@ export const resolveSqWarehouseContext = async (params: {
   switchedFromDefault: boolean;
   /** How warehouse was chosen */
   source:
+    | "rfq_warehouse"
     | "pq_warehouse"
     | "default_branch"
     | "fallback_branch"
@@ -202,18 +207,20 @@ export const resolveSqWarehouseContext = async (params: {
     preferredBranchId = await masters.getDefaultObplBranch(sapDbName);
   }
 
-  // 1) PQ warehouse on seller → switch branch to match that WH (keep mother default on IC_COMPANY).
+  // 1) RFQ warehouse on seller → switch branch to match that WH (keep mother default on IC_COMPANY).
   if (pqWarehouseCode) {
-    const fromPq = await masters.resolveWarehouseIfExists(sapDbName, pqWarehouseCode);
-    if (fromPq) {
+    const fromRfq =
+      (await masters.resolveWarehouseByCodeOrName?.(sapDbName, pqWarehouseCode)) ??
+      (await masters.resolveWarehouseIfExists(sapDbName, pqWarehouseCode));
+    if (fromRfq) {
       return {
-        branchId: fromPq.branchId ?? preferredBranchId,
-        branchWarehouseCode: fromPq.warehouseCode,
-        source: "pq_warehouse",
+        branchId: fromRfq.branchId ?? preferredBranchId,
+        branchWarehouseCode: fromRfq.warehouseCode,
+        source: "rfq_warehouse",
         switchedFromDefault:
           preferredBranchId != null &&
-          fromPq.branchId != null &&
-          preferredBranchId !== fromPq.branchId,
+          fromRfq.branchId != null &&
+          preferredBranchId !== fromRfq.branchId,
       };
     }
   }
@@ -289,14 +296,14 @@ export const createSellerSq = async (params: {
   defaultBranchId?: number | null;
   /** Seller SAP company DB (IC_COMPANY.SAP_DB_NAME) for OWHS lookup. */
   sapDbName?: string | null;
-  /** Optional explicit PQ warehouse; defaults to first RFQ line warehouse. */
+  /** Optional explicit RFQ warehouse; defaults to first RFQ line warehouse. */
   pqWarehouseCode?: string | null;
   /** Server-derived U_CreatedBy value from the portal user who initiated conversion. */
   portalCreatedBy?: string;
   warehouseMasters?: PartnerWarehouseMasters;
 }): Promise<CreateSellerSqResult> => {
   const pqWarehouseCode =
-    params.pqWarehouseCode?.trim() || pickPqWarehouseCode(params.lines) || null;
+    params.pqWarehouseCode?.trim() || pickRfqWarehouseCode(params.lines) || null;
 
   const warehouseCtx = await resolveSqWarehouseContext({
     defaultBranchId: params.defaultBranchId,
@@ -305,7 +312,11 @@ export const createSellerSq = async (params: {
     warehouseMasters: params.warehouseMasters,
   });
 
-  if (warehouseCtx.switchedFromDefault || warehouseCtx.source === "pq_warehouse") {
+  if (
+    warehouseCtx.switchedFromDefault ||
+    warehouseCtx.source === "rfq_warehouse" ||
+    warehouseCtx.source === "pq_warehouse"
+  ) {
     icLog.info(IC_LOG_SCOPE.FLOW1, "SQ warehouse/branch resolved", {
       check: "sq_branch_resolve",
       defaultBranchId: params.defaultBranchId ?? null,
@@ -336,7 +347,7 @@ export const createSellerSq = async (params: {
     });
     throw new Error(
       `No active warehouse in ${params.sapDbName ?? "seller DB"}` +
-        (pqWarehouseCode ? ` (PQ WH ${pqWarehouseCode} not on seller; ` : " (") +
+        (pqWarehouseCode ? ` (RFQ WH ${pqWarehouseCode} not on seller; ` : " (") +
         `no active OWHS after default/OBPL/fallback); cannot create seller SQ`,
     );
   }

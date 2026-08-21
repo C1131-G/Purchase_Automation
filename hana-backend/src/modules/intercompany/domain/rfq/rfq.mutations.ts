@@ -11,11 +11,20 @@ import {
   mapRfqLineRow,
   RFQ_HEADER_SELECT_WITH_COMPANY_NAMES,
 } from "./rfq.queries";
-import type { CreateRfqFromDraftInput, IcRfqHeader, UpdateRfqLineInput } from "./rfq.types";
+import type {
+  CreateRfqFromDraftInput,
+  IcRfqHeader,
+  UpdateRfqExtras,
+  UpdateRfqLineInput,
+} from "./rfq.types";
 
 export type RfqMutations = {
   insertFromDraft: (input: CreateRfqFromDraftInput) => Promise<IcRfqHeader>;
-  updateLines: (rfqId: number, lines: UpdateRfqLineInput[]) => Promise<IcRfqHeader | null>;
+  updateLines: (
+    rfqId: number,
+    lines: UpdateRfqLineInput[],
+    extras?: UpdateRfqExtras,
+  ) => Promise<IcRfqHeader | null>;
   setStatus: (rfqId: number, status: string) => Promise<IcRfqHeader | null>;
 };
 
@@ -105,7 +114,7 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
     return loadHeaderWithLines(sql, rfqId);
   },
 
-  updateLines: async (rfqId, lines) => {
+  updateLines: async (rfqId, lines, extras) => {
     for (const line of lines) {
       await sql.query(
         `UPDATE "IC_RFQ_LINE"
@@ -125,6 +134,15 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
           rfqId,
           line.lineNum,
         ],
+      );
+    }
+    if (extras && Object.hasOwn(extras, "warehouse")) {
+      const warehouse = extras.warehouse?.trim() || null;
+      await sql.query(
+        `UPDATE "IC_RFQ_LINE"
+            SET "WAREHOUSE" = ?, "UPDATED_AT" = CURRENT_TIMESTAMP
+          WHERE "RFQ_ID" = ?`,
+        [warehouse, rfqId],
       );
     }
     return loadHeaderWithLines(sql, rfqId);

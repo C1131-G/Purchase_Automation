@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadOscnForCardCode = vi.fn();
 const loadItemNamesByCodes = vi.fn();
+const loadOscnWarehouseHints = vi.fn();
 
 vi.mock("@/modules/master-data/master-data.oscn", () => ({
   loadOscnForCardCode: (...args: unknown[]) => loadOscnForCardCode(...args),
   loadItemNamesByCodes: (...args: unknown[]) => loadItemNamesByCodes(...args),
+  loadOscnWarehouseHints: (...args: unknown[]) => loadOscnWarehouseHints(...args),
   filterExistingTargetItemCodes: async (db: string, codes: string[]) => {
     const names = await loadItemNamesByCodes(db, codes);
     return new Set((names as Map<string, string>).keys());
@@ -22,6 +24,8 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
   beforeEach(() => {
     loadOscnForCardCode.mockReset();
     loadItemNamesByCodes.mockReset();
+    loadOscnWarehouseHints.mockReset();
+    loadOscnWarehouseHints.mockResolvedValue(new Map());
   });
 
   it("maps buyer ItemCode → Substitute and partner OITM ItemName", async () => {
@@ -46,6 +50,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
       sourceItemCode: "AJAX-SKU-1",
       partnerItemCode: "RCM-SKU-1",
       description: "RCM Master Name",
+      warehouseHint: "",
     });
     expect(loadOscnForCardCode).toHaveBeenCalledWith("AJAX_DB", "V-RCM", ["AJAX-SKU-1"]);
     expect(loadItemNamesByCodes).toHaveBeenCalledWith("RCM_DB", ["RCM-SKU-1"]);
@@ -96,6 +101,29 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     ).rejects.toMatchObject({ missingSubstituteCodes: ["R1"] });
   });
 
+  it("copies OSCN.U_Warehouse hint for seller RFQ warehouse match", async () => {
+    loadOscnForCardCode.mockResolvedValue([
+      {
+        ItemCode: "AJAX-SKU-1",
+        CardCode: "V-RCM",
+        Substitute: "RCM-SKU-1",
+        Descriptio: "OSCN catalog text",
+      },
+    ]);
+    loadItemNamesByCodes.mockResolvedValue(new Map([["RCM-SKU-1", "RCM Master Name"]]));
+    loadOscnWarehouseHints.mockResolvedValue(new Map([["AJAX-SKU-1", "Main Store"]]));
+
+    const map = await mapSourceItemsToPartnerItems({
+      sourceDbName: "AJAX_DB",
+      partnerCardCode: "V-RCM",
+      itemCodes: ["AJAX-SKU-1"],
+      targetDbName: "RCM_DB",
+    });
+
+    expect(map.get("AJAX-SKU-1")?.warehouseHint).toBe("Main Store");
+    expect(loadOscnWarehouseHints).toHaveBeenCalledWith("AJAX_DB", "V-RCM", ["AJAX-SKU-1"]);
+  });
+
   it("applyPartnerItemMapToLines rewrites ItemCode fields", () => {
     const partnerMap = new Map([
       [
@@ -104,6 +132,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
           sourceItemCode: "A1",
           partnerItemCode: "R1",
           description: "",
+          warehouseHint: "",
         },
       ],
     ]);

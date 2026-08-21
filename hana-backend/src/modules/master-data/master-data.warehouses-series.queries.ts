@@ -205,27 +205,42 @@ export const resolveDocumentSeries = async (
   }
 };
 
-/** Seller sales (mother) UoM for an item — OITM.SalUnitMsr + OUOM.UomEntry. */
-export const resolveItemSalesUom = async (
+const resolveItemMasterUom = async (
   dbName: string,
   itemCode: string,
+  kind: "sales" | "purchase",
 ): Promise<{ uomCode: string; uomEntry: number | null } | null> => {
   const db = dbName.trim();
   const code = itemCode.trim();
   if (!db || !code) {
     return null;
   }
+  const measureCol = kind === "sales" ? "SalUnitMsr" : "BuyUnitMsr";
+  const entryCol = kind === "sales" ? "SUoMEntry" : "PUoMEntry";
+  const failMsg =
+    kind === "sales"
+      ? "Failed to resolve item sales UoM from OITM"
+      : "Failed to resolve item purchase UoM from OITM";
   try {
     const rows = (await executeTenantQuery(
       db,
-      `SELECT TOP 1 i."SalUnitMsr" AS "UomCode", ouom."UomEntry" AS "UomEntry"
+      `SELECT TOP 1
+              IFNULL(byEntry."UomCode", IFNULL(byCode."UomCode", IFNULL(byName."UomCode", i."${measureCol}"))) AS "UomCode",
+              IFNULL(NULLIF(i."${entryCol}", -1), IFNULL(byEntry."UomEntry", IFNULL(byCode."UomEntry", byName."UomEntry"))) AS "UomEntry"
          FROM "OITM" i
-         LEFT JOIN "OUOM" ouom ON ouom."UomCode" = i."SalUnitMsr"
+         LEFT JOIN "OUOM" byEntry
+           ON i."${entryCol}" IS NOT NULL
+          AND i."${entryCol}" > 0
+          AND byEntry."UomEntry" = i."${entryCol}"
+         LEFT JOIN "OUOM" byCode
+           ON UPPER(TRIM(byCode."UomCode")) = UPPER(TRIM(IFNULL(i."${measureCol}", '')))
+         LEFT JOIN "OUOM" byName
+           ON UPPER(TRIM(IFNULL(byName."UomName", ''))) = UPPER(TRIM(IFNULL(i."${measureCol}", '')))
         WHERE i."ItemCode" = ?`,
       [code],
     )) as Array<Record<string, unknown>>;
     const uomCode = toTrimmed(rows[0]?.UomCode ?? rows[0]?.uomCode);
-    if (!uomCode) {
+    if (!uomCode || /^manual$/i.test(uomCode)) {
       return null;
     }
     const entryRaw = Number(rows[0]?.UomEntry ?? rows[0]?.uomEntry);
@@ -238,11 +253,25 @@ export const resolveItemSalesUom = async (
       db,
       err,
       itemCode: code,
-      msg: "Failed to resolve item sales UoM from OITM",
+      msg: failMsg,
     });
     return null;
   }
 };
+
+/** Seller sales UoM from item master — OITM.SalUnitMsr + SUoMEntry. */
+export const resolveItemSalesUom = (
+  dbName: string,
+  itemCode: string,
+): Promise<{ uomCode: string; uomEntry: number | null } | null> =>
+  resolveItemMasterUom(dbName, itemCode, "sales");
+
+/** Buyer purchase UoM from item master — OITM.BuyUnitMsr + PUoMEntry. */
+export const resolveItemPurchaseUom = (
+  dbName: string,
+  itemCode: string,
+): Promise<{ uomCode: string; uomEntry: number | null } | null> =>
+  resolveItemMasterUom(dbName, itemCode, "purchase");
 
 /**
  * Resolve OUOM.UomEntry for a UoM code (or name) on a tenant DB.
@@ -266,9 +295,9 @@ export type ResolvedTenantUom = {
  * Buyer UoMEntry is not portable across companies — always re-resolve here.
  *
  * Order:
- * 1) Item UoM group (UGP1) match by UoM code/name
+ * 1) Item master sales/purchase entries (SUoMEntry / PUoMEntry) matching preferred code
  * 2) Global OUOM by code/name
- * 3) Item sales UoM (SalUnitMsr) when preferred code missing/unusable
+ * 3) Item sales UoM (SalUnitMsr / SUoMEntry) when preferred code missing/unusable
  */
 export const resolveUomOnTenant = async (
   dbName: string,
@@ -299,26 +328,28 @@ export const resolveUomOnTenant = async (
   };
 
   try {
-    // 1) Prefer UoM that belongs to the item's UoM group on this company.
+    // 1) Prefer this item's master UoM entries (sales / purchase), matched by code or name.
     if (itemCode && preferred) {
-      const groupRows = (await executeTenantQuery(
+      const masterRows = (await executeTenantQuery(
         db,
         `SELECT TOP 1 ouom."UomEntry" AS "UomEntry", ouom."UomCode" AS "UomCode"
            FROM "OITM" i
-           INNER JOIN "UGP1" ugp ON ugp."UgpEntry" = i."UgpEntry"
-           INNER JOIN "OUOM" ouom ON ouom."UomEntry" = ugp."UomEntry"
+           INNER JOIN "OUOM" ouom
+             ON ouom."UomEntry" IN (i."SUoMEntry", i."PUoMEntry")
+             OR UPPER(TRIM(ouom."UomCode")) IN (
+                  UPPER(TRIM(IFNULL(i."SalUnitMsr", ''))),
+                  UPPER(TRIM(IFNULL(i."BuyUnitMsr", '')))
+                )
           WHERE i."ItemCode" = ?
-            AND i."UgpEntry" IS NOT NULL
-            AND i."UgpEntry" > 0
             AND (
               UPPER(TRIM(ouom."UomCode")) = UPPER(?)
               OR UPPER(TRIM(IFNULL(ouom."UomName", ''))) = UPPER(?)
             )`,
         [itemCode, preferred, preferred],
       )) as Array<Record<string, unknown>>;
-      const fromGroup = toResolved(groupRows[0]);
-      if (fromGroup?.uomEntry != null) {
-        return fromGroup;
+      const fromMaster = toResolved(masterRows[0]);
+      if (fromMaster?.uomEntry != null) {
+        return fromMaster;
       }
     }
 

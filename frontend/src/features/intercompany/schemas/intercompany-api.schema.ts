@@ -194,6 +194,9 @@ export const icRfqLineSchema = z.object({
   sqTaxCode: z.string().nullable().optional(),
   unitPrice: z.number().nullable(),
   uomCode: z.string().nullable(),
+  /** Seller item-master sales UoM (OITM.SalUnitMsr). RFQ UoM column uses this. */
+  sqUomCode: z.string().nullable().optional(),
+  sqUomEntry: z.number().nullable().optional(),
   warehouse: z.string().nullable(),
 });
 
@@ -264,6 +267,7 @@ export const icUpdateRfqLineBodySchema = z.object({
 
 export const icUpdateRfqBodySchema = z.object({
   lines: z.array(icUpdateRfqLineBodySchema).min(1),
+  warehouse: z.string().nullable().optional(),
 });
 
 export type IcUpdateRfqLineBody = z.infer<typeof icUpdateRfqLineBodySchema>;
@@ -279,6 +283,7 @@ export type IcUpdateRfqResponse = z.infer<typeof icUpdateRfqResponseSchema>;
 /** POST /rfqs/:id/submit may include lines (same shape as PUT) to save+submit in one call. */
 export const icSubmitRfqBodySchema = z.object({
   lines: z.array(icUpdateRfqLineBodySchema).min(1).optional(),
+  warehouse: z.string().nullable().optional(),
 });
 export type IcSubmitRfqBody = z.infer<typeof icSubmitRfqBodySchema>;
 

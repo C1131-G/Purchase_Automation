@@ -30,13 +30,19 @@ import {
   submitRfqHeader,
   throwIfRfqLocked,
 } from "./submit-rfq";
-import { overlayRfqLinePatches, sanitizeFillLines } from "./update-rfq-lines";
+import {
+  capFillLinesToRequired,
+  overlayRfqLinePatches,
+  sanitizeFillLines,
+} from "./update-rfq-lines";
 
 export type SellerFillRfqService = {
   updateLines: (params: {
     rfqId: number;
     actorCompanyId: number;
     lines: FillRfqLineInput[];
+    /** Seller warehouse code — stored on RFQ lines; never PATCHed to buyer PQ. */
+    warehouse?: string | null;
   }) => Promise<IcRfqHeader>;
   submit: (params: {
     rfqId: number;
@@ -44,6 +50,7 @@ export type SellerFillRfqService = {
     portalCreatedBy?: string;
     /** Optional — save seller fill in the same request (skip separate PUT). */
     lines?: FillRfqLineInput[];
+    warehouse?: string | null;
   }) => Promise<IcRfqHeader>;
 };
 
@@ -182,7 +189,7 @@ export const createSellerFillRfqService = (
   const runConvertInBackground = deps?.runConvertInBackground !== false;
 
   return {
-    updateLines: async ({ rfqId, actorCompanyId, lines }) => {
+    updateLines: async ({ rfqId, actorCompanyId, lines, warehouse }) => {
       const startedAt = Date.now();
       const corrId = randomUUID();
       const logCtx = {
@@ -217,7 +224,7 @@ export const createSellerFillRfqService = (
         },
       });
 
-      const sanitized = sanitizeFillLines(lines);
+      const sanitized = capFillLinesToRequired(sanitizeFillLines(lines), header.lines ?? []);
       const isCompleted = header.status === IC_RFQ_STATUS.COMPLETED;
       if (isCompleted) {
         const mergedLines = overlayRfqLinePatches(header.lines ?? [], sanitized);
@@ -227,7 +234,8 @@ export const createSellerFillRfqService = (
         await reapply.reapply({ header, lines: mergedLines });
       }
 
-      const updated = await rfq.updateLines(rfqId, sanitized);
+      const extras = warehouse !== undefined ? { warehouse } : undefined;
+      const updated = await rfq.updateLines(rfqId, sanitized, extras);
       if (!updated) {
         throw new AppError("RFQ not found after update", 404, "IC_RFQ_NOT_FOUND");
       }
@@ -251,7 +259,7 @@ export const createSellerFillRfqService = (
       return updated;
     },
 
-    submit: async ({ rfqId, actorCompanyId, lines: fillLines, portalCreatedBy }) => {
+    submit: async ({ rfqId, actorCompanyId, lines: fillLines, portalCreatedBy, warehouse }) => {
       const startedAt = Date.now();
       const corrId = randomUUID();
       const logCtx = {
@@ -269,9 +277,13 @@ export const createSellerFillRfqService = (
       assertRfqSubmittable(header);
 
       // Optional one-shot fill: save lines then submit (avoids PUT + POST round-trip).
-      if (fillLines && fillLines.length > 0) {
-        const sanitized = sanitizeFillLines(fillLines);
-        const updated = await rfq.updateLines(rfqId, sanitized);
+      if ((fillLines && fillLines.length > 0) || warehouse !== undefined) {
+        const sanitized =
+          fillLines && fillLines.length > 0
+            ? capFillLinesToRequired(sanitizeFillLines(fillLines), header.lines ?? [])
+            : [];
+        const extras = warehouse !== undefined ? { warehouse } : undefined;
+        const updated = await rfq.updateLines(rfqId, sanitized, extras);
         if (!updated) {
           throw new AppError("RFQ not found after line update", 404, "IC_RFQ_NOT_FOUND");
         }

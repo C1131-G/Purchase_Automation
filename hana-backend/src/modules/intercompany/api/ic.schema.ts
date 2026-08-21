@@ -43,6 +43,8 @@ const RfqSubmitLineSchema = RfqFillLineSchema.extend({
 /** Seller fill: unit price, quoted qty, delivery date, discount %. itemCode rejected downstream. */
 export const UpdateRfqBodySchema = z.object({
   lines: z.array(RfqFillLineSchema).min(1),
+  /** Seller warehouse (OSCN / user). Stored on RFQ; omitted from buyer PQ PATCH. */
+  warehouse: z.string().trim().max(50).nullable().optional(),
 });
 
 export type UpdateRfqBody = z.infer<typeof UpdateRfqBodySchema>;
@@ -58,6 +60,7 @@ export const ConfirmArInvoiceBodySchema = z
 export const SubmitRfqBodySchema = z
   .object({
     lines: z.array(RfqSubmitLineSchema).min(1).optional(),
+    warehouse: z.string().trim().max(50).nullable().optional(),
   })
   .strict()
   .default({});

@@ -152,6 +152,7 @@ const createFlow2TestStack = (opts?: {
         map.set(sourceItemCode, {
           description: "",
           partnerItemCode: sourceItemCode,
+          warehouseHint: "",
           sourceItemCode,
         });
       }

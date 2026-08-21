@@ -147,58 +147,72 @@ export function RequestForQuotationForm({
               </div>
             </div>
 
-            <div
-              className="h-full cursor-not-allowed"
-              onClickCapture={restrictedClick("Logistics")}
-            >
-              <div className="pointer-events-none h-full">
-                <LogisticsGrid
-                  salesEmployeeLabel="Buyer"
-                  salesEmployeeInput={
-                    header.buyerName?.trim() ||
-                    header.createdBy?.trim() ||
-                    header.buyerCode?.trim() ||
-                    ""
+            <div className="h-full">
+              <LogisticsGrid
+                salesEmployeeLabel="Buyer"
+                salesEmployeeInput={
+                  header.buyerName?.trim() ||
+                  header.createdBy?.trim() ||
+                  header.buyerCode?.trim() ||
+                  ""
+                }
+                salesEmployeesLoading={false}
+                error={null}
+                salesEmployeeFocused={false}
+                salesEmployeeSuggestions={[]}
+                onSalesEmployeeChange={noopStr}
+                onSalesEmployeeFocus={noop}
+                onSalesEmployeeBlur={noop}
+                onOpenSalesEmployeePopup={noop}
+                onSelectSalesEmployee={noop}
+                salesEmployeeDisabled
+                uniformReadOnlyAppearance={!state.canEditLines}
+                showBranch
+                branchLabel="BRANCH"
+                branchPlaceholder={state.branchPlaceholder}
+                branchInput={state.branchInput}
+                branchesLoading={state.branchesLoading}
+                branchFocused={state.canEditLines && state.branchFocused}
+                branchSuggestions={state.branchSuggestions}
+                onBranchChange={state.handleBranchChange}
+                onBranchFocus={() => {
+                  if (state.canEditLines) {
+                    state.setBranchFocused(true);
                   }
-                  salesEmployeesLoading={false}
-                  error={null}
-                  salesEmployeeFocused={false}
-                  salesEmployeeSuggestions={[]}
-                  onSalesEmployeeChange={noopStr}
-                  onSalesEmployeeFocus={noop}
-                  onSalesEmployeeBlur={noop}
-                  onOpenSalesEmployeePopup={noop}
-                  onSelectSalesEmployee={noop}
-                  salesEmployeeDisabled
-                  readOnly
-                  uniformReadOnlyAppearance
-                  showBranch
-                  branchLabel="BRANCH"
-                  branchPlaceholder="No Branch"
-                  branchInput={state.branchInput}
-                  branchesLoading={state.branchesLoading}
-                  branchFocused={false}
-                  branchSuggestions={[]}
-                  onBranchChange={noopStr}
-                  onBranchFocus={noop}
-                  onBranchBlur={noop}
-                  onOpenBranchPopup={noop}
-                  onSelectBranch={noop}
-                  branchDisabled
-                  showWarehouseInsteadOfDocNum
-                  warehouseLabel="Warehouse"
-                  warehouseInput={header.warehouseCode?.trim() || state.defaultWarehouseCode || ""}
-                  warehousesLoading={false}
-                  warehouseFocused={false}
-                  warehouseSuggestions={[]}
-                  onWarehouseChange={noopStr}
-                  onWarehouseFocus={noop}
-                  onWarehouseBlur={noop}
-                  onOpenWarehousePopup={noop}
-                  onSelectWarehouse={noop}
-                  warehouseDisabled
-                />
-              </div>
+                }}
+                onBranchBlur={() => {
+                  state.setBranchFocused(false);
+                }}
+                onOpenBranchPopup={() => {
+                  if (state.canEditLines) {
+                    state.setBranchFocused(true);
+                  }
+                }}
+                onSelectBranch={state.selectBranch}
+                branchDisabled={state.branchDisabled}
+                showWarehouseInsteadOfDocNum
+                warehouseLabel="Warehouse"
+                warehouseInput={state.warehouseInput || state.defaultWarehouseCode}
+                warehousesLoading={state.warehousesLoading}
+                warehouseFocused={state.canEditLines && state.warehouseFocused}
+                warehouseSuggestions={state.warehouseSuggestions}
+                onWarehouseChange={state.handleWarehouseChange}
+                onWarehouseFocus={() => {
+                  if (state.canEditLines) {
+                    state.setWarehouseFocused(true);
+                  }
+                }}
+                onWarehouseBlur={() => {
+                  state.setWarehouseFocused(false);
+                }}
+                onOpenWarehousePopup={() => {
+                  if (state.canEditLines) {
+                    state.setWarehouseFocused(true);
+                  }
+                }}
+                onSelectWarehouse={state.selectWarehouse}
+                warehouseDisabled={!state.canEditLines}
+              />
             </div>
 
             <div className="h-full">

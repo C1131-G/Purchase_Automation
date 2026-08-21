@@ -225,6 +225,11 @@ export function useSqProducts({
           taxRate: product.taxRate,
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
+          uomList: product.uomList,
+          purchaseUomCode: product.purchaseUomCode,
+          purchaseUomEntry: product.purchaseUomEntry,
+          salesUomCode: product.uomCode,
+          salesUomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
           warehouseCode: targetWhs,
         });
@@ -257,6 +262,11 @@ export function useSqProducts({
           taxRate: product.taxRate,
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
+          uomList: product.uomList,
+          purchaseUomCode: product.purchaseUomCode,
+          purchaseUomEntry: product.purchaseUomEntry,
+          salesUomCode: product.uomCode,
+          salesUomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
           warehouseCode: targetWhs,
         };

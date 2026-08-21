@@ -4,7 +4,7 @@
  */
 import { In } from "typeorm";
 
-import { getTenantRepository } from "@/db/tenant-query";
+import { executeTenantQuery, getTenantRepository } from "@/db/tenant-query";
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { OscnSchema, type OscnCatalog } from "@/db/schemas/oscn.schema";
 
@@ -65,6 +65,73 @@ export async function loadOscnForCardCode(
     }
   }
   return mapped;
+}
+
+const warehouseHintFromRow = (row: Record<string, unknown>): string => {
+  const keys = [
+    "WarehouseHint",
+    "U_Warehouse",
+    "U_Warhouse",
+    "u_Warehouse",
+    "u_Warhouse",
+    "warehouseHint",
+  ];
+  for (const key of keys) {
+    const hint = toTrimmed(row[key]);
+    if (hint) {
+      return hint;
+    }
+  }
+  return "";
+};
+
+/**
+ * OSCN warehouse UDF for IC RFQ (U_Warehouse, or typo U_Warhouse).
+ * Raw SQL so catalog TypeORM stays valid when the UDF is missing on a tenant.
+ */
+export async function loadOscnWarehouseHints(
+  dbName: string,
+  cardCodeRaw: string,
+  itemCodes: string[],
+): Promise<Map<string, string>> {
+  const cardCode = toTrimmed(cardCodeRaw);
+  const codes = [...new Set(itemCodes.map((code) => toTrimmed(code)).filter(Boolean))];
+  const result = new Map<string, string>();
+  if (!toTrimmed(dbName) || !cardCode || codes.length === 0) {
+    return result;
+  }
+
+  const placeholders = codes.map(() => "?").join(", ");
+  const params = [cardCode, ...codes];
+  const statements = [
+    `SELECT "ItemCode", "U_Warehouse" AS "WarehouseHint"
+       FROM "OSCN"
+      WHERE "CardCode" = ?
+        AND "ItemCode" IN (${placeholders})`,
+    `SELECT "ItemCode", "U_Warhouse" AS "WarehouseHint"
+       FROM "OSCN"
+      WHERE "CardCode" = ?
+        AND "ItemCode" IN (${placeholders})`,
+  ];
+
+  for (const sql of statements) {
+    try {
+      const rows = (await executeTenantQuery(dbName, sql, params)) as Array<
+        Record<string, unknown>
+      >;
+      for (const row of rows) {
+        const itemCode = toTrimmed(row.ItemCode ?? row.itemCode);
+        const hint = warehouseHintFromRow(row);
+        if (itemCode && hint) {
+          result.set(itemCode, hint);
+        }
+      }
+      return result;
+    } catch {
+      // UDF column missing on this tenant — try the other name.
+    }
+  }
+  return result;
 }
 
 /**

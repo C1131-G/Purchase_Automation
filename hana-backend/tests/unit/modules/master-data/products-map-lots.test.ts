@@ -22,7 +22,6 @@ describe("mapProductResults lot flags", () => {
       priceList: undefined,
       taxGroups: [{ Code: "IN-18", Rate: 18 }],
       type: "purchase",
-      ugpLines: [],
       uoms: [],
     });
 

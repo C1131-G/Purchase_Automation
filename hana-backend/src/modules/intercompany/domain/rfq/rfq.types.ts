@@ -22,9 +22,16 @@ export type IcRfqLine = {
   /** Quoted / ship date (seller-editable). */
   deliveryDate: string | null;
   warehouse: string | null;
+  /** Buyer PQ purchase UoM snapshot (IC_RFQ_LINE.UOM_CODE). */
   uomCode: string | null;
   /** SAP OUOM.UomEntry when known (from PQ); preferred when posting SQ. */
   uomEntry?: number | null;
+  /**
+   * Seller item-master sales UoM (OITM.SalUnitMsr / SUoMEntry, OUOM by name/code).
+   * RFQ product row displays this; not persisted.
+   */
+  sqUomCode?: string | null;
+  sqUomEntry?: number | null;
   remarks: string | null;
   /** Buyer required qty snapshot (display / locked). Enriched from buyer PQ when missing. */
   requiredQuantity?: number | null;
@@ -112,4 +119,9 @@ export type UpdateRfqLineInput = {
    * COALESCE on UPDATE — null leaves IC_RFQ_LINE.TAX_CODE unchanged.
    */
   taxCode?: string | null;
+};
+
+/** Header extras on seller fill — warehouse is seller-only (never PATCHed to buyer PQ). */
+export type UpdateRfqExtras = {
+  warehouse?: string | null;
 };

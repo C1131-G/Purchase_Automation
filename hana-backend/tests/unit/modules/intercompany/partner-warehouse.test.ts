@@ -57,6 +57,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     expect(await masters.getFirstActiveWarehouse("RCM_DB")).toBeNull();
     expect(await masters.getDefaultObplBranch("RCM_DB")).toBeNull();
     expect(await masters.resolveWarehouseIfExists("RCM_DB", "X")).toBeNull();
+    expect(await masters.resolveWarehouseByCodeOrName("RCM_DB", "Main")).toBeNull();
   });
 
   it("any active WH works without BPLid (Ajax-style)", async () => {
@@ -67,6 +68,20 @@ describe("partner warehouse masters (branch-matched WH)", () => {
       branchId: null,
       warehouseCode: "01",
     });
+  });
+
+  it("resolveWarehouseByCodeOrName matches WhsName then returns code + BPL", async () => {
+    const queryTenant = vi.fn(async () => [{ BPLid: 3, WhsCode: "WH01" }]);
+    const masters = createPartnerWarehouseMasters({ queryTenant });
+
+    const row = await masters.resolveWarehouseByCodeOrName("RCM_DB", "Main Store");
+
+    expect(row).toEqual({ branchId: 3, warehouseCode: "WH01" });
+    expect(queryTenant).toHaveBeenCalledWith("RCM_DB", expect.stringContaining("WhsName"), [
+      "Main Store",
+      "Main Store",
+      "Main Store",
+    ]);
   });
 
   it("getDefaultObplBranch reads first enabled place", async () => {
@@ -100,7 +115,7 @@ describe("buildSalesQuotationLines warehouse", () => {
 
     expect(documentLines[0]?.WarehouseCode).toBe("W-BPL1");
     expect(documentLines[0]?.VatGroup).toBe("S1");
-    // Always keep PQ/RFQ UoM — never OITM sales default.
+    // No seller master resolver in this test — keep RFQ UoM.
     expect(documentLines[0]?.UoMCode).toBe("BUYER-UOM");
     expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
     expect(taxUsage[0]).toMatchObject({
@@ -187,10 +202,54 @@ describe("buildSalesQuotationLines warehouse", () => {
     expect(documentLines[0]?.UoMCode).toBe("Each");
     expect(documentLines[0]?.UoMEntry).toBe(42);
   });
+
+  it("convert copies RFQ UoM only and does not re-pick item-master sales UoM", async () => {
+    const { documentLines } = await buildSalesQuotationLines(
+      [
+        {
+          discount: 0,
+          itemCode: "SKU1",
+          lineNum: 0,
+          quantity: 1,
+          unitPrice: 10,
+          uomCode: "PCS",
+        },
+      ],
+      async () => "S1",
+      {
+        branchWarehouseCode: "W1",
+        resolveUom: async ({ uomCode }) => ({ uomCode, uomEntry: 7 }),
+      },
+    );
+    expect(documentLines[0]?.UoMCode).toBe("PCS");
+    expect(documentLines[0]?.UoMEntry).toBe(7);
+    expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
+  });
+
+  it("convert prefers RFQ sqUomCode over stored purchase snapshot", async () => {
+    const { documentLines } = await buildSalesQuotationLines(
+      [
+        {
+          discount: 0,
+          itemCode: "SKU1",
+          lineNum: 0,
+          quantity: 1,
+          sqUomCode: "PCS",
+          sqUomEntry: 7,
+          unitPrice: 10,
+          uomCode: "BOX",
+        },
+      ],
+      async () => "S1",
+      { branchWarehouseCode: "W1" },
+    );
+    expect(documentLines[0]?.UoMCode).toBe("PCS");
+    expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
+  });
 });
 
 describe("createSellerSq warehouse + branch", () => {
-  it("uses PQ warehouse and switches branch when PQ WH exists on seller", async () => {
+  it("uses RFQ warehouse and switches branch when RFQ WH exists on seller", async () => {
     const createSalesQuotation = vi.fn(async () => ({ docEntry: 98, docNum: 5000 }));
     const documents = { createSalesQuotation } as unknown as IcSlDocuments;
     const warehouseMasters = createPartnerWarehouseMasters({
@@ -232,7 +291,7 @@ describe("createSellerSq warehouse + branch", () => {
     expect(input.lines[0]?.WarehouseCode).toBe("WH-PQ");
   });
 
-  it("uses default branch WH when PQ WH not on seller", async () => {
+  it("uses default branch WH when RFQ WH not on seller", async () => {
     const createSalesQuotation = vi.fn(async () => ({ docEntry: 99, docNum: 5001 }));
     const documents = { createSalesQuotation } as unknown as IcSlDocuments;
     const warehouseMasters = createPartnerWarehouseMasters({
@@ -414,7 +473,7 @@ describe("createSellerSq warehouse + branch", () => {
     });
   });
 
-  it("resolveSqWarehouseContext prefers PQ warehouse when found", async () => {
+  it("resolveSqWarehouseContext prefers RFQ warehouse when found", async () => {
     const masters = createPartnerWarehouseMasters({
       queryTenant: async (_db, sql, params) => {
         if (String(sql).includes("WhsCode") && params?.[0] === "PQ1") {
@@ -432,7 +491,7 @@ describe("createSellerSq warehouse + branch", () => {
     expect(ctx).toEqual({
       branchId: 9,
       branchWarehouseCode: "PQ1",
-      source: "pq_warehouse",
+      source: "rfq_warehouse",
       switchedFromDefault: true,
     });
   });

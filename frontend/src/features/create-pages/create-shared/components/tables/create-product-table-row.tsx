@@ -36,7 +36,11 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { parseDocumentLineQuantity } from "@/features/create-pages/create-shared/utils/document-line-quantity";
+import {
+  capQuantityDraftToMax,
+  capQuantityToMax,
+  parseDocumentLineQuantity,
+} from "@/features/create-pages/create-shared/utils/document-line-quantity";
 import {
   commitZeroNumericBlur,
   draftAfterZeroNumericFocus,
@@ -288,8 +292,7 @@ export function CreateProductTableRow({
   const productUoms = React.useMemo(() => {
     const getUomName = (code: string) => uoms.find((u) => u.code === code)?.name || code;
 
-    // If the row carries a full item-specific UoM list (from its SAP UoM Group),
-    // use that list directly so the dropdown shows all valid UoMs for the product.
+    // Item-master UoM only (purchase or sales from OITM) — not the UoM group.
     if (row.uomList && row.uomList.length > 0) {
       return row.uomList.map((u) => ({
         code: u.code,
@@ -298,29 +301,19 @@ export function CreateProductTableRow({
       })) as CreateLookupOption[];
     }
 
-    // Legacy fallback: build from purchase/sales/current UoM fields (other modules).
     const list: CreateLookupOption[] = [];
-    if (row.purchaseUomCode) {
+    const pushUnique = (code?: string, entry?: number) => {
+      const next = String(code ?? "").trim();
+      if (!next || list.some((uom) => uom.code === next)) return;
       list.push({
-        code: row.purchaseUomCode,
-        name: getUomName(row.purchaseUomCode),
-        uomEntry: row.purchaseUomEntry,
+        code: next,
+        name: getUomName(next),
+        uomEntry: entry,
       });
-    }
-    if (row.salesUomCode && row.salesUomCode !== row.purchaseUomCode) {
-      list.push({
-        code: row.salesUomCode,
-        name: getUomName(row.salesUomCode),
-        uomEntry: row.salesUomEntry,
-      });
-    }
-    if (row.uomCode && !list.some((u) => u.code === row.uomCode)) {
-      list.push({
-        code: row.uomCode,
-        name: getUomName(row.uomCode),
-        uomEntry: row.uomEntry,
-      });
-    }
+    };
+    pushUnique(row.purchaseUomCode, row.purchaseUomEntry);
+    pushUnique(row.salesUomCode, row.salesUomEntry);
+    pushUnique(row.uomCode, row.uomEntry);
     return list;
   }, [
     row.uomList,
@@ -1262,14 +1255,22 @@ export function CreateProductTableRow({
                         : ""
                   }
                   onValueChange={(value) => {
-                    setProductRowDraft(row.id, "quantity", value);
+                    const capped = capQuantityDraftToMax(value, rfqMaxQty);
+                    setProductRowDraft(row.id, "quantity", capped);
+                    if (capped !== value) {
+                      const next = capQuantityToMax(Number(capped), rfqMaxQty);
+                      const newGross = row.price * next;
+                      const newDiscountAmount =
+                        Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                      updateProductRow(row.id, {
+                        discountAmount: newDiscountAmount,
+                        quantity: next,
+                      });
+                    }
                   }}
                   onBlur={(event) => {
                     const parsed = parseDocumentLineQuantity(event.target.value);
-                    const next =
-                      rfqMaxQty !== undefined && rfqMaxQty > 0
-                        ? Math.max(1, Math.min(rfqMaxQty, parsed))
-                        : parsed;
+                    const next = capQuantityToMax(Math.max(1, parsed), rfqMaxQty);
                     const newGross = row.price * next;
                     const newDiscountAmount =
                       Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;

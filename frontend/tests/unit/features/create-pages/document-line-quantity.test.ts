@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  capQuantityDraftToMax,
+  capQuantityToMax,
   clampDocumentLineQuantity,
   MIN_DOCUMENT_LINE_QUANTITY,
   parseDocumentLineQuantity,
@@ -24,5 +26,15 @@ describe("document line quantity", () => {
     expect(parseDocumentLineQuantity("2.5")).toBe(2.5);
     expect(parseDocumentLineQuantity("2.9", { integer: true })).toBe(2);
     expect(clampDocumentLineQuantity(12)).toBe(12);
+  });
+
+  it("caps quoted qty to required max", () => {
+    expect(capQuantityToMax(40, 25)).toBe(25);
+    expect(capQuantityToMax(10, 25)).toBe(10);
+    expect(capQuantityToMax(10, 0)).toBe(10);
+    expect(capQuantityToMax(10, null)).toBe(10);
+    expect(capQuantityDraftToMax("40", 25)).toBe("25");
+    expect(capQuantityDraftToMax("2.", 25)).toBe("2.");
+    expect(capQuantityDraftToMax("10", 25)).toBe("10");
   });
 });

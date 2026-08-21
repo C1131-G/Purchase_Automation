@@ -427,12 +427,12 @@ export function useExcelImport({
 
           const uomCode =
             transactionType === "purchase"
-              ? catalogProduct.purchaseUomCode || catalogProduct.uomCode
-              : catalogProduct.uomCode || catalogProduct.purchaseUomCode;
+              ? catalogProduct.purchaseUomCode || ""
+              : catalogProduct.uomCode || "";
           const uomEntry =
             transactionType === "purchase"
-              ? (catalogProduct.purchaseUomEntry ?? catalogProduct.uomEntry)
-              : (catalogProduct.uomEntry ?? catalogProduct.purchaseUomEntry);
+              ? catalogProduct.purchaseUomEntry
+              : catalogProduct.uomEntry;
 
           return {
             id: `row-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -451,6 +451,9 @@ export function useExcelImport({
             currency: catalogProduct.currency,
             uomCode: uomCode || "",
             uomEntry: uomEntry || 0,
+            uomList: catalogProduct.uomList,
+            purchaseUomCode: catalogProduct.purchaseUomCode,
+            purchaseUomEntry: catalogProduct.purchaseUomEntry,
             selected: false,
           };
         });

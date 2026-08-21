@@ -12,6 +12,10 @@ import {
   mapTaxCodeForSide,
   taxRateForCode,
 } from "@/features/create-pages/create-shared/utils/product-tax-codes";
+import {
+  capQuantityToMax,
+  parseDocumentLineQuantity,
+} from "@/features/create-pages/create-shared/utils/document-line-quantity";
 import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
 
 export type RfqEditableLine = {
@@ -100,7 +104,7 @@ export const mapRfqLinesToEditable = (lines: IcRfqLine[] | undefined): RfqEditab
     rfqLineId: line.rfqLineId,
     taxCode: String(line.taxCode ?? "").trim(),
     unitPrice: formatNumberInput(line.unitPrice),
-    uomCode: String(line.uomCode ?? "").trim(),
+    uomCode: String(line.sqUomCode ?? line.uomCode ?? "").trim(),
     warehouse: String(line.warehouse ?? "").trim(),
   }));
 
@@ -141,6 +145,11 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
       const requiredDate = toDateInputValue(line.requiredDate);
       const itemCode = String(line.itemCode ?? "").trim();
       const description = String(line.description ?? "").trim();
+      const salesUom = String(line.sqUomCode ?? line.uomCode ?? "").trim();
+      const salesUomEntry =
+        line.sqUomEntry != null && Number.isFinite(line.sqUomEntry) && line.sqUomEntry > 0
+          ? Math.trunc(line.sqUomEntry)
+          : undefined;
 
       return {
         comment: String(line.remarks ?? "").trim(),
@@ -159,7 +168,14 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
         quotedDate: quotedDate || undefined,
         stock: 0,
         taxRate: 0,
-        uomCode: String(line.uomCode ?? "").trim() || undefined,
+        // Seller sales UoM when enrich resolved it; else buyer PQ snapshot.
+        uomCode: salesUom || undefined,
+        uomEntry: salesUomEntry,
+        salesUomCode: salesUom || undefined,
+        salesUomEntry,
+        uomList: salesUom
+          ? [{ code: salesUom, name: salesUom, uomEntry: salesUomEntry }]
+          : undefined,
         // Seller sales tax when enrich resolved it; else buyer purchase snapshot
         // (table remaps I→O by OVTG rate for display).
         vatGroup: String(line.sqTaxCode ?? line.taxCode ?? "").trim(),
@@ -312,6 +328,24 @@ export const buildUpdateRfqLinesPayload = (
   return { errors, lines: payload };
 };
 
+/** Commit quantity drafts and cap quoted qty to buyer required qty. */
+export const applyRfqQuotedQtyCap = (
+  rows: ProductRow[],
+  drafts?: Record<string, { quantity?: string }>,
+): ProductRow[] =>
+  rows.map((row) => {
+    const draft = drafts?.[row.id]?.quantity;
+    let quantity = row.quantity;
+    if (draft !== undefined) {
+      quantity = parseDocumentLineQuantity(draft);
+    }
+    quantity = capQuantityToMax(quantity, row.requiredQuantity);
+    if (quantity === row.quantity) {
+      return row;
+    }
+    return { ...row, quantity };
+  });
+
 /** Build seller-fill PUT body from PQ-style product rows. */
 export const buildUpdateRfqLinesPayloadFromProductRows = (
   rows: ProductRow[],
@@ -332,7 +366,7 @@ export const buildUpdateRfqLinesPayloadFromProductRows = (
       continue;
     }
 
-    const quantity = Number(row.quantity);
+    const quantity = capQuantityToMax(Number(row.quantity), row.requiredQuantity);
     if (!Number.isFinite(quantity) || quantity <= 0) {
       errors.push(`Line ${lineNum}: quoted quantity must be greater than 0`);
       continue;

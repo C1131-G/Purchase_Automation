@@ -3,6 +3,36 @@ import type { IcRfqLine, UpdateRfqLineInput } from "@/modules/intercompany/domai
 
 import type { FillRfqLineInput } from "./fill-rfq.types";
 
+/** Quoted qty cannot exceed buyer required qty when that snapshot is present. */
+export const capQuotedQtyToRequired = (
+  quoted: number,
+  required: number | null | undefined,
+): number => {
+  const max = Number(required);
+  if (!Number.isFinite(quoted) || !Number.isFinite(max) || max <= 0) {
+    return quoted;
+  }
+  return quoted > max ? max : quoted;
+};
+
+export const capFillLinesToRequired = (
+  patches: UpdateRfqLineInput[],
+  existing: IcRfqLine[],
+): UpdateRfqLineInput[] => {
+  const byLine = new Map(existing.map((line) => [line.lineNum, line]));
+  return patches.map((patch) => {
+    if (patch.quantity == null) {
+      return patch;
+    }
+    const required = byLine.get(patch.lineNum)?.requiredQuantity;
+    const quantity = capQuotedQtyToRequired(patch.quantity, required);
+    if (quantity === patch.quantity) {
+      return patch;
+    }
+    return { ...patch, quantity };
+  });
+};
+
 /**
  * Seller (vendor) may edit: unit price, quoted qty, delivery date, discount %.
  * Item code and other buyer snapshot fields stay immutable.
@@ -70,7 +100,10 @@ export const overlayRfqLinePatches = (
       ...line,
       deliveryDate: patch.deliveryDate !== undefined ? patch.deliveryDate : line.deliveryDate,
       discount: patch.discount !== undefined ? patch.discount : line.discount,
-      quantity: patch.quantity != null ? patch.quantity : line.quantity,
+      quantity:
+        patch.quantity != null
+          ? capQuotedQtyToRequired(patch.quantity, line.requiredQuantity)
+          : line.quantity,
       unitPrice: patch.unitPrice,
     };
   });

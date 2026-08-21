@@ -126,6 +126,7 @@ export const updateRfq = async (req: Request, res: Response, next: NextFunction)
       actorCompanyId: companyId,
       lines: body.lines,
       rfqId,
+      warehouse: body.warehouse,
     });
     // Same enrichment as GET so seller UI keeps names/dates/descriptions.
     const enriched = await attachIcRfqEditFlags(await enrichRfqFromPqDraft(updated));
@@ -147,6 +148,7 @@ export const submitRfq = async (req: Request, res: Response, next: NextFunction)
       lines: body.lines,
       portalCreatedBy: requirePortalCreatedBy(req.session),
       rfqId,
+      warehouse: body.warehouse,
     });
     // Fast path: no enrich / no wait for notify or convert (those run in background).
     // Seller UI already has line data; status flip is enough for the response.

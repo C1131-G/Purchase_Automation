@@ -21,6 +21,7 @@ export {
   getDefaultBranch,
   resolveDocumentSeries,
   resolveItemSalesUom,
+  resolveItemPurchaseUom,
 } from "./master-data.warehouses-series.queries";
 export type { ResolvedDocumentSeries } from "./master-data.warehouses-series.queries";
 export { getBusinessPartnerAddresses } from "./master-data.partner-lookup";
