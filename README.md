@@ -112,7 +112,6 @@ Full docs: [IC module README](./hana-backend/src/modules/intercompany/README.md)
 | IC deploy / worker             | […/intercompany/docs/deploy-and-ops.md](./hana-backend/src/modules/intercompany/docs/deploy-and-ops.md)                      |
 | Flow 1 (PQ → RFQ)              | […/flows/flow-1-pq-rfq-chain/README.md](./hana-backend/src/modules/intercompany/flows/flow-1-pq-rfq-chain/README.md)         |
 | Flow 2 (PO → AR Invoice Draft) | […/flows/flow-2-po-to-ar-invoice/README.md](./hana-backend/src/modules/intercompany/flows/flow-2-po-to-ar-invoice/README.md) |
-| Visual IC guide                | [hana-backend/ic-explained.html](./hana-backend/ic-explained.html)                                                           |
 | Product                        | [PRODUCT.md](./PRODUCT.md)                                                                                                   |
 | Conventions                    | [AGENTS.md](./AGENTS.md)                                                                                                     |
 

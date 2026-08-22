@@ -27,6 +27,7 @@ import {
 } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/update-ar-draft.service";
 import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
+import { icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import {
   createMemoryDb,
@@ -404,6 +405,7 @@ describe("PQ to PO source resolution", () => {
 
 describe("PO to A/R Draft propagation", () => {
   it("patches a fully merged draft while preserving seller identity and SQ base links", async () => {
+    const log = vi.spyOn(icLog, "info").mockImplementation(() => undefined);
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
     const patchArInvoiceDraft = vi.fn(async () => undefined);
@@ -437,6 +439,7 @@ describe("PO to A/R Draft propagation", () => {
         lines: [{ ItemCode: "BUYER-ITEM", LineNum: 0, Quantity: 4, UnitPrice: 12 }],
         remarks: "Updated PO",
       },
+      trace: { corrId: "corr-edit-1" },
     });
 
     expect(patchArInvoiceDraft).toHaveBeenCalledWith({
@@ -457,6 +460,13 @@ describe("PO to A/R Draft propagation", () => {
         ],
       },
     });
+    expect(log.mock.calls.map((call) => call[2]?.check)).toEqual([
+      "ic_edit_sync.ar_draft_loaded",
+      "ic_edit_sync.ar_draft_patch_validated",
+      "ic_edit_sync.apply",
+    ]);
+    expect(log.mock.calls.every((call) => call[2]?.corrId === "corr-edit-1")).toBe(true);
+    log.mockRestore();
   });
 
   it("maps buyer purchase tax to seller sales tax and never copies IN-* / WH / UoM", async () => {

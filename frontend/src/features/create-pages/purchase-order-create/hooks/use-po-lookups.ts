@@ -271,6 +271,7 @@ export function usePoLookups({
       return;
     }
     setHeader({ warehouseCode: "" });
+    setWarehouseFocused(true);
   };
 
   const handleSalesEmployeeChange = (value: string) => {

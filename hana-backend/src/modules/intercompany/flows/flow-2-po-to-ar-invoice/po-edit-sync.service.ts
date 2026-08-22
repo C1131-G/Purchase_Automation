@@ -1,5 +1,5 @@
 /**
- * IC edit sync — portal PO update → existing seller A/R draft.
+ * IC edit sync — portal PO update → existing seller A/R draft or POS parked row.
  * Never posts a new draft and never uses Flow 2 (1–9) create logs.
  */
 
@@ -68,7 +68,7 @@ export const createPoEditSyncService = (deps?: {
         detail: {
           hook: "afterPoUpdated",
           sourceObject: IC_OBJECT.PO,
-          targetObject: IC_OBJECT.AR_DRAFT,
+          route: "UNRESOLVED",
         },
         phase: "start",
       });
@@ -114,6 +114,12 @@ export const createPoEditSyncService = (deps?: {
         });
         return finish(skipResult("not_ic_company"));
       }
+      logIcEditSync({
+        check: "ic_edit_sync.company_resolved",
+        ctx: logCtx,
+        detail: { buyerCompanyId: icCompany.companyId },
+        phase: "buyer IC company resolved",
+      });
 
       const invoiceMap = await documentMap.findBySource({
         sourceCompanyId: icCompany.companyId,
@@ -145,20 +151,59 @@ export const createPoEditSyncService = (deps?: {
         Number.isFinite(parkedTransactionId) &&
         parkedTransactionId > 0
       ) {
+        logIcEditSync({
+          check: "ic_edit_sync.route_resolved",
+          ctx: logCtx,
+          detail: {
+            mappingId: parkedMap.mappingId,
+            parkedTransactionId,
+            route: IC_OBJECT.PARKED_TRANSACTION,
+            sellerCompanyId: parkedMap.targetCompanyId,
+          },
+          phase: "POS parked route resolved",
+        });
         const resolved = await resolvePartner.resolveOutcome({
           cardCode: input.cardCode,
           dbName: input.dbName,
         });
-        if (!resolved.success) return finish(skipResult(resolved.reason));
+        if (!resolved.success) {
+          return finish(skipResult(resolved.reason), {
+            route: IC_OBJECT.PARKED_TRANSACTION,
+          });
+        }
+        logIcEditSync({
+          check: "ic_edit_sync.parked_partner_resolved",
+          ctx: logCtx,
+          detail: {
+            buyerCompanyId: resolved.partner.buyerCompany.companyId,
+            route: IC_OBJECT.PARKED_TRANSACTION,
+            sellerCompanyId: resolved.partner.sellerCompany.companyId,
+          },
+          phase: "parked partner resolved",
+        });
         const built = await build.build({
           input,
           partner: resolved.partner,
           remarksTag: parkedMap.sourceRemarksTag ?? `IC-PO-${input.docEntry}`,
         });
         const transactionId = `IC-PO-${icCompany.companyId}-${input.docEntry}`;
+        logIcEditSync({
+          check: "ic_edit_sync.parked_sq_loaded",
+          ctx: logCtx,
+          detail: {
+            lineCount: built.salesQuotation.documentLines.length,
+            parkedTransactionId,
+            route: IC_OBJECT.PARKED_TRANSACTION,
+            sqDocEntry: built.salesQuotation.docEntry,
+            sqDocNum: built.salesQuotation.docNum,
+            transactionId,
+          },
+          phase: "seller SQ rebuilt for parked edit",
+        });
         const outcome = await park.update({
           buyerCompanyId: icCompany.companyId,
           buyerCompanyName: resolved.partner.buyerCompany.companyName,
+          corrId,
           customerCode: resolved.partner.buyerCustomerCode,
           parkedTransactionId,
           poDocEntry: input.docEntry,
@@ -175,6 +220,8 @@ export const createPoEditSyncService = (deps?: {
           return finish(skipResult("parked_transaction_consumed"), {
             parkedTransactionId,
             mappingId: parkedMap.mappingId,
+            route: IC_OBJECT.PARKED_TRANSACTION,
+            transactionId,
           });
         }
         return finish(
@@ -182,7 +229,12 @@ export const createPoEditSyncService = (deps?: {
             status: "success",
             targetDoc: { entry: parkedTransactionId, type: IC_OBJECT.PARKED_TRANSACTION },
           },
-          { parkedTransactionId, mappingId: parkedMap.mappingId },
+          {
+            parkedTransactionId,
+            mappingId: parkedMap.mappingId,
+            route: IC_OBJECT.PARKED_TRANSACTION,
+            transactionId,
+          },
         );
       }
 
@@ -209,10 +261,12 @@ export const createPoEditSyncService = (deps?: {
       }
 
       logIcEditSync({
+        check: "ic_edit_sync.route_resolved",
         ctx: logCtx,
         detail: {
           draftEntry,
           mappingId: draftMap.mappingId,
+          route: IC_OBJECT.AR_DRAFT,
           targetCompanyId: draftMap.targetCompanyId,
         },
         phase: "resolve A/R draft",
@@ -227,6 +281,7 @@ export const createPoEditSyncService = (deps?: {
       await updateArDraft.update({
         buyerCompanyId: icCompany.companyId,
         purchaseOrder: input,
+        trace: { corrId },
       });
 
       return finish(
@@ -234,7 +289,7 @@ export const createPoEditSyncService = (deps?: {
           status: "success",
           targetDoc: { entry: draftEntry, type: IC_OBJECT.AR_DRAFT },
         },
-        { draftEntry, mappingId: draftMap.mappingId },
+        { draftEntry, mappingId: draftMap.mappingId, route: IC_OBJECT.AR_DRAFT },
       );
     },
   };

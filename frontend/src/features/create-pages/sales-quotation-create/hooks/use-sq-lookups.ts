@@ -227,6 +227,7 @@ export function useSqLookups({
       return;
     }
     setHeader({ warehouseCode: "" });
+    setWarehouseFocused(true);
   };
 
   const handleSalesEmployeeChange = (value: string) => {

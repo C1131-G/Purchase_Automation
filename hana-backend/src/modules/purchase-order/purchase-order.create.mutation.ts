@@ -95,6 +95,20 @@ export const createPurchaseOrder = async (
     }
 
     const documentLines = lines.map((item) => {
+      const baseType = Number(item.BaseType);
+      const baseEntry = Number(item.BaseEntry);
+      const baseLine = Number(item.BaseLine);
+      if (Number.isFinite(baseType) && Number.isFinite(baseEntry) && Number.isFinite(baseLine)) {
+        // SAP resolves the item, price, tax, warehouse and UoM from the open RFQ line.
+        // Re-sending those fields can make Service Layer reject an otherwise valid copy-from request.
+        return {
+          BaseEntry: baseEntry,
+          BaseLine: baseLine,
+          BaseType: baseType,
+          Quantity: item.Quantity as number,
+        };
+      }
+
       const itemCode = String(item.ItemCode ?? "").trim();
       const itemDescription = String(
         item.ItemDescription ?? item.itemDescription ?? item.Dscription ?? item.ItemName ?? "",
@@ -123,12 +137,6 @@ export const createPurchaseOrder = async (
           docLine.UoMCode = uomCode as string | number;
           docLine.UseBaseUnit = "tNO";
         }
-      }
-
-      if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
-        docLine.BaseType = item.BaseType;
-        docLine.BaseEntry = item.BaseEntry;
-        docLine.BaseLine = item.BaseLine;
       }
 
       return docLine;
@@ -161,7 +169,7 @@ export const createPurchaseOrder = async (
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
-      warehouseCode: String(documentLines[0]?.WarehouseCode ?? "").trim() || null,
+      warehouseCode: String(lines[0]?.WarehouseCode ?? "").trim() || null,
       logLabel: "PO branch assignment",
     });
     await assignDocumentSeries({
@@ -190,7 +198,7 @@ export const createPurchaseOrder = async (
     const sapUrl = `${config.serviceLayer.serviceLayerURL}${sapEndpoint}`;
 
     // Compact line snapshot for logs (omit null/empty — avoids noise when description/UoM absent).
-    const poItemsForPartnerMaster = documentLines.map((line, index) => {
+    const poItemsForPartnerMaster = lines.map((line, index) => {
       const snap: Record<string, unknown> = {
         itemCode: String(line.ItemCode ?? "").trim(),
         lineNum: line.LineNum ?? index,
@@ -311,7 +319,7 @@ export const createPurchaseOrder = async (
       try {
         await recordIcPqToPoLink({
           dbName: resolvedDbNameFromRes || resolvedDbName,
-          lines: documentLines,
+          lines,
           poDocEntry: Number(result.DocEntry),
           poDocNum: result.DocNum == null ? null : Number(result.DocNum),
         });
@@ -323,7 +331,7 @@ export const createPurchaseOrder = async (
       }
 
       try {
-        // Pass normalized documentLines (not raw client payload) so ItemDescription / UoM reach Flow 2.
+        // Preserve client-side item details for Flow 2; SAP receives only base references for copy-from lines.
         intercompany = await afterPoCreated({
           cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
           currency: resolveCurrencyCode(result.DocCurrency) || undefined,
@@ -333,7 +341,7 @@ export const createPurchaseOrder = async (
           docEntry: Number(result.DocEntry),
           docNum: result.DocNum != null ? Number(result.DocNum) : null,
           isDraft: false,
-          lines: documentLines,
+          lines,
           numAtCard: sapPayload.NumAtCard,
           portalCreatedBy,
           remarks: sapPayload.Comments == null ? undefined : String(sapPayload.Comments),

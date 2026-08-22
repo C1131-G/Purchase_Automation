@@ -56,13 +56,8 @@ export const VALIDATION_PATTERN = {
   lotNumber: /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/,
 } as const;
 
-export const PAGINATION_LIMIT = 100;
-
-/** Strict calendar-date check; Date parsing alone accepts invalid calendar values. */
 export const isIsoCalendarDate = (value: string): boolean => {
-  if (!VALIDATION_PATTERN.isoDate.test(value)) {
-    return false;
-  }
+  if (!VALIDATION_PATTERN.isoDate.test(value)) return false;
   const [yearText, monthText, dayText] = value.split("-");
   const year = Number(yearText);
   const month = Number(monthText);

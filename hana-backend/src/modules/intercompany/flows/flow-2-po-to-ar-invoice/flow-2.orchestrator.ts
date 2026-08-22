@@ -464,8 +464,8 @@ export const createFlow2Orchestrator = (deps?: {
           detail: {
             hook: "afterPoCreated",
             isDraft: input.isDraft ?? false,
+            route: "UNRESOLVED",
             sourceObject: IC_OBJECT.PO,
-            targetObject: IC_OBJECT.AR_DRAFT,
           },
         });
 
@@ -517,6 +517,8 @@ export const createFlow2Orchestrator = (deps?: {
           return skipFromCapture(captured);
         }
 
+        const isParkedRoute = captured.deliveryRoute === IC_OBJECT.PARKED_TRANSACTION;
+
         const partnerSnap = summarizePartner(captured.partner);
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.PARTNER,
@@ -563,6 +565,9 @@ export const createFlow2Orchestrator = (deps?: {
             sourceLineCount: lineSnap.lineCount,
             sourceLines: lineSnap.lines,
           },
+          title: isParkedRoute
+            ? "Flow 2 build parked transaction source data — started"
+            : "Flow 2 build AR invoice draft payload — started",
         });
 
         const buildResult = await build.build({
@@ -575,14 +580,16 @@ export const createFlow2Orchestrator = (deps?: {
         const arInvoiceSummary = summarizeArInvoicePayload(draftPayload as Record<string, unknown>);
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.BUILD,
-          check: "build_ar_invoice_draft_done",
+          check: isParkedRoute ? "build_parked_source_data_done" : "build_ar_invoice_draft_done",
           ctx: logCtx,
           detail: {
             ...arInvoiceSummary,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
           },
-          title: "Flow 2 build AR invoice draft payload — done",
+          title: isParkedRoute
+            ? "Flow 2 build parked transaction source data — done"
+            : "Flow 2 build AR invoice draft payload — done",
         });
 
         try {
@@ -591,6 +598,7 @@ export const createFlow2Orchestrator = (deps?: {
             const parkInput = {
               buyerCompanyId: captured.partner.buyerCompany.companyId,
               buyerCompanyName: captured.partner.buyerCompany.companyName,
+              corrId,
               customerCode: captured.partner.buyerCustomerCode,
               poDocEntry: input.docEntry,
               poDocNum: input.docNum,
@@ -631,6 +639,7 @@ export const createFlow2Orchestrator = (deps?: {
               return handleParkFailure({ captured, errorMessage, parkInput, startedAt });
             }
             const mapping = await mapAndNotify.complete({
+              corrId,
               durationMs: Date.now() - startedAt,
               partner: captured.partner,
               remarksTag: captured.remarksTag,
@@ -722,6 +731,7 @@ export const createFlow2Orchestrator = (deps?: {
           });
 
           const mapping = await mapAndNotify.complete({
+            corrId,
             durationMs: Date.now() - startedAt,
             partner: captured.partner,
             remarksTag: captured.remarksTag,
@@ -782,6 +792,7 @@ export const createFlow2Orchestrator = (deps?: {
               parkInput: {
                 buyerCompanyId: captured.partner.buyerCompany.companyId,
                 buyerCompanyName: captured.partner.buyerCompany.companyName,
+                corrId,
                 customerCode: captured.partner.buyerCustomerCode,
                 poDocEntry: input.docEntry,
                 poDocNum: input.docNum,

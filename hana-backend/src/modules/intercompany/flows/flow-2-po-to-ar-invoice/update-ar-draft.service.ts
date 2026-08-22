@@ -130,7 +130,11 @@ const applySellerSalesTax = async (input: {
 };
 
 export type UpdateArDraftService = {
-  update: (input: { buyerCompanyId: number; purchaseOrder: IcPoHookInput }) => Promise<void>;
+  update: (input: {
+    buyerCompanyId: number;
+    purchaseOrder: IcPoHookInput;
+    trace?: { corrId?: string };
+  }) => Promise<void>;
 };
 
 /** Best-effort PO mirror; document maps are never mutated after a target PATCH failure. */
@@ -144,7 +148,7 @@ export const createUpdateArDraftService = (deps?: {
   const partnerTax = deps?.partnerTax ?? createPartnerTaxResolver();
 
   return {
-    update: async ({ buyerCompanyId, purchaseOrder }) => {
+    update: async ({ buyerCompanyId, purchaseOrder, trace }) => {
       const invoiceMap = await documentMap.findBySource({
         sourceCompanyId: buyerCompanyId,
         sourceDocEntry: String(purchaseOrder.docEntry),
@@ -173,6 +177,18 @@ export const createUpdateArDraftService = (deps?: {
         ? (current.DocumentLines as Record<string, unknown>[])
         : [];
       const sourceLines = (purchaseOrder.lines ?? []) as Record<string, unknown>[];
+      icLog.info(IC_LOG_SCOPE.EDIT, "IC PO edit loaded seller A/R draft", {
+        buyerCompanyId,
+        check: "ic_edit_sync.ar_draft_loaded",
+        corrId: trace?.corrId,
+        draftEntry,
+        mappingId: map.mappingId,
+        outcome: "pass",
+        route: IC_OBJECT.AR_DRAFT,
+        sellerCompanyId: map.targetCompanyId,
+        sellerLineCount: currentLines.length,
+        sourceLineCount: sourceLines.length,
+      });
       const merged = mergeLines(currentLines, sourceLines);
       const documentLines = await applySellerSalesTax({
         buyerCompanyId,
@@ -199,13 +215,45 @@ export const createUpdateArDraftService = (deps?: {
           patch[key] = value;
         }
       }
-      await documents.patchArInvoiceDraft({ companyId: map.targetCompanyId, draftEntry, patch });
-      icLog.info(IC_LOG_SCOPE.EDIT, "IC edit sync — PO mirrored to seller A/R draft", {
-        check: "ic_edit_sync.apply",
+      icLog.info(IC_LOG_SCOPE.EDIT, "IC PO edit prepared seller A/R draft patch", {
+        buyerCompanyId,
+        check: "ic_edit_sync.ar_draft_patch_validated",
+        corrId: trace?.corrId,
         draftEntry,
+        headerFields: Object.keys(patch).filter((key) => key !== "DocumentLines"),
+        lineCount: documentLines.length,
+        mappingId: map.mappingId,
+        outcome: "pass",
+        route: IC_OBJECT.AR_DRAFT,
+        sellerCompanyId: map.targetCompanyId,
+      });
+      try {
+        await documents.patchArInvoiceDraft({ companyId: map.targetCompanyId, draftEntry, patch });
+      } catch (err: unknown) {
+        icLog.error(IC_LOG_SCOPE.EDIT, "IC PO edit failed to patch seller A/R draft", {
+          buyerCompanyId,
+          check: "ic_edit_sync.ar_draft_patch",
+          corrId: trace?.corrId,
+          draftEntry,
+          err: err instanceof Error ? err : new Error(String(err)),
+          mappingId: map.mappingId,
+          outcome: "fail",
+          route: IC_OBJECT.AR_DRAFT,
+          sellerCompanyId: map.targetCompanyId,
+        });
+        throw err;
+      }
+      icLog.info(IC_LOG_SCOPE.EDIT, "IC edit sync — PO mirrored to seller A/R draft", {
+        buyerCompanyId,
+        check: "ic_edit_sync.apply",
+        corrId: trace?.corrId,
+        draftEntry,
+        lineCount: documentLines.length,
         mappingId: map.mappingId,
         outcome: "pass",
         poDocEntry: purchaseOrder.docEntry,
+        route: IC_OBJECT.AR_DRAFT,
+        sellerCompanyId: map.targetCompanyId,
       });
     },
   };

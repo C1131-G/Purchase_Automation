@@ -7,6 +7,7 @@ import { createNotificationService } from "@/modules/intercompany/domain/notific
 import type { IcDocumentMap } from "@/modules/intercompany/domain/document-map/document-map.types";
 import { IC_ACTION, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
+import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 
 import { createMapPoToArInvoice } from "./map-po-to-ar-invoice";
@@ -22,6 +23,7 @@ export type MapAndNotifyService = {
     targetDocNum?: number;
     targetObject?: string;
     durationMs?: number;
+    corrId?: string;
   }) => Promise<IcDocumentMap>;
 };
 
@@ -46,6 +48,21 @@ export const createMapAndNotifyService = (deps?: {
           : null;
 
       let mapping: IcDocumentMap;
+      const logPhase = (check: string, message: string, completedMapping: IcDocumentMap): void => {
+        icLog.info(IC_LOG_SCOPE.FLOW2, message, {
+          buyerCompanyId: params.partner.buyerCompany.companyId,
+          check,
+          corrId: params.corrId,
+          mappingId: completedMapping.mappingId,
+          outcome: "pass",
+          route: targetObject,
+          sellerCompanyId: params.partner.sellerCompany.companyId,
+          sourceDocEntry: params.sourceDocEntry,
+          sourceDocNum: params.sourceDocNum,
+          targetDocEntry,
+          targetDocNum,
+        });
+      };
       if (targetObject === IC_OBJECT.AR_DRAFT) {
         mapping = await mapPo({
           partner: params.partner,
@@ -55,6 +72,7 @@ export const createMapAndNotifyService = (deps?: {
           targetDocEntry,
           targetDocNum,
         });
+        logPhase("flow2_mapping_completed", "IC Flow 2 document mapping completed", mapping);
         await notify({
           partner: params.partner,
           remarksTag: params.remarksTag,
@@ -63,6 +81,11 @@ export const createMapAndNotifyService = (deps?: {
           targetDocEntry,
           targetDocNum,
         });
+        logPhase(
+          "flow2_notification_completed",
+          "IC Flow 2 seller notification completed",
+          mapping,
+        );
       } else {
         const existing = await documentMap.findBySource({
           sourceCompanyId: params.partner.buyerCompany.companyId,
@@ -92,6 +115,7 @@ export const createMapAndNotifyService = (deps?: {
                   targetDocNum,
                   targetObject,
                 });
+        logPhase("flow2_mapping_completed", "IC Flow 2 document mapping completed", mapping);
         await notifications.create({
           companyId: params.partner.sellerCompany.companyId,
           documentId: targetDocEntry,
@@ -101,6 +125,11 @@ export const createMapAndNotifyService = (deps?: {
           priority: "MEDIUM",
           title: params.partner.sellerCompany.companyName,
         });
+        logPhase(
+          "flow2_notification_completed",
+          "IC Flow 2 seller notification completed",
+          mapping,
+        );
       }
 
       await history.append({
@@ -117,6 +146,7 @@ export const createMapAndNotifyService = (deps?: {
         }),
         status: "SUCCESS",
       });
+      logPhase("flow2_history_completed", "IC Flow 2 history completed", mapping);
 
       return mapping;
     },

@@ -3,7 +3,7 @@ import {
   NUMERIC_PROFILE,
   SAP_FIELD_MAX,
   VALIDATION_PATTERN,
-} from "@vendor-portal/validation-contracts";
+} from "@/shared/validation/validation-contracts";
 import { z } from "zod";
 
 const hasAtMostDecimals = (value: number, digits: number): boolean => {

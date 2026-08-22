@@ -2,9 +2,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 
-import { authQueries } from "@/features/auth/api/auth.queries";
 import { clearPersistedQueryCache } from "@/shared/utils/query-cache-persistence";
 import { useLogoutAction } from "@/store/auth/auth.store";
+
+import { finalizeLogoutQueryCache } from "./logout-query-cache";
 
 /**
  * Custom hook to manage the user logout mutation.
@@ -40,15 +41,8 @@ export function useLogout() {
         to: "/login",
       });
 
-      // 5. The protected screen is now unmounted, so clearing cannot reveal a skeleton.
-      queryClient.clear();
-
-      // 6. Warm organizations so the login dropdown has fresh data.
-      try {
-        await queryClient.prefetchQuery(authQueries.organization());
-      } catch {
-        // Non-blocking: the login screen remains usable if warm-up fails.
-      }
+      // 5. Purge protected data while preserving the login page's active organization query.
+      await finalizeLogoutQueryCache(queryClient);
     },
   });
 }

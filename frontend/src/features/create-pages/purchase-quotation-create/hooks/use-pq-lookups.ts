@@ -230,6 +230,7 @@ export function usePqLookups({
       return;
     }
     setHeader({ warehouseCode: "" });
+    setWarehouseFocused(true);
   };
 
   const handleSalesEmployeeChange = (value: string) => {

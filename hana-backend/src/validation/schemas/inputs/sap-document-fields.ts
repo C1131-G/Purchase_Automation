@@ -3,7 +3,7 @@ import {
   isIsoCalendarDate,
   SAP_FIELD_MAX,
   VALIDATION_PATTERN,
-} from "@vendor-portal/validation-contracts";
+} from "@/validation/validation-contracts";
 
 /**
  * SAP Business One marketing-document and payment field lengths

@@ -1,7 +1,7 @@
 // Common Input Validation: Reusable structures for pagination, searching, and filtering used across multiple modules.
 
 import { z } from "zod";
-import { PAGINATION_LIMIT, VALIDATION_PATTERN } from "@vendor-portal/validation-contracts";
+import { PAGINATION_LIMIT, VALIDATION_PATTERN } from "@/validation/validation-contracts";
 
 // PaginationInputSchema: Standardizes how the frontend requests sets of data.
 // Query values are lexical strings first so signs and exponent notation are not coerced.

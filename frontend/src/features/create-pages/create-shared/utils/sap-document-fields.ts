@@ -1,4 +1,4 @@
-import { SAP_FIELD_MAX, VALIDATION_PATTERN } from "@vendor-portal/validation-contracts";
+import { SAP_FIELD_MAX, VALIDATION_PATTERN } from "@/shared/validation/validation-contracts";
 
 /**
  * SAP Business One marketing-document and payment field limits

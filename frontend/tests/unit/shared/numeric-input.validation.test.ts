@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NUMERIC_PROFILE } from "@vendor-portal/validation-contracts";
+import { NUMERIC_PROFILE } from "@/shared/validation/validation-contracts";
 
 import {
   decimalDraftSchemas,

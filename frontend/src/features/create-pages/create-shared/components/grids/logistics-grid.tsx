@@ -162,7 +162,6 @@ export function LogisticsGrid({
               onFocus={onWarehouseFocus}
               onBlur={onWarehouseBlur}
               onOpenPopup={onOpenWarehousePopup}
-              maxLength={SAP_FIELD_MAX.warehouseCode}
               loading={warehousesLoading}
               invalid={warehouseInvalid}
               errorText={warehouseErrorText}

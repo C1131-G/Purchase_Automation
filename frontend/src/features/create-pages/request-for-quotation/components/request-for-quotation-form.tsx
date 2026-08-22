@@ -192,7 +192,7 @@ export function RequestForQuotationForm({
                 branchDisabled={state.branchDisabled}
                 showWarehouseInsteadOfDocNum
                 warehouseLabel="Warehouse"
-                warehouseInput={state.warehouseInput || state.defaultWarehouseCode}
+                warehouseInput={state.warehouseInput}
                 warehousesLoading={state.warehousesLoading}
                 warehouseFocused={state.canEditLines && state.warehouseFocused}
                 warehouseSuggestions={state.warehouseSuggestions}

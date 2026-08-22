@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NUMERIC_PROFILE } from "@vendor-portal/validation-contracts";
+import { NUMERIC_PROFILE } from "@/shared/validation/validation-contracts";
 
 const createUnsignedDecimalDraftSchema = (integerDigits: number, decimalDigits: number) =>
   z

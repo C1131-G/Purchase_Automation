@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NUMERIC_PROFILE } from "@vendor-portal/validation-contracts";
+import { NUMERIC_PROFILE } from "@/validation/validation-contracts";
 
 const hasAtMostDecimals = (value: number, digits: number): boolean => {
   const factor = 10 ** digits;

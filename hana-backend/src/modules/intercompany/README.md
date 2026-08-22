@@ -34,7 +34,6 @@ Flows are **independent**: Flow 2 does not require a prior RFQ. Feature flags li
 | **[flows/flow-1-pq-rfq-chain/README.md](./flows/flow-1-pq-rfq-chain/README.md)**         | Flow 1 steps                                    |
 | **[flows/flow-2-po-to-ar-invoice/README.md](./flows/flow-2-po-to-ar-invoice/README.md)** | Flow 2 steps                                    |
 | **[ops/](./ops/)**                                                                       | Pilot export/drop SQL · company C seed appendix |
-| **[ic-explained.html](../../../ic-explained.html)**                                      | Visual explainer (open in browser)              |
 
 ## Public wall
 

@@ -6,7 +6,7 @@ import {
   sapPositiveIntegerSchema,
   sapRequiredText,
 } from "@/shared/validation/sap-fields.validation";
-import { SAP_FIELD_MAX } from "@vendor-portal/validation-contracts";
+import { SAP_FIELD_MAX } from "@/shared/validation/validation-contracts";
 
 export const paymentInvoiceSchema = z.object({
   DocEntry: sapPositiveIntegerSchema,

@@ -47,8 +47,8 @@ export const createParkedTransactionRepository = (deps?: {
         dbName,
         `SELECT TOP 1 "ParkedTransactionsId", "TransactionRefNum"
            FROM "ParkedTransactions"
-          WHERE LOCATE(?, "Data") > 0
-          ORDER BY "ParkedTransactionsId" DESC`,
+          WHERE LOCATE("Data", ?) > 0
+          ORDER BY "ParkedTransactionsId" ASC`,
         [token],
       ),
     );

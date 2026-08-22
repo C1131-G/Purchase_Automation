@@ -671,6 +671,22 @@ export function CreateProductTableRow({
       <span className="font-bold text-rose-500">Item is out of stock</span>
     );
 
+  const rfqQuotedQuantityMessage =
+    row.stock > 0 ? (
+      <span className="flex flex-col gap-0.5">
+        <span>
+          <span className="font-normal text-neutral-500">Stock Qty: </span>
+          <span className="font-bold text-ink-900">{row.stock}</span>
+        </span>
+        <span>
+          <span className="font-normal text-neutral-500">SQ Max Allowed Qty: </span>
+          <span className="font-bold text-teal-600">{salesMaxAllowed}</span>
+        </span>
+      </span>
+    ) : (
+      <span className="font-bold text-rose-500">Item is out of stock</span>
+    );
+
   const rfqMaxQty =
     row.requiredQuantity && row.requiredQuantity > 0 ? row.requiredQuantity : undefined;
   React.useEffect(() => {
@@ -1247,22 +1263,35 @@ export function CreateProductTableRow({
           {/* Quoted Qty — locked on PQ; editable on RFQ seller fill. */}
           <td className="min-w-0 px-2 py-2">
             {sellerFieldEditable ? (
-              <NumericInput
-                profile="positiveQuantity"
-                placeholder="1"
-                aria-invalid={lineFieldInvalid?.quantity === true}
-                value={
-                  rowDraft?.quantity !== undefined
-                    ? rowDraft.quantity
-                    : row.quantity > 0
-                      ? String(row.quantity)
-                      : ""
-                }
-                onValueChange={(value) => {
-                  const capped = capQuantityDraftToMax(value, rfqMaxQty);
-                  setProductRowDraft(row.id, "quantity", capped);
-                  if (capped !== value) {
-                    const next = capQuantityToMax(Number(capped), rfqMaxQty);
+              <Tooltip content={rfqQuotedQuantityMessage} className="block w-auto max-w-none">
+                <NumericInput
+                  profile="positiveQuantity"
+                  placeholder="1"
+                  aria-invalid={lineFieldInvalid?.quantity === true}
+                  value={
+                    rowDraft?.quantity !== undefined
+                      ? rowDraft.quantity
+                      : row.quantity > 0
+                        ? String(row.quantity)
+                        : ""
+                  }
+                  onValueChange={(value) => {
+                    const capped = capQuantityDraftToMax(value, rfqMaxQty);
+                    setProductRowDraft(row.id, "quantity", capped);
+                    if (capped !== value) {
+                      const next = capQuantityToMax(Number(capped), rfqMaxQty);
+                      const newGross = row.price * next;
+                      const newDiscountAmount =
+                        Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                      updateProductRow(row.id, {
+                        discountAmount: newDiscountAmount,
+                        quantity: next,
+                      });
+                    }
+                  }}
+                  onBlur={(event) => {
+                    const parsed = parseDocumentLineQuantity(event.target.value);
+                    const next = capQuantityToMax(Math.max(1, parsed), rfqMaxQty);
                     const newGross = row.price * next;
                     const newDiscountAmount =
                       Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
@@ -1270,24 +1299,13 @@ export function CreateProductTableRow({
                       discountAmount: newDiscountAmount,
                       quantity: next,
                     });
-                  }
-                }}
-                onBlur={(event) => {
-                  const parsed = parseDocumentLineQuantity(event.target.value);
-                  const next = capQuantityToMax(Math.max(1, parsed), rfqMaxQty);
-                  const newGross = row.price * next;
-                  const newDiscountAmount =
-                    Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
-                  updateProductRow(row.id, {
-                    discountAmount: newDiscountAmount,
-                    quantity: next,
-                  });
-                  clearProductRowDraft(row.id, "quantity");
-                }}
-                className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
-                  lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
-                }`}
-              />
+                    clearProductRowDraft(row.id, "quantity");
+                  }}
+                  className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
+                    lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
+                  }`}
+                />
+              </Tooltip>
             ) : (
               <NumericInput
                 profile="positiveIntegerQuantity"

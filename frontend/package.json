@@ -21,7 +21,6 @@
     "@tanstack/react-router": "^1.157.16",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.2",
-    "@vendor-portal/validation-contracts": "workspace:*",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.21",
     "immer": "^11.1.11",
