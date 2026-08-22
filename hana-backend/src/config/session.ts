@@ -215,7 +215,7 @@ export const configureSession = (app: Application) => {
       cookie: {
         httpOnly: true, // Prevents XSS-based session hijacking.
         sameSite: "lax", // Balance between security and usability for typical navigation.
-        secure: config.nodeEnv === "production", // Requires HTTPS in production.
+        secure: false, // Requires HTTPS in production.- No need (ISS/NSSM)
       },
       name: "vendorportal.sid",
       resave: false, // Prevents unnecessary disk I/O on unchanged sessions.
