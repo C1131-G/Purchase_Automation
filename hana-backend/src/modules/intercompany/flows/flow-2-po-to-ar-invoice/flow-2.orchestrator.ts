@@ -53,6 +53,10 @@ import {
   type MapAndNotifyService,
 } from "./04-map-and-notify/map-and-notify.service";
 import type { Flow2CaptureResult } from "./flow-2.types";
+import {
+  createParkTransactionService,
+  type ParkTransactionService,
+} from "./03-park-transaction/park-transaction.service";
 
 const LOG_SCOPE = FLOW2_SCOPE;
 
@@ -146,6 +150,7 @@ export const createFlow2Orchestrator = (deps?: {
   resolvePartner?: ResolvePartnerService;
   notifications?: NotificationService;
   documents?: IcSlDocuments;
+  park?: ParkTransactionService;
   /** Injectable OSCN item map (default: real HANA OSCN → partner OITM). */
   mapItems?: (input: MapSourceItemsToPartnerInput) => Promise<Map<string, PartnerItemMapEntry>>;
 }): Flow2Orchestrator => {
@@ -177,6 +182,7 @@ export const createFlow2Orchestrator = (deps?: {
     createPostArInvoiceService({
       documents,
     });
+  const park = deps?.park ?? createParkTransactionService();
 
   const mapAndNotify =
     deps?.mapAndNotify ??
@@ -365,6 +371,78 @@ export const createFlow2Orchestrator = (deps?: {
     }
   };
 
+  const handleParkFailure = async (params: {
+    captured: Extract<Flow2CaptureResult, { kind: "proceed" }>;
+    errorMessage: string;
+    parkInput: Parameters<ParkTransactionService["park"]>[0];
+    startedAt: number;
+  }): Promise<IcHookResult> => {
+    const { captured, errorMessage, parkInput, startedAt } = params;
+    let mappingId: number | undefined;
+    const existing = await documentMap.findBySource({
+      sourceCompanyId: captured.partner.buyerCompany.companyId,
+      sourceDocEntry: captured.sourceDocEntry,
+      sourceObject: IC_OBJECT.PO,
+      targetObject: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    if (existing) {
+      await documentMap.updateStatus(existing.mappingId, IC_DOC_MAP_STATUS.ERROR, {
+        errorMessage: errorMessage.slice(0, 2000),
+        targetObject: IC_OBJECT.PARKED_TRANSACTION,
+      });
+      mappingId = existing.mappingId;
+    } else {
+      const created = await documentMap.create({
+        errorMessage: errorMessage.slice(0, 2000),
+        sourceCompanyId: captured.partner.buyerCompany.companyId,
+        sourceDocEntry: captured.sourceDocEntry,
+        sourceDocNum: captured.sourceDocNum,
+        sourceObject: IC_OBJECT.PO,
+        sourceRemarksTag: captured.remarksTag,
+        status: IC_DOC_MAP_STATUS.ERROR,
+        targetCompanyId: captured.partner.sellerCompany.companyId,
+        targetObject: IC_OBJECT.PARKED_TRANSACTION,
+      });
+      mappingId = created.mappingId;
+    }
+
+    try {
+      await history.append({
+        action: IC_ACTION.FLOW2_CREATE_PARKED_TRANSACTION,
+        companyId: captured.partner.buyerCompany.companyId,
+        documentEntry: captured.sourceDocEntry,
+        documentType: IC_OBJECT.PO,
+        durationMs: Date.now() - startedAt,
+        responseJson: JSON.stringify({ error: errorMessage.slice(0, 1000) }),
+        status: "ERROR",
+      });
+    } catch {
+      // history is best-effort
+    }
+
+    const maxRetry = await configuration.getNumber(
+      IC_CONFIG_KEY.MAX_RETRY_COUNT,
+      DEFAULT_MAX_RETRY,
+    );
+    const delayMinutes = await configuration.getNumber(IC_CONFIG_KEY.RETRY_DELAY_MINUTES, 5);
+    const retryItem = await retry.enqueue({
+      actionCode: IC_ACTION.FLOW2_CREATE_PARKED_TRANSACTION,
+      companyId: captured.partner.buyerCompany.companyId,
+      docMappingId: mappingId ?? null,
+      errorMessage: errorMessage.slice(0, 2000),
+      maxRetry,
+      nextRetryAt: new Date(Date.now() + Math.max(delayMinutes, 1) * 60_000).toISOString(),
+      payloadJson: JSON.stringify({ parkInput }),
+      sourceDocument: formatIcDocLabel({
+        kind: "PO",
+        docEntry: captured.sourceDocEntry,
+        docNum: captured.sourceDocNum,
+      }),
+      targetDocument: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    return { retryId: retryItem.retryId, status: "queued_retry" };
+  };
+
   return {
     run: async (input) => {
       const startedAt = Date.now();
@@ -487,11 +565,12 @@ export const createFlow2Orchestrator = (deps?: {
           },
         });
 
-        const draftPayload = await build.build({
+        const buildResult = await build.build({
           input: captured.input,
           partner: captured.partner,
           remarksTag: captured.remarksTag,
         });
+        const { draftPayload, salesQuotation } = buildResult;
 
         const arInvoiceSummary = summarizeArInvoicePayload(draftPayload as Record<string, unknown>);
         logFlowStep(LOG_SCOPE, {
@@ -506,18 +585,102 @@ export const createFlow2Orchestrator = (deps?: {
           title: "Flow 2 build AR invoice draft payload — done",
         });
 
-        // One SAP body log (no duplicate items array — lines are inside draft payload).
-        logFlowStep(LOG_SCOPE, {
-          ...FLOW2_STEPS.PAYLOAD,
-          ctx: logCtx,
-          detail: {
-            arInvoiceDraftPayload: draftPayload,
-            sellerCompanyId: captured.partner.sellerCompany.companyId,
-            sellerSapDb: captured.partner.sellerCompany.sapDbName,
-          },
-        });
-
         try {
+          if (captured.deliveryRoute === IC_OBJECT.PARKED_TRANSACTION) {
+            const transactionId = `IC-PO-${captured.partner.buyerCompany.companyId}-${captured.sourceDocEntry}`;
+            const parkInput = {
+              buyerCompanyId: captured.partner.buyerCompany.companyId,
+              buyerCompanyName: captured.partner.buyerCompany.companyName,
+              customerCode: captured.partner.buyerCustomerCode,
+              poDocEntry: input.docEntry,
+              poDocNum: input.docNum,
+              portalCreatedBy: input.portalCreatedBy,
+              salesPersonCode: input.salesPersonCode,
+              sellerDbName: captured.partner.sellerCompany.sapDbName,
+              sellerCompanyId: captured.partner.sellerCompany.companyId,
+              snapshot: salesQuotation,
+              sourceDocEntry: captured.sourceDocEntry,
+              transactionId,
+            };
+            logFlowStep(LOG_SCOPE, {
+              ...FLOW2_STEPS.POST,
+              check: "flow2_delivery_route",
+              ctx: logCtx,
+              detail: {
+                route: IC_OBJECT.PARKED_TRANSACTION,
+                sellerCompanyId: captured.partner.sellerCompany.companyId,
+                sqDocEntry: salesQuotation.docEntry,
+                transactionId,
+              },
+              title: "Flow 2 route seller SQ to POS parked transaction",
+            });
+            let parked;
+            try {
+              parked = await park.park(parkInput);
+            } catch (parkError: unknown) {
+              const errorMessage =
+                parkError instanceof Error ? parkError.message : String(parkError);
+              icLog.error(LOG_SCOPE, "Flow 2 POS parking failed; PO remains created", {
+                ...logCtx,
+                check: "parked_transaction_create",
+                err: parkError instanceof Error ? parkError : new Error(errorMessage),
+                outcome: "fail",
+                sellerCompanyId: captured.partner.sellerCompany.companyId,
+                transactionId,
+              });
+              return handleParkFailure({ captured, errorMessage, parkInput, startedAt });
+            }
+            const mapping = await mapAndNotify.complete({
+              durationMs: Date.now() - startedAt,
+              partner: captured.partner,
+              remarksTag: captured.remarksTag,
+              sourceDocEntry: captured.sourceDocEntry,
+              sourceDocNum: captured.sourceDocNum,
+              targetDocEntry: parked.parkedTransactionId,
+              targetObject: IC_OBJECT.PARKED_TRANSACTION,
+            });
+            logFlowStep(LOG_SCOPE, {
+              ...FLOW2_STEPS.COMPLETE,
+              check: parked.reused ? "parked_transaction_reused" : "parked_transaction_created",
+              ctx: logCtx,
+              detail: {
+                durationMs: Date.now() - startedAt,
+                mappingId: mapping.mappingId,
+                parkedTransactionId: parked.parkedTransactionId,
+                route: IC_OBJECT.PARKED_TRANSACTION,
+                status: "success",
+                transactionId,
+              },
+              title: "Flow 2 complete — POS transaction parked",
+            });
+            return {
+              mappingId: mapping.mappingId,
+              status: "success",
+              targetDoc: {
+                entry: parked.parkedTransactionId,
+                type: IC_OBJECT.PARKED_TRANSACTION,
+              },
+            };
+          }
+
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.POST,
+            check: "flow2_delivery_route",
+            ctx: logCtx,
+            detail: { route: IC_OBJECT.AR_DRAFT },
+            title: "Flow 2 route seller SQ to A/R invoice draft",
+          });
+          // The SAP draft request is safe to trace only on the draft route. The
+          // parked route logs identifiers and context, never its full POS JSON.
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.PAYLOAD,
+            ctx: logCtx,
+            detail: {
+              arInvoiceDraftPayload: draftPayload,
+              sellerCompanyId: captured.partner.sellerCompany.companyId,
+              sellerSapDb: captured.partner.sellerCompany.sapDbName,
+            },
+          });
           logFlowStep(LOG_SCOPE, {
             ...FLOW2_STEPS.POST,
             ctx: logCtx,
@@ -611,6 +774,28 @@ export const createFlow2Orchestrator = (deps?: {
           };
         } catch (slErr: unknown) {
           const errorMessage = slErr instanceof Error ? slErr.message : String(slErr);
+          if (captured.deliveryRoute === IC_OBJECT.PARKED_TRANSACTION) {
+            const transactionId = `IC-PO-${captured.partner.buyerCompany.companyId}-${captured.sourceDocEntry}`;
+            return handleParkFailure({
+              captured,
+              errorMessage,
+              parkInput: {
+                buyerCompanyId: captured.partner.buyerCompany.companyId,
+                buyerCompanyName: captured.partner.buyerCompany.companyName,
+                customerCode: captured.partner.buyerCustomerCode,
+                poDocEntry: input.docEntry,
+                poDocNum: input.docNum,
+                portalCreatedBy: input.portalCreatedBy,
+                salesPersonCode: input.salesPersonCode,
+                sellerDbName: captured.partner.sellerCompany.sapDbName,
+                sellerCompanyId: captured.partner.sellerCompany.companyId,
+                snapshot: salesQuotation,
+                sourceDocEntry: captured.sourceDocEntry,
+                transactionId,
+              },
+              startedAt,
+            });
+          }
           icLog.error(LOG_SCOPE, "Flow 2 AR invoice draft post failed; PO remains created", {
             ...logCtx,
             check: "sl_post_ar_invoice_draft",

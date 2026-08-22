@@ -11,11 +11,8 @@ import {
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import { SAP_OBJ_SALES_QUOTATION } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
-import type {
-  BuildArInvoiceInput,
-  BuildArInvoiceResult,
-  SqBaseLineInput,
-} from "./build-ar-invoice.types";
+import type { BuildArInvoiceInput, SqBaseLineInput } from "./build-ar-invoice.types";
+import type { Flow2ArInvoicePayload } from "../flow-2.types";
 
 export const formatSapDate = (value: unknown): string | undefined => {
   if (value == null) {
@@ -85,7 +82,7 @@ const isIcAutoNumAtCard = (value: string): boolean =>
   /^(?:auto\s+generated\s+)?based on\s+/i.test(value.trim());
 
 /** Build Service Layer A/R Invoice Draft body: convert seller SQ → POST /Drafts. */
-export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoiceResult => {
+export const buildArInvoicePayload = (input: BuildArInvoiceInput): Flow2ArInvoicePayload => {
   const sqDocEntry = Math.trunc(Number(input.sqDocEntry));
   if (!Number.isFinite(sqDocEntry) || sqDocEntry <= 0) {
     throw new Error("IC Flow 2 requires seller SQ DocEntry to convert to A/R Invoice Draft");
@@ -127,7 +124,7 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
 
   // A/R Invoice Draft body (POST /Drafts). DocObjectCode 13 = A/R Invoice object type.
   // Lines are BaseType 23 only — not free-standing ItemCode/VatGroup rows.
-  const payload: BuildArInvoiceResult = {
+  const payload: Flow2ArInvoicePayload = {
     CardCode: input.buyerCustomerCode,
     Comments: comments,
     DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,

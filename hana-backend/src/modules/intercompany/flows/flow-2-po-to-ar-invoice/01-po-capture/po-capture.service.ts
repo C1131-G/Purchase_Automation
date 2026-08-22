@@ -125,19 +125,40 @@ export const createPoCaptureService = (deps?: {
       });
 
       const sourceDocEntry = String(input.docEntry);
+      const parkedMap = await documentMap.findBySource({
+        sourceCompanyId: partner.buyerCompany.companyId,
+        sourceDocEntry,
+        sourceObject: IC_OBJECT.PO,
+        targetObject: IC_OBJECT.PARKED_TRANSACTION,
+      });
+      const draftMap = await documentMap.findBySource({
+        sourceCompanyId: partner.buyerCompany.companyId,
+        sourceDocEntry,
+        sourceObject: IC_OBJECT.PO,
+        targetObject: IC_OBJECT.AR_DRAFT,
+      });
+      const legacyInvoiceMap = await documentMap.findBySource({
+        sourceCompanyId: partner.buyerCompany.companyId,
+        sourceDocEntry,
+        sourceObject: IC_OBJECT.PO,
+        targetObject: IC_OBJECT.AR_INVOICE,
+      });
       const existing =
-        (await documentMap.findBySource({
-          sourceCompanyId: partner.buyerCompany.companyId,
-          sourceDocEntry,
-          sourceObject: IC_OBJECT.PO,
-          targetObject: IC_OBJECT.AR_DRAFT,
-        })) ??
-        (await documentMap.findBySource({
-          sourceCompanyId: partner.buyerCompany.companyId,
-          sourceDocEntry,
-          sourceObject: IC_OBJECT.PO,
-          targetObject: IC_OBJECT.AR_INVOICE,
-        }));
+        [parkedMap, draftMap, legacyInvoiceMap].find(
+          (map) => map?.status === IC_DOC_MAP_STATUS.SUCCESS,
+        ) ??
+        parkedMap ??
+        draftMap ??
+        legacyInvoiceMap;
+      const deliveryRoute =
+        existing?.targetObject === IC_OBJECT.PARKED_TRANSACTION
+          ? IC_OBJECT.PARKED_TRANSACTION
+          : existing?.targetObject === IC_OBJECT.AR_DRAFT ||
+              existing?.targetObject === IC_OBJECT.AR_INVOICE
+            ? IC_OBJECT.AR_DRAFT
+            : partner.sellerCompany.park
+              ? IC_OBJECT.PARKED_TRANSACTION
+              : IC_OBJECT.AR_DRAFT;
 
       if (existing && existing.status === IC_DOC_MAP_STATUS.SUCCESS) {
         logFlowStep(SCOPE, {
@@ -173,6 +194,7 @@ export const createPoCaptureService = (deps?: {
           ...partnerSnap,
           existingMapId: existing?.mappingId ?? null,
           existingMapStatus: existing?.status ?? null,
+          deliveryRoute,
           remarksTag,
           sourceDocEntry,
         },
@@ -180,6 +202,7 @@ export const createPoCaptureService = (deps?: {
 
       return {
         input,
+        deliveryRoute,
         kind: "proceed",
         partner,
         remarksTag,

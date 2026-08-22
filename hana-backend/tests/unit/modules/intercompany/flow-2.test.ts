@@ -25,6 +25,8 @@ import { createPoCaptureService } from "@/modules/intercompany/flows/flow-2-po-t
 import { buildArInvoicePayload } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/02-build-ar-invoice/build-ar-invoice.payload";
 import { createBuildArInvoiceService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/02-build-ar-invoice/build-ar-invoice.service";
 import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/flow-2.orchestrator";
+import { createPoEditSyncService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/po-edit-sync.service";
+import type { ParkTransactionService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/03-park-transaction/park-transaction.service";
 import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import {
@@ -67,12 +69,15 @@ const defaultSqSnapshot = {
 
 const createFlow2TestStack = (opts?: {
   enableFlag?: boolean;
+  parkSeller?: boolean;
+  park?: ParkTransactionService;
   slCreate?: () => Promise<{ docEntry: number; docNum?: number }>;
   getSalesQuotation?: () => Promise<typeof defaultSqSnapshot>;
   findSalesQuotationByDocNum?: () => Promise<typeof defaultSqSnapshot | null>;
 }) => {
   const db = createMemoryDb();
   seedMemoryCompanyGraph(db);
+  db.tables.IC_COMPANY[1].PARK = opts?.parkSeller ? "YES" : "NO";
   if (opts?.enableFlag !== false) {
     enableFlow2(db);
   }
@@ -159,6 +164,7 @@ const createFlow2TestStack = (opts?: {
       return map;
     },
     notifications,
+    park: opts?.park,
     resolvePartner,
     retry,
   });
@@ -174,6 +180,188 @@ const createFlow2TestStack = (opts?: {
 };
 
 describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
+  it("routes PARK=YES to POS without creating an A/R draft", async () => {
+    let draftCreateCount = 0;
+    let parkedInput: Parameters<ParkTransactionService["park"]>[0] | null = null;
+    const stack = createFlow2TestStack({
+      parkSeller: true,
+      park: {
+        park: async (input) => {
+          parkedInput = input;
+          return { parkedTransactionId: 77, reused: false, transactionRefNum: "1-2208" };
+        },
+        update: async () => ({ kind: "updated" }),
+      },
+      slCreate: async () => {
+        draftCreateCount += 1;
+        return { docEntry: 9001 };
+      },
+    });
+
+    const result = await stack.orchestrator.run({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 500,
+      docNum: 100050,
+      lines: [{ ItemCode: "ITEM1", Quantity: 3, WarehouseCode: "WH-TEST" }],
+      portalCreatedBy: "Raj",
+      remarks: remarksWithSq(810),
+      salesPersonCode: 15,
+    });
+
+    expect(draftCreateCount).toBe(0);
+    expect(parkedInput).toMatchObject({
+      buyerCompanyId: 1,
+      sellerDbName: "DB_B",
+      sellerCompanyId: 2,
+      sourceDocEntry: "500",
+      transactionId: "IC-PO-1-500",
+    });
+    expect(result).toMatchObject({
+      status: "success",
+      targetDoc: { entry: 77, type: "PARKED_TRANSACTION" },
+    });
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0]).toMatchObject({
+      TARGET_DOC_ENTRY: "77",
+      TARGET_OBJECT: "PARKED_TRANSACTION",
+    });
+  });
+
+  it("queues a parked-transaction retry without falling back to /Drafts", async () => {
+    let draftCreateCount = 0;
+    let parkCount = 0;
+    const stack = createFlow2TestStack({
+      parkSeller: true,
+      park: {
+        park: async () => {
+          parkCount += 1;
+          if (parkCount === 1) throw new Error("POS store mapping missing");
+          return { parkedTransactionId: 78, reused: true, transactionRefNum: "1-2208" };
+        },
+        update: async () => ({ kind: "updated" }),
+      },
+      slCreate: async () => {
+        draftCreateCount += 1;
+        return { docEntry: 9001 };
+      },
+    });
+
+    const result = await stack.orchestrator.run({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 501,
+      docNum: 100051,
+      lines: [{ ItemCode: "ITEM1", Quantity: 3, WarehouseCode: "WH-TEST" }],
+      portalCreatedBy: "Raj",
+      remarks: remarksWithSq(810),
+    });
+
+    expect(draftCreateCount).toBe(0);
+    expect(result).toMatchObject({ status: "queued_retry" });
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0]).toMatchObject({
+      STATUS: "ERROR",
+      TARGET_OBJECT: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    expect(stack.db.tables.IC_RETRY_QUEUE[0]).toMatchObject({
+      ACTION_CODE: "FLOW2_CREATE_PARKED_TRANSACTION",
+    });
+
+    // The ERROR mapping fixes the route; a later company flag change cannot switch
+    // the same PO to /Drafts during a manual rerun.
+    stack.db.tables.IC_COMPANY[1].PARK = "NO";
+    const rerun = await stack.orchestrator.run({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 501,
+      docNum: 100_051,
+      lines: [{ ItemCode: "ITEM1", Quantity: 3, WarehouseCode: "WH-TEST" }],
+      portalCreatedBy: "Raj",
+      remarks: remarksWithSq(810),
+    });
+    expect(rerun).toMatchObject({
+      status: "success",
+      targetDoc: { entry: 78, type: IC_OBJECT.PARKED_TRANSACTION },
+    });
+    expect(parkCount).toBe(2);
+    expect(draftCreateCount).toBe(0);
+  });
+
+  it.each([
+    ["updated", "success"],
+    ["consumed", "skipped"],
+  ] as const)("PO edit reports parked transaction %s", async (parkOutcome, expectedStatus) => {
+    const db = createMemoryDb();
+    seedMemoryCompanyGraph(db);
+    const sql = createMemorySqlClient(db);
+    const company = createCompanyService(createCompanyQueries(sql));
+    const documentMap = createDocumentMapService({
+      mutations: createDocumentMapMutations(sql),
+      queries: createDocumentMapQueries(sql),
+    });
+    await documentMap.create({
+      sourceCompanyId: 1,
+      sourceDocEntry: "500",
+      sourceObject: IC_OBJECT.PO,
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetCompanyId: 2,
+      targetDocEntry: "77",
+      targetObject: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    const buyerCompany = await company.getById(1);
+    const sellerCompany = await company.getById(2);
+    if (!buyerCompany || !sellerCompany) throw new Error("test company graph missing");
+    let updateCount = 0;
+    const sync = createPoEditSyncService({
+      build: {
+        build: async () => ({
+          draftPayload: {
+            CardCode: "C-A-ON-B",
+            Comments: "SQ 810",
+            DocObjectCode: "13",
+            DocumentLines: [],
+          },
+          salesQuotation: defaultSqSnapshot,
+        }),
+      },
+      company,
+      documentMap,
+      park: {
+        park: async () => ({ parkedTransactionId: 77, reused: true, transactionRefNum: "1-2208" }),
+        update: async () => {
+          updateCount += 1;
+          return { kind: parkOutcome };
+        },
+      },
+      resolvePartner: {
+        resolve: async () => null,
+        resolveOutcome: async () => ({
+          partner: {
+            bpMappingId: 10,
+            buyerCompany,
+            buyerCustomerCode: "C-A-ON-B",
+            sellerCompany,
+            vendorCode: "V-B",
+          },
+          success: true,
+        }),
+      },
+      updateArDraft: { update: async () => undefined },
+    });
+
+    const result = await sync.sync({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 500,
+      docNum: 100050,
+      remarks: remarksWithSq(810),
+    });
+
+    expect(updateCount).toBe(1);
+    expect(result.status).toBe(expectedStatus);
+    if (parkOutcome === "consumed") {
+      expect(result).toEqual({ reason: "parked_transaction_consumed", status: "skipped" });
+    }
+  });
   it("removes attachment fields from IC partner payloads", () => {
     const payload = {
       AttachmentEntry: 91,
@@ -425,7 +613,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
       remarksTag: "IC-PO-202",
     });
 
-    expect(payload.DocumentLines).toEqual([
+    expect(payload.draftPayload.DocumentLines).toEqual([
       {
         BaseEntry: 810,
         BaseLine: 0,
@@ -433,7 +621,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
         Quantity: 3,
       },
     ]);
-    expect(payload.CardCode).toBe("C-A-ON-B");
+    expect(payload.draftPayload.CardCode).toBe("C-A-ON-B");
   });
 
   it("T5.4e resolves SQ via PQ DocNum remarks + RFQ→SQ map (not DocEntry)", async () => {
@@ -531,7 +719,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
       remarksTag: "IC-PO-8001330",
     });
 
-    expect(payload.DocumentLines[0]).toMatchObject({
+    expect(payload.draftPayload.DocumentLines[0]).toMatchObject({
       BaseEntry: 810,
       BaseType: SAP_OBJ_SALES_QUOTATION,
     });
@@ -619,7 +807,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
       remarksTag: "IC-PO-5001330",
     });
 
-    expect(payload.DocumentLines[0]).toMatchObject({
+    expect(payload.draftPayload.DocumentLines[0]).toMatchObject({
       BaseEntry: 810,
       BaseType: SAP_OBJ_SALES_QUOTATION,
     });

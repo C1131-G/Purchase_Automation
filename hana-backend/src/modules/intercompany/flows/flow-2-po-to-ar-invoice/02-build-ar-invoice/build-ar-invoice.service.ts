@@ -11,6 +11,7 @@ import { parseIcRemarkLinks } from "@/modules/intercompany/infrastructure/ic-rem
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
+import type { IcSalesQuotationSnapshot } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 import type { IcPoHookInput } from "@/modules/intercompany/flows/shared/flow.types";
@@ -283,6 +284,7 @@ export const createBuildArInvoiceService = (deps?: {
       let sqDocEntry = chain.sqDocEntry;
       let sqDocNum = chain.sqDocNum;
       let sqLines: SqBaseLineInput[] = [];
+      let salesQuotationSnapshot: IcSalesQuotationSnapshot | null = null;
 
       // Resolve SQ DocEntry when remarks only carried DocNum.
       if (sqDocEntry == null && sqDocNum != null) {
@@ -294,6 +296,7 @@ export const createBuildArInvoiceService = (deps?: {
           sqDocEntry = byNum.docEntry;
           sqDocNum = byNum.docNum ?? sqDocNum;
           sqLines = byNum.documentLines;
+          salesQuotationSnapshot = byNum;
         }
       }
 
@@ -325,25 +328,25 @@ export const createBuildArInvoiceService = (deps?: {
         );
       }
 
-      // Load open SQ lines when not already fetched by DocNum lookup.
-      if (sqLines.length === 0) {
-        const salesQuotation = await documents.getSalesQuotation({
-          companyId: targetCompanyId,
-          docEntry: sqDocEntry,
+      // Always reload the full SQ. Header/address/commercial fields are required by the
+      // POS parked route, while DocNum and remarks-chain lookups may return only a summary.
+      const salesQuotation = await documents.getSalesQuotation({
+        companyId: targetCompanyId,
+        docEntry: sqDocEntry,
+      });
+      sqDocEntry = salesQuotation.docEntry;
+      sqDocNum = salesQuotation.docNum ?? sqDocNum;
+      sqLines = salesQuotation.documentLines;
+      salesQuotationSnapshot = salesQuotation;
+      if (salesQuotation.cardCode && salesQuotation.cardCode !== partner.buyerCustomerCode) {
+        icLog.warn(IC_LOG_SCOPE.FLOW2, "SQ CardCode differs from mapped buyer customer", {
+          check: "sq_cardcode_mismatch",
+          mappedBuyerCustomer: partner.buyerCustomerCode,
+          outcome: "fail",
+          sqCardCode: salesQuotation.cardCode,
+          sqDocEntry,
+          targetCompanyId,
         });
-        sqDocEntry = salesQuotation.docEntry;
-        sqDocNum = salesQuotation.docNum ?? sqDocNum;
-        sqLines = salesQuotation.documentLines;
-        if (salesQuotation.cardCode && salesQuotation.cardCode !== partner.buyerCustomerCode) {
-          icLog.warn(IC_LOG_SCOPE.FLOW2, "SQ CardCode differs from mapped buyer customer", {
-            check: "sq_cardcode_mismatch",
-            mappedBuyerCustomer: partner.buyerCustomerCode,
-            outcome: "fail",
-            sqCardCode: salesQuotation.cardCode,
-            sqDocEntry,
-            targetCompanyId,
-          });
-        }
       }
 
       const payload = buildArInvoicePayload({
@@ -382,7 +385,7 @@ export const createBuildArInvoiceService = (deps?: {
         targetCompanyId,
       });
 
-      return payload;
+      return { draftPayload: payload, salesQuotation: salesQuotationSnapshot };
     },
   };
 };

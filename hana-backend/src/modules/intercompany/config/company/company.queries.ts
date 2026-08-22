@@ -17,6 +17,10 @@ const mapRow = (row: CompanyRow): IcCompany => ({
   companyName: toString(row.COMPANY_NAME ?? row.companyName),
   defaultBranchId: toNullableNumber(row.DEFAULT_BRANCH_ID ?? row.defaultBranchId),
   isActive: toBool(row.IS_ACTIVE ?? row.isActive),
+  park:
+    String(row.PARK ?? row.park ?? "")
+      .trim()
+      .toUpperCase() === "YES",
   sapDbName: toString(row.SAP_DB_NAME ?? row.sapDbName),
 });
 
@@ -30,7 +34,7 @@ export const createCompanyQueries = (sql: IcSqlClient = getIcSqlClient()): Compa
   getById: async (companyId) => {
     const rows = await sql.query(
       `SELECT "COMPANY_ID", "COMPANY_CODE", "COMPANY_NAME", "SAP_DB_NAME",
-              "DEFAULT_BRANCH_ID", "IS_ACTIVE"
+              "DEFAULT_BRANCH_ID", "IS_ACTIVE", "PARK"
          FROM "IC_COMPANY"
         WHERE "COMPANY_ID" = ?`,
       [companyId],
@@ -41,7 +45,7 @@ export const createCompanyQueries = (sql: IcSqlClient = getIcSqlClient()): Compa
   getBySapDbName: async (sapDbName) => {
     const rows = await sql.query(
       `SELECT "COMPANY_ID", "COMPANY_CODE", "COMPANY_NAME", "SAP_DB_NAME",
-              "DEFAULT_BRANCH_ID", "IS_ACTIVE"
+              "DEFAULT_BRANCH_ID", "IS_ACTIVE", "PARK"
          FROM "IC_COMPANY"
         WHERE "SAP_DB_NAME" = ?`,
       [sapDbName],
@@ -52,7 +56,7 @@ export const createCompanyQueries = (sql: IcSqlClient = getIcSqlClient()): Compa
   listActive: async () => {
     const rows = await sql.query(
       `SELECT "COMPANY_ID", "COMPANY_CODE", "COMPANY_NAME", "SAP_DB_NAME",
-              "DEFAULT_BRANCH_ID", "IS_ACTIVE"
+              "DEFAULT_BRANCH_ID", "IS_ACTIVE", "PARK"
          FROM "IC_COMPANY"
         WHERE "IS_ACTIVE" = 1
         ORDER BY "COMPANY_ID"`,

@@ -19,6 +19,16 @@ import {
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
 import { createUpdateArDraftService, type UpdateArDraftService } from "./update-ar-draft.service";
+import {
+  createBuildArInvoiceService,
+  type BuildArInvoiceService,
+} from "./02-build-ar-invoice/build-ar-invoice.service";
+import {
+  createParkTransactionService,
+  type ParkTransactionService,
+} from "./03-park-transaction/park-transaction.service";
+import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
+import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 
 export type PoEditSyncService = {
   sync: (input: IcPoHookInput) => Promise<IcHookResult>;
@@ -28,10 +38,16 @@ export const createPoEditSyncService = (deps?: {
   company?: CompanyService;
   documentMap?: DocumentMapService;
   updateArDraft?: UpdateArDraftService;
+  build?: BuildArInvoiceService;
+  park?: ParkTransactionService;
+  resolvePartner?: ResolvePartnerService;
 }): PoEditSyncService => {
   const company = deps?.company ?? createCompanyService();
   const documentMap = deps?.documentMap ?? createDocumentMapService();
   const updateArDraft = deps?.updateArDraft ?? createUpdateArDraftService({ documentMap });
+  const build = deps?.build ?? createBuildArInvoiceService({ documentMap });
+  const park = deps?.park ?? createParkTransactionService();
+  const resolvePartner = deps?.resolvePartner ?? createResolvePartnerService();
 
   return {
     sync: async (input) => {
@@ -114,6 +130,60 @@ export const createPoEditSyncService = (deps?: {
           phase: "A/R invoice already posted",
         });
         return finish(skipResult("invoice_posted"));
+      }
+
+      const parkedMap = await documentMap.findBySource({
+        sourceCompanyId: icCompany.companyId,
+        sourceDocEntry: String(input.docEntry),
+        sourceObject: IC_OBJECT.PO,
+        targetObject: IC_OBJECT.PARKED_TRANSACTION,
+      });
+      const parkedTransactionId = Number(parkedMap?.targetDocEntry);
+      if (
+        parkedMap?.status === IC_DOC_MAP_STATUS.SUCCESS &&
+        parkedMap.targetCompanyId &&
+        Number.isFinite(parkedTransactionId) &&
+        parkedTransactionId > 0
+      ) {
+        const resolved = await resolvePartner.resolveOutcome({
+          cardCode: input.cardCode,
+          dbName: input.dbName,
+        });
+        if (!resolved.success) return finish(skipResult(resolved.reason));
+        const built = await build.build({
+          input,
+          partner: resolved.partner,
+          remarksTag: parkedMap.sourceRemarksTag ?? `IC-PO-${input.docEntry}`,
+        });
+        const transactionId = `IC-PO-${icCompany.companyId}-${input.docEntry}`;
+        const outcome = await park.update({
+          buyerCompanyId: icCompany.companyId,
+          buyerCompanyName: resolved.partner.buyerCompany.companyName,
+          customerCode: resolved.partner.buyerCustomerCode,
+          parkedTransactionId,
+          poDocEntry: input.docEntry,
+          poDocNum: input.docNum,
+          portalCreatedBy: input.portalCreatedBy,
+          salesPersonCode: input.salesPersonCode,
+          sellerCompanyId: resolved.partner.sellerCompany.companyId,
+          sellerDbName: resolved.partner.sellerCompany.sapDbName,
+          snapshot: built.salesQuotation,
+          sourceDocEntry: String(input.docEntry),
+          transactionId,
+        });
+        if (outcome.kind === "consumed") {
+          return finish(skipResult("parked_transaction_consumed"), {
+            parkedTransactionId,
+            mappingId: parkedMap.mappingId,
+          });
+        }
+        return finish(
+          {
+            status: "success",
+            targetDoc: { entry: parkedTransactionId, type: IC_OBJECT.PARKED_TRANSACTION },
+          },
+          { parkedTransactionId, mappingId: parkedMap.mappingId },
+        );
       }
 
       const draftMap = await documentMap.findBySource({

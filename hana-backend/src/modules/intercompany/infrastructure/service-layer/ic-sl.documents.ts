@@ -19,6 +19,11 @@ import { createIcSlSessionService, type IcSlSessionService } from "./ic-sl.sessi
 
 const SCOPE = IC_LOG_SCOPE.SL;
 
+const finiteNumberOrNull = (value: unknown): number | null => {
+  const numberValue = Number(value);
+  return value == null || value === "" || !Number.isFinite(numberValue) ? null : numberValue;
+};
+
 export type CreateArInvoiceDraftInput = {
   companyId: number;
   /**
@@ -219,12 +224,49 @@ export type IcSalesQuotationLine = {
   /** SAP SL: bost_Open | bost_Close (omit → treat as open). */
   LineStatus?: string | null;
   RemainingOpenQuantity?: number | null;
+  ItemDescription?: string | null;
+  WarehouseCode?: string | null;
+  UnitPrice?: number | null;
+  PriceAfterVAT?: number | null;
+  GrossPrice?: number | null;
+  DiscountPercent?: number | null;
+  VatGroup?: string | null;
+  TaxPercentagePerRow?: number | null;
+  LineTotal?: number | null;
+  GrossTotal?: number | null;
+  TaxTotal?: number | null;
+  UoMCode?: string | null;
+  FreeText?: string | null;
+  TreeType?: string | null;
+  ManBtchNum?: string | null;
+  ManSerNum?: string | null;
+};
+
+export type IcSalesQuotationAddress = {
+  Street?: string;
+  Block?: string;
+  Building?: string;
+  City?: string;
+  Country?: string;
+  State?: string;
+  ZipCode?: string;
+  AdresType?: string;
 };
 
 export type IcSalesQuotationSnapshot = {
   docEntry: number;
   docNum?: number;
   cardCode?: string | null;
+  cardName?: string | null;
+  comments?: string | null;
+  docDate?: string | null;
+  docDueDate?: string | null;
+  numAtCard?: string | null;
+  salesPersonCode?: number | null;
+  branchId?: number | null;
+  address?: string | null;
+  address2?: string | null;
+  customerAddress?: IcSalesQuotationAddress;
   documentLines: IcSalesQuotationLine[];
 };
 
@@ -761,8 +803,34 @@ export const createIcSlDocuments = (deps?: {
               !Number.isFinite(Number(line.RemainingOpenQuantity))
                 ? null
                 : Number(line.RemainingOpenQuantity),
+            ItemDescription:
+              line.ItemDescription == null ? null : String(line.ItemDescription).trim() || null,
+            WarehouseCode:
+              line.WarehouseCode == null ? null : String(line.WarehouseCode).trim() || null,
+            UnitPrice: finiteNumberOrNull(line.UnitPrice ?? line.Price),
+            PriceAfterVAT: finiteNumberOrNull(line.PriceAfterVAT),
+            GrossPrice: finiteNumberOrNull(line.GrossPrice),
+            DiscountPercent: finiteNumberOrNull(line.DiscountPercent),
+            VatGroup: line.VatGroup == null ? null : String(line.VatGroup).trim() || null,
+            TaxPercentagePerRow: finiteNumberOrNull(line.TaxPercentagePerRow),
+            LineTotal: finiteNumberOrNull(line.LineTotal),
+            GrossTotal: finiteNumberOrNull(line.GrossTotal),
+            TaxTotal: finiteNumberOrNull(line.TaxTotal),
+            UoMCode: line.UoMCode == null ? null : String(line.UoMCode).trim() || null,
+            FreeText: line.FreeText == null ? null : String(line.FreeText),
+            TreeType: line.TreeType == null ? null : String(line.TreeType),
+            ManBtchNum: line.ManBtchNum == null ? null : String(line.ManBtchNum),
+            ManSerNum: line.ManSerNum == null ? null : String(line.ManSerNum),
           };
         });
+        const addressExtension =
+          data.AddressExtension && typeof data.AddressExtension === "object"
+            ? (data.AddressExtension as Record<string, unknown>)
+            : {};
+        const addressValue = (key: string): string | undefined => {
+          const value = addressExtension[key];
+          return value == null || String(value).trim() === "" ? undefined : String(value);
+        };
         icLog.info(SCOPE, "IC SL sales quotation loaded for AR convert", {
           check: "sl_get_sales_quotation",
           companyId: input.companyId,
@@ -773,10 +841,29 @@ export const createIcSlDocuments = (deps?: {
           outcome: "pass",
         });
         return {
+          address: data.Address == null ? null : String(data.Address),
+          address2: data.Address2 == null ? null : String(data.Address2),
+          branchId: finiteNumberOrNull(data.BPL_IDAssignedToInvoice),
           cardCode,
+          cardName: data.CardName == null ? null : String(data.CardName).trim() || null,
+          comments: data.Comments == null ? null : String(data.Comments),
+          customerAddress: {
+            AdresType: addressValue("ShipToAddressType"),
+            Block: addressValue("ShipToBlock"),
+            Building: addressValue("ShipToBuilding"),
+            City: addressValue("ShipToCity"),
+            Country: addressValue("ShipToCountry"),
+            State: addressValue("ShipToState"),
+            Street: addressValue("ShipToStreet"),
+            ZipCode: addressValue("ShipToZipCode"),
+          },
+          docDate: data.DocDate == null ? null : String(data.DocDate),
+          docDueDate: data.DocDueDate == null ? null : String(data.DocDueDate),
           docEntry: Number.isFinite(entry) && entry > 0 ? Math.trunc(entry) : docEntry,
           docNum: Number.isFinite(docNum) ? docNum : undefined,
           documentLines,
+          numAtCard: data.NumAtCard == null ? null : String(data.NumAtCard),
+          salesPersonCode: finiteNumberOrNull(data.SalesPersonCode),
         };
       } catch (err: unknown) {
         logSlFailure({

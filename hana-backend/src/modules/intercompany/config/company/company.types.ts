@@ -5,4 +5,6 @@ export type IcCompany = {
   sapDbName: string;
   defaultBranchId: number | null;
   isActive: boolean;
+  /** Seller Flow 2 delivery mode. Only IC_COMPANY.PARK='YES' enables POS parking. */
+  park: boolean;
 };

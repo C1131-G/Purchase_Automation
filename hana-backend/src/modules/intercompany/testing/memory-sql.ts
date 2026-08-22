@@ -821,6 +821,7 @@ export const seedMemoryCompanyGraph = (db: MemoryDb): void => {
       COMPANY_NAME: "Company A",
       DEFAULT_BRANCH_ID: 1,
       IS_ACTIVE: 1,
+      PARK: "NO",
       SAP_DB_NAME: "DB_A",
     },
     {
@@ -829,6 +830,7 @@ export const seedMemoryCompanyGraph = (db: MemoryDb): void => {
       COMPANY_NAME: "Company B",
       DEFAULT_BRANCH_ID: 1,
       IS_ACTIVE: 1,
+      PARK: "NO",
       SAP_DB_NAME: "DB_B",
     },
   );

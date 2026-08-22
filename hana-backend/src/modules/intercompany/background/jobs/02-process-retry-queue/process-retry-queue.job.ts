@@ -43,6 +43,11 @@ import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/servic
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createSellerSq } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/create-seller-sq";
 import { getIcSqlClient, type IcSqlClient } from "@/modules/intercompany/infrastructure/ic-sql";
+import {
+  createParkTransactionService,
+  type ParkTransactionInput,
+  type ParkTransactionService,
+} from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/03-park-transaction/park-transaction.service";
 
 /** Map retry action → same step numbers as the original failed flow step. */
 const retryStepMeta = (actionCode: string) => {
@@ -57,6 +62,18 @@ const retryStepMeta = (actionCode: string) => {
       scope: IC_LOG_SCOPE.FLOW2,
       steps: FLOW2_RETRY_STEPS,
     };
+  }
+  if (actionCode === IC_ACTION.FLOW2_CREATE_PARKED_TRANSACTION) {
+    const parkedSteps = {
+      DEAD: { ...FLOW2_RETRY_STEPS.DEAD, title: "Flow 2 — retry POS parking dead (step 7)" },
+      FAIL: { ...FLOW2_RETRY_STEPS.FAIL, title: "Flow 2 — retry POS parking failed (step 7)" },
+      START: { ...FLOW2_RETRY_STEPS.START, title: "Flow 2 — retry POS parking (step 7)" },
+      SUCCESS: {
+        ...FLOW2_RETRY_STEPS.SUCCESS,
+        title: "Flow 2 — retry POS parking success (step 7)",
+      },
+    };
+    return { scope: IC_LOG_SCOPE.FLOW2, steps: parkedSteps };
   }
   return null;
 };
@@ -145,6 +162,7 @@ const createDefaultHandlers = (deps: {
   partnerTax: PartnerTaxResolver;
   notifications: NotificationService;
   history: HistoryService;
+  park: ParkTransactionService;
 }): Record<string, RetryActionHandler> => {
   const flow2CreateArDraft: RetryActionHandler = async (item) => {
     const payload = parsePayload(item.payloadJson);
@@ -220,6 +238,49 @@ const createDefaultHandlers = (deps: {
       responseJson: JSON.stringify({
         docEntry: created.docEntry,
         docNum: created.docNum,
+        retryId: item.retryId,
+      }),
+      status: "SUCCESS",
+    });
+  };
+
+  const flow2CreateParkedTransaction: RetryActionHandler = async (item) => {
+    const payload = parsePayload(item.payloadJson);
+    const raw = payload.parkInput;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("FLOW2_CREATE_PARKED_TRANSACTION payload missing parkInput");
+    }
+    const parkInput = raw as ParkTransactionInput;
+    if (!parkInput.transactionId || !parkInput.sellerDbName || !parkInput.snapshot) {
+      throw new Error("FLOW2_CREATE_PARKED_TRANSACTION payload is incomplete");
+    }
+    const parked = await deps.park.park(parkInput);
+    if (!item.docMappingId) {
+      throw new Error("FLOW2_CREATE_PARKED_TRANSACTION retry missing document mapping");
+    }
+    await deps.documentMap.updateStatus(item.docMappingId, IC_DOC_MAP_STATUS.SUCCESS, {
+      errorMessage: null,
+      targetDocEntry: String(parked.parkedTransactionId),
+      targetDocNum: null,
+      targetObject: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    await deps.notifications.create({
+      companyId: parkInput.sellerCompanyId,
+      documentId: String(parked.parkedTransactionId),
+      documentType: IC_OBJECT.PARKED_TRANSACTION,
+      flowStep: "FLOW2_POS_TRANSACTION_PARKED",
+      message: `Buyer PO ${parkInput.poDocNum ?? parkInput.poDocEntry} is ready for cashier processing in POS.`,
+      priority: "MEDIUM",
+      title: parkInput.buyerCompanyName,
+    });
+    await deps.history.append({
+      action: IC_ACTION.FLOW2_CREATE_PARKED_TRANSACTION,
+      companyId: parkInput.buyerCompanyId,
+      documentEntry: parkInput.sourceDocEntry,
+      documentType: IC_OBJECT.PO,
+      durationMs: null,
+      responseJson: JSON.stringify({
+        parkedTransactionId: parked.parkedTransactionId,
         retryId: item.retryId,
       }),
       status: "SUCCESS",
@@ -355,6 +416,7 @@ const createDefaultHandlers = (deps: {
   return {
     [IC_ACTION.FLOW1_CONVERT_PQ_SQ]: flow1ConvertPqSq,
     [IC_ACTION.FLOW2_CREATE_AR_DRAFT]: flow2CreateArDraft,
+    [IC_ACTION.FLOW2_CREATE_PARKED_TRANSACTION]: flow2CreateParkedTransaction,
   };
 };
 
@@ -371,6 +433,7 @@ export const createProcessRetryQueueJob = (deps?: {
   partnerTax?: PartnerTaxResolver;
   notifications?: NotificationService;
   history?: HistoryService;
+  park?: ParkTransactionService;
   scheduler?: SchedulerService;
   /** Override / inject handlers (tests). Unknown action codes fail the item. */
   handlers?: Partial<Record<string, RetryActionHandler>>;
@@ -392,6 +455,7 @@ export const createProcessRetryQueueJob = (deps?: {
     documents: deps?.documents ?? createIcSlDocuments(),
     history: deps?.history ?? createHistoryService(),
     notifications,
+    park: deps?.park ?? createParkTransactionService(),
     partnerTax,
     rfq: deps?.rfq ?? createRfqService(),
   });

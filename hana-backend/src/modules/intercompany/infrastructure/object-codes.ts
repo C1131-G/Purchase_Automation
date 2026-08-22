@@ -4,6 +4,8 @@ export const IC_OBJECT = {
   AR_DRAFT: "AR_DRAFT",
   /** @deprecated Prefer AR_DRAFT — kept for legacy real-invoice map rows. */
   AR_INVOICE: "AR_INVOICE",
+  /** Flow 2 POS handoff stored in the seller tenant ParkedTransactions table. */
+  PARKED_TRANSACTION: "PARKED_TRANSACTION",
   PO: "PO",
   PQ: "PQ",
   /** @deprecated Prefer PQ — kept for legacy document-map / history rows. */

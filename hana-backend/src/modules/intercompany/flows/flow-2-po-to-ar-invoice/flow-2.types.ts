@@ -10,6 +10,8 @@ export type Flow2SkipReason =
   | "already_mapped_success"
   | "missing_sl_connection";
 
+export type Flow2DeliveryRoute = "AR_DRAFT" | "PARKED_TRANSACTION";
+
 export type Flow2CaptureResult =
   | { kind: "skip"; reason: Flow2SkipReason; detail?: string; check?: string }
   | {
@@ -19,6 +21,7 @@ export type Flow2CaptureResult =
       sourceDocEntry: string;
       sourceDocNum: string | null;
       remarksTag: string;
+      deliveryRoute: Flow2DeliveryRoute;
     };
 
 export type Flow2ArInvoicePayload = {

@@ -1,4 +1,5 @@
 import type { Flow2ArInvoicePayload } from "../flow-2.types";
+import type { IcSalesQuotationSnapshot } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
 /** Open seller SQ line used as BaseLine for AR Invoice Draft convert. */
 export type SqBaseLineInput = {
@@ -52,4 +53,7 @@ export type BuildArInvoiceInput = {
   sqLines: SqBaseLineInput[];
 };
 
-export type BuildArInvoiceResult = Flow2ArInvoicePayload;
+export type BuildArInvoiceResult = {
+  draftPayload: Flow2ArInvoicePayload;
+  salesQuotation: IcSalesQuotationSnapshot;
+};

@@ -32,6 +32,7 @@ import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-
 import {
   IC_ACTION,
   IC_CONFIG_KEY,
+  IC_DOC_MAP_STATUS,
   IC_RETRY_STATUS,
 } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -403,5 +404,84 @@ describe("P7 background worker jobs", () => {
     expect(handled).toBe(1);
     const stored = await stack.retry.findById(enqueued.retryId);
     expect(stored?.status).toBe(IC_RETRY_STATUS.SUCCESS);
+  });
+
+  it("retries POS parking without falling back to an A/R draft", async () => {
+    const stack = createBackgroundStack();
+    const mapping = await stack.documentMap.create({
+      errorMessage: "POS unavailable",
+      sourceCompanyId: 1,
+      sourceDocEntry: "50",
+      sourceObject: IC_OBJECT.PO,
+      status: IC_DOC_MAP_STATUS.ERROR,
+      targetCompanyId: 2,
+      targetObject: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    const parkInput = {
+      buyerCompanyId: 1,
+      buyerCompanyName: "Buyer Company",
+      customerCode: "C-A",
+      poDocEntry: 50,
+      poDocNum: 100,
+      portalCreatedBy: "portal.user",
+      sellerCompanyId: 2,
+      sellerDbName: "DB_B",
+      snapshot: {
+        cardCode: "C-A",
+        docEntry: 810,
+        documentLines: [{ ItemCode: "I1", LineNum: 0, Quantity: 1, WarehouseCode: "WH-1" }],
+      },
+      sourceDocEntry: "50",
+      transactionId: "IC-PO-1-50",
+    };
+    await stack.retry.enqueue({
+      actionCode: IC_ACTION.FLOW2_CREATE_PARKED_TRANSACTION,
+      companyId: 1,
+      docMappingId: mapping.mappingId,
+      payloadJson: JSON.stringify({ parkInput }),
+      sourceDocument: IC_OBJECT.PO,
+      targetDocument: IC_OBJECT.PARKED_TRANSACTION,
+    });
+
+    let parkCalls = 0;
+    const job = createProcessRetryQueueJob({
+      documentMap: stack.documentMap,
+      history: stack.history,
+      notifications: stack.notifications,
+      park: {
+        park: async () => {
+          parkCalls += 1;
+          return {
+            parkedTransactionId: 42,
+            reused: true,
+            transactionRefNum: "9-2208",
+          };
+        },
+        update: async () => ({ kind: "updated" }),
+      },
+      retry: stack.retry,
+      scheduler: stack.scheduler,
+      sql: stack.sql,
+    });
+
+    const result = await job.run();
+
+    expect(result).toMatchObject({ claimed: 1, failed: 0, success: 1 });
+    expect(parkCalls).toBe(1);
+    const repaired = await stack.documentMap.findBySource({
+      sourceCompanyId: 1,
+      sourceDocEntry: "50",
+      sourceObject: IC_OBJECT.PO,
+      targetObject: IC_OBJECT.PARKED_TRANSACTION,
+    });
+    expect(repaired).toMatchObject({
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetDocEntry: "42",
+    });
+    expect(
+      stack.db.tables.IC_NOTIFICATION.some(
+        (row) => row.FLOW_STEP === "FLOW2_POS_TRANSACTION_PARKED",
+      ),
+    ).toBe(true);
   });
 });
