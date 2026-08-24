@@ -33,6 +33,7 @@ export type DocumentMapService = {
       targetObject?: string | null;
     },
   ) => Promise<IcDocumentMap | null>;
+  touch: (mappingId: number) => Promise<IcDocumentMap | null>;
 };
 
 /**
@@ -93,6 +94,7 @@ export const createDocumentMapService = (deps?: {
     },
 
     updateStatus: (mappingId, status, patch) => mutations.updateStatus(mappingId, status, patch),
+    touch: (mappingId) => mutations.touch(mappingId),
   };
 };
 

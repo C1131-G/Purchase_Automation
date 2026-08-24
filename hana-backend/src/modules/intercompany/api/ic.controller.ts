@@ -5,6 +5,7 @@ import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import { createProcessRetryQueueJob } from "@/modules/intercompany/background/jobs/02-process-retry-queue/process-retry-queue.job";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
+import { createIcRevisionService } from "@/modules/intercompany/domain/revision/revision.service";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { enrichRfqFromPqDraft } from "@/modules/intercompany/domain/rfq/enrich-rfq-from-pq-draft";
 import { withRfqCustomerDisplayList } from "@/modules/intercompany/domain/rfq/resolve-rfq-customer-display";
@@ -58,6 +59,21 @@ export const getIcHealth = (_req: Request, res: Response): void => {
     },
     success: true,
   });
+};
+
+export const getIcRevision = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const companyId = await resolveActorCompanyId(req);
+    const revision = await createIcRevisionService().getForCompany(companyId);
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({ data: { revision }, success: true });
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const confirmArInvoice = async (

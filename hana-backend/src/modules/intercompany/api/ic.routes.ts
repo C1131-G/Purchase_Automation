@@ -7,6 +7,7 @@ import {
   convertRfq,
   confirmArInvoice,
   getIcHealth,
+  getIcRevision,
   getRfq,
   listNotifications,
   listRetries,
@@ -30,6 +31,7 @@ const router = express.Router();
 
 router.get("/health", getIcHealth);
 router.use(validateSession);
+router.get("/revision", getIcRevision);
 
 router.get("/rfqs", listRfqs);
 router.get("/rfqs/:id", validateParams(RfqIdParamsSchema), getRfq);

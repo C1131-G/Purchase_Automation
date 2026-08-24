@@ -19,6 +19,7 @@ export type DocumentMapMutations = {
       targetObject?: string | null;
     },
   ) => Promise<IcDocumentMap | null>;
+  touch: (mappingId: number) => Promise<IcDocumentMap | null>;
 };
 
 const fetchById = async (sql: IcSqlClient, mappingId: number): Promise<IcDocumentMap | null> => {
@@ -78,6 +79,16 @@ export const createDocumentMapMutations = (
         patch.targetObject ?? null,
         mappingId,
       ],
+    );
+    return fetchById(sql, mappingId);
+  },
+
+  touch: async (mappingId) => {
+    await sql.query(
+      `UPDATE "IC_DOCUMENT_MAPPING"
+          SET "UPDATED_AT" = CURRENT_TIMESTAMP
+        WHERE "MAPPING_ID" = ?`,
+      [mappingId],
     );
     return fetchById(sql, mappingId);
   },

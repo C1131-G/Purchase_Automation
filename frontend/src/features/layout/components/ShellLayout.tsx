@@ -4,6 +4,7 @@ import React, { Suspense } from "react";
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/sidebar";
 import { useLogout } from "@/features/auth/hooks/use-logout";
+import { useIcRevisionWatcher } from "@/features/intercompany/api/intercompany.queries";
 import { prefetchTableRouteIntent } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
 import { cn } from "@/shared/utils/cn";
@@ -50,6 +51,8 @@ export function ShellLayout() {
   const logoutReason = useAuthStore((state) => state.logoutReason);
   const setSidebarOpen = useSetSidebarAction();
   const logoutBusy = isLoggingOut || isAuthLoading;
+
+  useIcRevisionWatcher(isAuthenticated);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);

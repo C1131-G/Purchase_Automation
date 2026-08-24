@@ -7,6 +7,7 @@ import type {
 export const intercompanyKeys = {
   all: ["intercompany"] as const,
   health: () => [...intercompanyKeys.all, "health"] as const,
+  revision: () => [...intercompanyKeys.all, "revision"] as const,
   notifications: () => [...intercompanyKeys.all, "notifications"] as const,
   notificationList: (params: IcNotificationsListParams = {}) =>
     [...intercompanyKeys.notifications(), "list", params] as const,

@@ -224,6 +224,7 @@ export const createPoEditSyncService = (deps?: {
             transactionId,
           });
         }
+        await documentMap.touch(parkedMap.mappingId);
         return finish(
           {
             status: "success",
@@ -283,6 +284,7 @@ export const createPoEditSyncService = (deps?: {
         purchaseOrder: input,
         trace: { corrId },
       });
+      await documentMap.touch(draftMap.mappingId);
 
       return finish(
         {

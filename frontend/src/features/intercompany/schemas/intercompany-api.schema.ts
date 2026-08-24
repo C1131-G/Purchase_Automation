@@ -15,6 +15,14 @@ export const icHealthResponseSchema = z.object({
 export type IcHealthData = z.infer<typeof icHealthDataSchema>;
 export type IcHealthResponse = z.infer<typeof icHealthResponseSchema>;
 
+/** GET /api/v1/ic/revision — company-scoped server-state change signal. */
+export const icRevisionResponseSchema = z.object({
+  data: z.object({ revision: z.string().min(1) }),
+  success: z.literal(true),
+});
+
+export type IcRevisionResponse = z.infer<typeof icRevisionResponseSchema>;
+
 /** Stable hook result when PO/PQ create optionally returns IC outcome (P5+). */
 export const icHookResultSchema = z.discriminatedUnion("status", [
   z.object({

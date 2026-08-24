@@ -4,6 +4,7 @@
  */
 export const IC_API_PATHS = {
   health: "/api/v1/ic/health",
+  revision: "/api/v1/ic/revision",
   notifications: "/api/v1/ic/notifications",
   notificationsMarkAllRead: "/api/v1/ic/notifications/mark-all-read",
   notificationsUnreadCount: "/api/v1/ic/notifications/unread-count",

@@ -24,7 +24,13 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
       // Prefer the latest req.log (may have gained userId after auth / refreshed span ids).
       const active = req.log ?? requestLog;
       const pathOnly = (req.originalUrl || "").split("?")[0] ?? "";
-      if (pathOnly === "/metrics" || pathOnly.endsWith("/metrics")) {
+      if (
+        pathOnly === "/metrics" ||
+        pathOnly.endsWith("/metrics") ||
+        ((pathOnly === "/api/v1/ic/revision" || pathOnly.endsWith("/api/v1/ic/revision")) &&
+          res.statusCode >= 200 &&
+          res.statusCode < 300)
+      ) {
         return;
       }
       active.info(

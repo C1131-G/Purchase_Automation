@@ -18,6 +18,49 @@ import { intercompanyAPI } from "./intercompany.service";
 
 export { intercompanyKeys };
 
+export const IC_REVISION_POLL_MS = 3_000;
+
+/**
+ * Single shell-level watcher for background IC writes. The first response is
+ * reconciled once so a background write cannot race initial document loading.
+ */
+export function useIcRevisionWatcher(enabled = true) {
+  const queryClient = useQueryClient();
+  const previousRevisionRef = useRef<string | null>(null);
+
+  const query = useQuery({
+    enabled,
+    queryFn: () => intercompanyAPI.getRevision(),
+    queryKey: intercompanyKeys.revision(),
+    refetchInterval: () =>
+      typeof document !== "undefined" && document.visibilityState === "visible"
+        ? IC_REVISION_POLL_MS
+        : false,
+    refetchOnWindowFocus: true,
+    retry: 1,
+    staleTime: 0,
+  });
+
+  const revision = query.data?.data.revision;
+  useEffect(() => {
+    if (!revision) {
+      return;
+    }
+    const previous = previousRevisionRef.current;
+    previousRevisionRef.current = revision;
+    if (previous === revision) {
+      return;
+    }
+    void invalidateIcCaches(
+      queryClient,
+      ["notifications", "retries", "rfq", "flow1Documents", "flow2Documents", "relationshipMaps"],
+      { refetchType: "active" },
+    );
+  }, [queryClient, revision]);
+
+  return query;
+}
+
 /**
  * Shared RFQ query options — used by hooks, login/sidebar/route prefetch, and table hover.
  * Matches other document tables (queryOptions + tableList cache policy).

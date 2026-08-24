@@ -12,6 +12,7 @@ import type {
   icRetriesListResponseSchema,
   icRfqDetailResponseSchema,
   icRfqsListResponseSchema,
+  icRevisionResponseSchema,
   icRunRetryResponseSchema,
   icUnreadCountResponseSchema,
   icUpdateRfqBodySchema,
@@ -23,6 +24,7 @@ import { toQueryString } from "@/shared/api/query-string";
 import { IC_API_PATHS } from "./intercompany.paths";
 
 export type IcHealthResponse = z.infer<typeof icHealthResponseSchema>;
+export type IcRevisionResponse = z.infer<typeof icRevisionResponseSchema>;
 export type IcUnreadCountResponse = z.infer<typeof icUnreadCountResponseSchema>;
 export type IcNotificationsListParams = z.infer<typeof icNotificationsListParamsSchema>;
 export type IcNotificationsListResponse = z.infer<typeof icNotificationsListResponseSchema>;
@@ -45,6 +47,9 @@ export const intercompanyAPI = {
    * `GET /api/v1/ic/health`
    */
   getHealth: () => apiClient<IcHealthResponse>(IC_API_PATHS.health),
+
+  /** Company-scoped IC revision signal for background creation/edit completion. */
+  getRevision: () => apiClient<IcRevisionResponse>(IC_API_PATHS.revision),
 
   /**
    * Session-company notifications.
