@@ -50,6 +50,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { findWarehouseSelection } from "@/features/create-pages/create-shared/utils/location-lookup";
 import {
   notifyCreateApiError,
   notifyEditRestrictedField,
@@ -165,6 +166,7 @@ export function useAPCreditMemoCreate({
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
+  const warehouseDirtyRef = useRef(false);
 
   const setSeries = useCallback(
     (series: number | null) => {
@@ -184,6 +186,7 @@ export function useAPCreditMemoCreate({
   });
 
   const resetWarehouse = useCallback(() => {
+    warehouseDirtyRef.current = false;
     setWarehouseInput("");
     setHeader({ warehouseCode: "" });
     setWarehouseFocused(false);
@@ -278,13 +281,8 @@ export function useAPCreditMemoCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
-    const codeOrName = match ? match[1]!.trim() : lookup;
-    const matched = warehouses.find(
-      (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
-    );
-    return matched?.code ?? lookup;
+    const matched = findWarehouseSelection(warehouses, warehouseInput);
+    return matched?.code ?? "";
   }, [warehouseInput, warehouses]);
 
   const searchWarehouseCode = useMemo(() => {
@@ -416,6 +414,14 @@ export function useAPCreditMemoCreate({
         : (editDetailQuery.data?.data?.DocStatus ?? "Open");
 
   useEffect(() => {
+    if (
+      warehouseDirtyRef.current ||
+      warehouseFocused ||
+      !header.warehouseCode ||
+      warehouses.length === 0
+    ) {
+      return;
+    }
     if (header.warehouseCode && warehouses.length > 0) {
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
@@ -424,7 +430,7 @@ export function useAPCreditMemoCreate({
         setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
-  }, [header.warehouseCode, warehouses, warehouseInput]);
+  }, [header.warehouseCode, warehouseFocused, warehouses, warehouseInput]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -1129,7 +1135,7 @@ export function useAPCreditMemoCreate({
     setModalOpen(true);
   };
 
-  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
     syncLookupSearchByMode(mode, value, {
       onSalesEmployee: handleBuyerChange,
       onSeries: seriesField.handleSeriesChange,
@@ -1137,6 +1143,7 @@ export function useAPCreditMemoCreate({
       onVendorName: handleVendorNameChange,
       onWarehouse: handleWarehouseInputChange,
     });
+  };
 
   useEffect(() => {
     if (!modalOpen) {
@@ -1344,22 +1351,20 @@ export function useAPCreditMemoCreate({
   };
 
   const handleWarehouseInputChange = (value: string) => {
+    warehouseDirtyRef.current = true;
     setWarehouseInput(value);
     if (value.trim() === "") {
       setWarehouseFocused(true);
       setHeader({ warehouseCode: "" });
       return;
     }
-    const matched = warehouses.find(
-      (w) =>
-        w.name.trim().toLowerCase() === value.trim().toLowerCase() ||
-        w.code.trim().toLowerCase() === value.trim().toLowerCase(),
-    );
+    const matched = findWarehouseSelection(warehouses, value);
     if (matched) {
       selectWarehouse(matched);
       return;
     }
     setHeader({ warehouseCode: "" });
+    setWarehouseFocused(true);
   };
 
   const handleBuyerChange = (value: string) => {
@@ -1393,6 +1398,7 @@ export function useAPCreditMemoCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
+    warehouseDirtyRef.current = false;
     setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: warehouse.code })));

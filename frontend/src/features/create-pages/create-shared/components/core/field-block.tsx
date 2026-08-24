@@ -168,6 +168,7 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
               }
               onOpenPopup();
             }}
+            aria-label={`Open ${displayLabel} lookup`}
             className={`absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
               disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-linen-100"
             }`}

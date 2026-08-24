@@ -169,6 +169,7 @@ export function PurchaseQuotationProductSection({
         taxCodes={taxCodes}
         taxSide="purchase"
         showPqLineDatesAndQtys
+        useRequiredQuantityForAmounts
         lineRequiredDateMax={validUntilDate}
       />
     </BaseProductSection>

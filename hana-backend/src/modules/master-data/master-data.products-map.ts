@@ -112,6 +112,8 @@ export function mapProductResults(args: {
     const resolvedStock = stockMap.get(normalizedItemCode) ?? 0;
     const resolvedPrice = priceMap.get(normalizedItemCode) ?? toNumberOrZero(item.AvgPrice);
     const resolvedCurrency = defaultCurrency || "";
+    const lastPurchasePrice = toNumberOrZero(item.LastPurPrc);
+    const lastPurchaseCurrency = toTrimmed(item.LastPurCur);
     const resolvedTaxCode =
       type === "purchase"
         ? toTrimmed(item.VatGroupPu) || toTrimmed(item.VatGroupSa)
@@ -139,6 +141,8 @@ export function mapProductResults(args: {
 
     return {
       Currency: resolvedCurrency,
+      LastPurchaseCurrency: lastPurchaseCurrency,
+      LastPurchasePrice: lastPurchasePrice,
       FrgnName: toTrimmed(item.FrgnName),
       ItemCode: normalizedItemCode,
       ItemName: item.ItemName,
@@ -167,6 +171,8 @@ export function mapProductResults(args: {
       manSerNum,
       productCode: normalizedItemCode,
       foreignName: toTrimmed(item.FrgnName),
+      lastPurchaseCurrency,
+      lastPurchasePrice,
       productName: item.ItemName,
       stock: resolvedStock,
       taxCode: resolvedTaxCode,

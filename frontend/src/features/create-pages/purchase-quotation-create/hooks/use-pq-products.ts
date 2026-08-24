@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createSharedQueries as purchaseQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type {
@@ -32,6 +32,54 @@ interface usePqProductsProps {
   defaultLineQuotedDate?: string;
 }
 
+export interface PqProductPricingInput {
+  currency: string;
+  lastPurchaseCurrency?: string | undefined;
+  lastPurchasePrice?: number | undefined;
+  price: number;
+}
+
+export const resolvePqProductPricing = ({
+  currency,
+  lastPurchaseCurrency,
+  lastPurchasePrice,
+  price,
+}: PqProductPricingInput) => {
+  const resolvedLastPurchasePrice = Number(lastPurchasePrice ?? 0);
+  const hasLastPurchasePrice =
+    Number.isFinite(resolvedLastPurchasePrice) && resolvedLastPurchasePrice > 0;
+
+  return {
+    currency:
+      hasLastPurchasePrice && lastPurchaseCurrency?.trim() ? lastPurchaseCurrency : currency,
+    discountAmount: 0,
+    discountPercent: 0,
+    price: hasLastPurchasePrice ? resolvedLastPurchasePrice : price,
+  };
+};
+
+export const repricePqRows = (rows: ProductRow[], products: ProductLookupItem[]) => {
+  const productsByCode = new Map(products.map((product) => [product.code.trim(), product]));
+  const nextRows: ProductRow[] = [];
+  let repricedCount = 0;
+
+  for (const row of rows) {
+    const product = productsByCode.get(row.productCode.trim());
+    if (!product) {
+      continue;
+    }
+    const pricing = resolvePqProductPricing(product);
+    nextRows.push({ ...row, ...pricing });
+    repricedCount += 1;
+  }
+
+  return {
+    removedCount: rows.length - nextRows.length,
+    repricedCount,
+    rows: nextRows,
+  };
+};
+
 export function usePqProducts({
   effectiveWarehouseCode,
   vendorLookupToken,
@@ -51,6 +99,7 @@ export function usePqProducts({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const repriceRequestRef = useRef(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -110,6 +159,37 @@ export function usePqProducts({
       ),
     );
   }, [vendorSelected, partnerCardCode, queryClient]);
+
+  const repriceRowsForVendor = useCallback(
+    async (cardCode: string) => {
+      const previousRows = productRows;
+      if (!cardCode.trim() || previousRows.length === 0) {
+        return { previousRows, removedCount: 0, repricedCount: 0, rows: previousRows };
+      }
+
+      const requestId = repriceRequestRef.current + 1;
+      repriceRequestRef.current = requestId;
+      const itemCodes = previousRows.map((row) => row.productCode).filter(Boolean);
+      const products = await queryClient.fetchQuery(
+        purchaseQuotationCreateQueries.productsByCodes(
+          itemCodes,
+          "purchase",
+          undefined,
+          effectiveWarehouseCode || undefined,
+          cardCode,
+        ),
+      );
+
+      if (requestId !== repriceRequestRef.current) {
+        return { previousRows, removedCount: 0, repricedCount: 0, rows: previousRows, stale: true };
+      }
+
+      const result = repricePqRows(previousRows, products);
+      setProductRows(result.rows);
+      return { ...result, previousRows, stale: false };
+    },
+    [effectiveWarehouseCode, productRows, queryClient],
+  );
 
   useEffect(() => {
     if (!vendorSelected || !partnerCardCode) {
@@ -207,6 +287,7 @@ export function usePqProducts({
       // Leave the row's user-chosen warehouse untouched.
       const product = products[0];
       if (product) {
+        const pricing = resolvePqProductPricing(product);
         const activeRow = productRows.find((r) => r.id === activeProductRowId);
         const targetWhs = activeRow?.warehouseCode || effectiveWarehouseCode || "";
         const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
@@ -218,11 +299,7 @@ export function usePqProducts({
         const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
 
         updateProductRow(activeProductRowId, {
-          currency: product.currency,
-          discountAmount: 0,
-          discountPercent: 0,
-          // PQ: always start at 0; user can edit when line inputs are enabled.
-          price: 0,
+          ...pricing,
           productCode: product.code,
           foreignName: product.foreignName,
           productName: product.name,
@@ -247,6 +324,7 @@ export function usePqProducts({
     } else {
       // New row: force user to pick a warehouse explicitly.
       const newRows: ProductRow[] = products.map((product, index) => {
+        const pricing = resolvePqProductPricing(product);
         const targetWhs = effectiveWarehouseCode || "";
         const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
           purchaseQuotationCreateQueries.productWarehouseStocks(product.code).queryKey,
@@ -258,12 +336,8 @@ export function usePqProducts({
 
         return {
           comment: "",
-          currency: product.currency,
-          discountAmount: 0,
-          discountPercent: 0,
+          ...pricing,
           id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-          // PQ: always start at 0; user can edit when line inputs are enabled.
-          price: 0,
           productCode: product.code,
           foreignName: product.foreignName,
           productName: product.name,
@@ -308,6 +382,7 @@ export function usePqProducts({
     loadMoreProducts,
     openProductPopup,
     prefetchProducts,
+    repriceRowsForVendor,
     productRowDrafts,
     productRows,
     productWarehouseStocksQuery,

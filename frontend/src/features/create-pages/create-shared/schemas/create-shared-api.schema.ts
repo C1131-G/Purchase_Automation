@@ -30,6 +30,8 @@ export const lookupItemSchema = z.object({
 export const productLookupItemSchema = lookupItemSchema.extend({
   currency: z.string(),
   defaultWarehouse: z.string().optional(),
+  lastPurchaseCurrency: z.string().optional(),
+  lastPurchasePrice: z.number().optional(),
   price: z.number(),
   purchaseUomCode: z.string().optional(),
   purchaseUomEntry: z.number().optional(),

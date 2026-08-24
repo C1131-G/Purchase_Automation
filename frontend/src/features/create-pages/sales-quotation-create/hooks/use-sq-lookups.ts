@@ -1,12 +1,16 @@
 /** useSqLookups: Orchestrates customer and logistics lookups for Sales Quotations. */
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { createSharedQueries as salesQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  filterLocationLookupOptions,
+  findWarehouseSelection,
+} from "@/features/create-pages/create-shared/utils/location-lookup";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 import type { ProductSearchFieldError } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
 import type { SQHeaderState } from "@/store/create/sq-create.store";
@@ -59,6 +63,7 @@ export function useSqLookups({
   const [nameFocused, setNameFocused] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
   const [warehouseFocused, setWarehouseFocused] = useState(false);
+  const warehouseDirtyRef = useRef(false);
   const [salesEmployeeFocused, setSalesEmployeeFocused] = useState(false);
 
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
@@ -73,14 +78,6 @@ export function useSqLookups({
     (vendors as ProductLookupItem[]).find(
       (vendor) => vendor.name.toLowerCase() === value.trim().toLowerCase(),
     );
-  const findWarehouseByCode = (value: string) =>
-    (warehouses as ProductLookupItem[]).find(
-      (item) => item.code.toLowerCase() === value.trim().toLowerCase(),
-    );
-  const findWarehouseByName = (value: string) =>
-    (warehouses as ProductLookupItem[]).find(
-      (item) => item.name.toLowerCase() === value.trim().toLowerCase(),
-    );
   const findSalesEmployeeByCode = (value: string) =>
     (salesEmployees as ProductLookupItem[]).find(
       (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(value),
@@ -91,13 +88,7 @@ export function useSqLookups({
     );
 
   const effectiveWarehouseCode = useMemo(() => {
-    const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
-    const codeOrName = match ? match[1]!.trim() : lookup;
-    const matched = (warehouses as ProductLookupItem[]).find(
-      (item: ProductLookupItem) =>
-        item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
-    );
+    const matched = findWarehouseSelection(warehouses as ProductLookupItem[], warehouseInput);
     if (matched?.code) {
       return matched.code;
     }
@@ -149,6 +140,7 @@ export function useSqLookups({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
+    warehouseDirtyRef.current = false;
     setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
@@ -214,6 +206,7 @@ export function useSqLookups({
   };
 
   const handleWarehouseChange = (value: string) => {
+    warehouseDirtyRef.current = true;
     setWarehouseInput(value);
     clearFieldError("warehouseCode");
     if (value.trim() === "") {
@@ -221,7 +214,7 @@ export function useSqLookups({
       setHeader({ warehouseCode: "" });
       return;
     }
-    const matched = findWarehouseByName(value) ?? findWarehouseByCode(value);
+    const matched = findWarehouseSelection(warehouses as ProductLookupItem[], value);
     if (matched) {
       selectWarehouse(matched);
       return;
@@ -254,7 +247,10 @@ export function useSqLookups({
   }, [vendors, codeInput]);
 
   const warehouseSuggestions = useMemo(() => {
-    return rankAndLimitLookupOptions(warehouses as ProductLookupItem[], warehouseInput);
+    return rankAndLimitLookupOptions(
+      filterLocationLookupOptions(warehouses as ProductLookupItem[], warehouseInput),
+      warehouseInput,
+    );
   }, [warehouses, warehouseInput]);
 
   const salesEmployeeSuggestions = useMemo(() => {
@@ -263,6 +259,14 @@ export function useSqLookups({
 
   // Robust Name Resolver for Hydration & Copy-From flows
   useEffect(() => {
+    if (
+      warehouseDirtyRef.current ||
+      warehouseFocused ||
+      !headerWarehouseCode ||
+      warehouses.length === 0
+    ) {
+      return;
+    }
     if (headerWarehouseCode && warehouses.length > 0) {
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
@@ -271,9 +275,10 @@ export function useSqLookups({
         setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
-  }, [headerWarehouseCode, warehouses, warehouseInput]);
+  }, [headerWarehouseCode, warehouseFocused, warehouses, warehouseInput]);
 
   const resetWarehouse = useCallback(() => {
+    warehouseDirtyRef.current = false;
     setWarehouseInput("");
     setHeader({ warehouseCode: "" });
     setWarehouseFocused(false);
@@ -288,8 +293,6 @@ export function useSqLookups({
     effectiveWarehouseCode,
     findVendorByCode,
     findVendorByName,
-    findWarehouseByCode,
-    findWarehouseByName,
     handleSalesEmployeeChange,
     handleVendorCodeChange,
     handleVendorNameChange,

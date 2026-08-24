@@ -36,6 +36,7 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { findWarehouseSelection } from "@/features/create-pages/create-shared/utils/location-lookup";
 import {
   capSalesQuantityDraftToMax,
   capQuantityDraftToMax,
@@ -214,6 +215,8 @@ interface CreateProductTableRowProps {
   showGLAccount?: boolean;
   /** PQ only: Required Date, Quoted Date, Required Qty, Quoted Qty after UoM. */
   showPqLineDatesAndQtys?: boolean;
+  /** Buyer PQ estimates use Required Qty while Quoted Qty is still zero. */
+  useRequiredQuantityForAmounts?: boolean;
   /** PQ Valid Until — line Required Date cannot be after this. */
   lineRequiredDateMax?: string;
   /** RFQ Valid Until — line Quoted Date cannot be after this. */
@@ -260,6 +263,7 @@ export function CreateProductTableRow({
   showBinLocation = false,
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
+  useRequiredQuantityForAmounts = false,
   lineRequiredDateMax = "",
   rfqQuotedDateMax = "",
   rfqSellerFill = false,
@@ -592,12 +596,6 @@ export function CreateProductTableRow({
 
   // --- Warehouse input: two-way sync matching the sales-employee lookup pattern ---
 
-  const findWarehouseByName = (value: string) =>
-    warehouses.find((w) => w.name.toLowerCase() === value.trim().toLowerCase());
-
-  const findWarehouseByCode = (value: string) =>
-    warehouses.find((w) => w.code.toLowerCase() === value.trim().toLowerCase());
-
   const selectWarehouseInRow = (item: CreateLookupOption) => {
     isEditingRef.current = false;
     setWarehouseInput(item.name);
@@ -615,8 +613,8 @@ export function CreateProductTableRow({
       }
       return;
     }
-    // Auto-commit on exact name or code match (same as sales employee)
-    const matched = findWarehouseByName(value) ?? findWarehouseByCode(value);
+    // Auto-commit only on exact code or complete formatted display.
+    const matched = findWarehouseSelection(warehouses, value);
     if (matched) {
       selectWarehouseInRow(matched);
       return;
@@ -776,10 +774,14 @@ export function CreateProductTableRow({
     : displayTaxCode || String(row.vatGroup ?? "").trim();
 
   // Use centralized line math for consistency with SAP totals
-  const lineTotals = calculateLineTotals(row);
+  const amountQuantity = useRequiredQuantityForAmounts
+    ? Math.max(0, Number(row.requiredQuantity ?? row.quantity ?? 0))
+    : undefined;
+  const lineTotals = calculateLineTotals(row, { quantityOverride: amountQuantity });
   const { gross: grossAmount, discount: clampedDiscountAmount, lineNet, lineTotal } = lineTotals;
   // Unit net price for display (pre-tax per unit)
-  const unitNetPrice = (row.quantity || 0) > 0 ? lineNet / (row.quantity || 1) : 0;
+  const netPriceQuantity = amountQuantity ?? row.quantity;
+  const unitNetPrice = netPriceQuantity > 0 ? lineNet / netPriceQuantity : 0;
 
   const discountPercentInputValue = formatZeroNumericDisplay(
     rowDraft?.discountPercent,
@@ -890,6 +892,7 @@ export function CreateProductTableRow({
           />
           <button
             type="button"
+            aria-label="Open warehouse stock lookup"
             disabled={effectiveDisableInputs}
             onClick={() => {
               if (blurTimerRef.current) {
@@ -946,7 +949,6 @@ export function CreateProductTableRow({
           initialSearch={warehouseLookupInitialSearch}
           onSearchChange={(value) => {
             setWarehouseLookupInitialSearch(value);
-            setWarehouseInput(value);
           }}
           onSelect={(item) => {
             handleSelectWarehouse(item);

@@ -23,6 +23,10 @@ import {
   capIsoDateToMax,
   formatWarehouseDisplay,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  filterLocationLookupOptions,
+  findWarehouseSelection,
+} from "@/features/create-pages/create-shared/utils/location-lookup";
 import { capQuantityToMax } from "@/features/create-pages/create-shared/utils/document-line-quantity";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 import {
@@ -81,6 +85,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   const [warehouseCode, setWarehouseCode] = useState("");
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
+  const warehouseDirtyRef = useRef(false);
   const [headerBranchId, setHeaderBranchId] = useState<number | null>(null);
   const [removedLineNums, setRemovedLineNums] = useState<number[]>([]);
 
@@ -156,6 +161,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       rows.find((row) => row.warehouseCode?.trim())?.warehouseCode?.trim() ||
       "";
     setWarehouseCode(serverWarehouse);
+    warehouseDirtyRef.current = false;
     setWarehouseFocused(false);
     // Seed header Quoted Date display: only when every line shares one date.
     const lineDates = rows.map((row) => (row.quotedDate ?? "").trim().slice(0, 10)).filter(Boolean);
@@ -488,6 +494,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   const defaultWarehouseCode = warehouseCode.trim();
 
   const applyWarehouse = useCallback((code: string, display?: string) => {
+    warehouseDirtyRef.current = false;
     const next = code.trim();
     setWarehouseCode(next);
     if (display !== undefined) {
@@ -507,18 +514,7 @@ export function useRequestForQuotationForm(rfqId: number) {
 
   const findWarehouse = useCallback(
     (value: string) => {
-      const term = value.trim().toLowerCase();
-      if (!term) {
-        return undefined;
-      }
-      const bracket = term.match(/\[([^\]]+)\]$/) || term.match(/^\[([^\]]+)\]/);
-      const codeOrName = bracket ? bracket[1]!.trim() : term;
-      return warehouses.find(
-        (item) =>
-          String(item.code).toLowerCase() === codeOrName ||
-          String(item.name ?? "").toLowerCase() === codeOrName ||
-          formatWarehouseDisplay(item.name ?? "", item.code).toLowerCase() === term,
-      );
+      return findWarehouseSelection(warehouses, value);
     },
     [warehouses],
   );
@@ -528,6 +524,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       if (!canEditLines) {
         return;
       }
+      warehouseDirtyRef.current = true;
       setWarehouseInput(value);
       if (!value.trim()) {
         applyWarehouse("");
@@ -546,7 +543,12 @@ export function useRequestForQuotationForm(rfqId: number) {
   );
 
   useEffect(() => {
-    if (!warehouseCode || warehouses.length === 0 || warehouseFocused) {
+    if (
+      warehouseDirtyRef.current ||
+      !warehouseCode ||
+      warehouses.length === 0 ||
+      warehouseFocused
+    ) {
       return;
     }
     const matched = warehouses.find((item) => String(item.code).trim() === warehouseCode);
@@ -559,7 +561,11 @@ export function useRequestForQuotationForm(rfqId: number) {
   }, [warehouseCode, warehouseFocused, warehouseInput, warehouses]);
 
   const warehouseSuggestions = useMemo(
-    () => rankAndLimitLookupOptions(warehouses, warehouseInput),
+    () =>
+      rankAndLimitLookupOptions(
+        filterLocationLookupOptions(warehouses, warehouseInput),
+        warehouseInput,
+      ),
     [warehouseInput, warehouses],
   );
 

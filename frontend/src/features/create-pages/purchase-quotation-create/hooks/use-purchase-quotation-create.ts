@@ -21,6 +21,7 @@ import { sapCommentsField } from "@/features/create-pages/create-shared/utils/sa
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
+  LookupOption,
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
@@ -75,6 +76,7 @@ import {
 import { usePqLookups } from "./use-pq-lookups";
 import { usePqModals } from "./use-pq-modals";
 import { usePqProducts } from "./use-pq-products";
+import { toast } from "@/shared/ui/toast/toast";
 
 type PurchaseQuotationCreateMode = "create" | "edit";
 
@@ -253,6 +255,20 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   }, []);
 
+  const vendorSelectionRef = useRef<
+    (
+      vendor: LookupOption,
+      previousVendor: {
+        billToAddress: string;
+        code: string;
+        name: string;
+        salesEmployeeName: string;
+        shipToAddress: string;
+      },
+    ) => void
+  >(() => undefined);
+  const vendorChangeRef = useRef(0);
+
   const lookups = usePqLookups({
     clearFieldError,
     closeModal: () => modals.setModalOpen(false),
@@ -265,6 +281,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           warehouseCode,
         })),
       );
+    },
+    onVendorSelected: (vendor, previousVendor) => {
+      vendorSelectionRef.current(vendor, previousVendor);
     },
   });
 
@@ -317,6 +336,57 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
   });
+
+  useEffect(() => {
+    vendorSelectionRef.current = (vendor, previousVendor) => {
+      const changeId = vendorChangeRef.current + 1;
+      vendorChangeRef.current = changeId;
+      const previousRows = productsHook.productRows;
+      if (previousRows.length === 0) {
+        return;
+      }
+      const restorePreviousVendor = () => {
+        if (vendorChangeRef.current !== changeId) {
+          return false;
+        }
+        productsHook.setProductRows(previousRows);
+        setHeader({ vendorCode: previousVendor.code, vendorName: previousVendor.name });
+        lookups.setCodeInput(previousVendor.code);
+        lookups.setNameInput(previousVendor.name);
+        lookups.setSalesEmployeeInput(previousVendor.salesEmployeeName);
+        lookups.setBillToAddress(previousVendor.billToAddress);
+        lookups.setShipToAddress(previousVendor.shipToAddress);
+        return true;
+      };
+
+      void productsHook
+        .repriceRowsForVendor(vendor.code)
+        .then((result) => {
+          if (result.stale || vendorChangeRef.current !== changeId) {
+            return;
+          }
+          toast.info(
+            `Vendor updated: ${result.repricedCount} repriced, ${result.removedCount} removed`,
+            {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  restorePreviousVendor();
+                },
+              },
+              duration: 6000,
+              id: "pq-vendor-reprice",
+            },
+          );
+        })
+        .catch(() => {
+          restorePreviousVendor();
+          toast.error("Unable to reprice products for the selected vendor", {
+            id: "pq-vendor-reprice-error",
+          });
+        });
+    };
+  }, [lookups, productsHook, setHeader]);
 
   // Keep line Required Date in sync with header Required Date when the line is
   // empty or still matching the previous header value. User can override per row;
@@ -734,7 +804,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     modals,
   ]);
 
-  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
     syncLookupSearchByMode(mode, value, {
       onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
@@ -743,6 +813,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       onVendorName: lookups.handleVendorNameChange,
       onWarehouse: lookups.handleWarehouseChange,
     });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1407,7 +1478,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     : createPurchaseQuotationMutation;
 
   const totals = useMemo(
-    () => calculateOrderTotals(productsHook.productRows),
+    () =>
+      calculateOrderTotals(productsHook.productRows, {
+        quantitySelector: (row) => row.requiredQuantity ?? row.quantity,
+      }),
     [productsHook.productRows],
   );
   const summaryCurrency = useMemo(

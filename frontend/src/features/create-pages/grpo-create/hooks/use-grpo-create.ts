@@ -26,6 +26,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { findWarehouseSelection } from "@/features/create-pages/create-shared/utils/location-lookup";
 import {
   dismissDocumentHydrating,
   notifyCreateApiError,
@@ -221,8 +222,10 @@ export function useGRPOCreate({
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [warehouseInput, setWarehouseInput] = useState(lotChrome?.warehouseInput ?? "");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
+  const warehouseDirtyRef = useRef(false);
 
   const resetWarehouse = useCallback(() => {
+    warehouseDirtyRef.current = false;
     setWarehouseInput("");
     setHeader({ warehouseCode: "" });
     setWarehouseFocused(false);
@@ -383,13 +386,8 @@ export function useGRPOCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
-    const codeOrName = match ? match[1]!.trim() : lookup;
-    const matched = warehouses.find(
-      (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
-    );
-    return matched?.code ?? lookup;
+    const matched = findWarehouseSelection(warehouses, warehouseInput);
+    return matched?.code ?? "";
   }, [warehouseInput, warehouses]);
 
   const searchWarehouseCode = useMemo(() => {
@@ -546,6 +544,14 @@ export function useGRPOCreate({
   }, [resetGRPOCreate, resetWarehouse]);
 
   useEffect(() => {
+    if (
+      warehouseDirtyRef.current ||
+      warehouseFocused ||
+      !header.warehouseCode ||
+      warehouses.length === 0
+    ) {
+      return;
+    }
     if (header.warehouseCode && warehouses.length > 0) {
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
@@ -554,7 +560,7 @@ export function useGRPOCreate({
         setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
-  }, [header.warehouseCode, warehouses, warehouseInput]);
+  }, [header.warehouseCode, warehouseFocused, warehouses, warehouseInput]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -1485,7 +1491,7 @@ export function useGRPOCreate({
     warehouseInput,
   ]);
 
-  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
     syncLookupSearchByMode(mode, value, {
       onBranch: branchField.handleBranchChange,
       onSeries: seriesField.handleSeriesChange,
@@ -1494,6 +1500,7 @@ export function useGRPOCreate({
       onVendorName: handleVendorNameChange,
       onWarehouse: handleWarehouseInputChange,
     });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1719,6 +1726,7 @@ export function useGRPOCreate({
   };
 
   const handleWarehouseInputChange = (value: string) => {
+    warehouseDirtyRef.current = true;
     setWarehouseInput(value);
     setFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }));
     if (value.trim() === "") {
@@ -1726,16 +1734,13 @@ export function useGRPOCreate({
       setHeader({ warehouseCode: "" });
       return;
     }
-    const matched = warehouses.find(
-      (w) =>
-        w.name.toLowerCase() === value.trim().toLowerCase() ||
-        w.code.toLowerCase() === value.trim().toLowerCase(),
-    );
+    const matched = findWarehouseSelection(warehouses, value);
     if (matched) {
       selectWarehouse(matched);
       return;
     }
     setHeader({ warehouseCode: "" });
+    setWarehouseFocused(true);
   };
 
   const handleBuyerChange = (value: string) => {
@@ -1794,6 +1799,7 @@ export function useGRPOCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
+    warehouseDirtyRef.current = false;
     setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     if (partnerCardCode) {

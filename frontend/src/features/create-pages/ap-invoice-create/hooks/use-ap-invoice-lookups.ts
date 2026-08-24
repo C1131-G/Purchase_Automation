@@ -5,6 +5,7 @@ import type {
   ProductLookupItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
+import { filterLocationLookupOptions } from "@/features/create-pages/create-shared/utils/location-lookup";
 
 interface UseAPInvoiceLookupsProps {
   vendors: LookupItem[];
@@ -34,7 +35,11 @@ export function useAPInvoiceLookups({
     [vendorCodeInput, vendors],
   );
   const warehouseSuggestions = useMemo(
-    () => rankAndLimitLookupOptions(warehouses as ProductLookupItem[], warehouseInput),
+    () =>
+      rankAndLimitLookupOptions(
+        filterLocationLookupOptions(warehouses as ProductLookupItem[], warehouseInput),
+        warehouseInput,
+      ),
     [warehouseInput, warehouses],
   );
   const buyerSuggestions = useMemo(

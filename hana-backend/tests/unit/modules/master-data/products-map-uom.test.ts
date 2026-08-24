@@ -19,6 +19,28 @@ const baseArgs = {
 };
 
 describe("mapProductResults item-master UoM", () => {
+  it("exposes item-master last purchase price and currency separately from the fallback price", () => {
+    const [row] = mapProductResults({
+      ...baseArgs,
+      defaultCurrency: "INR",
+      items: [
+        {
+          AvgPrice: 42,
+          ItemCode: "SKU-1",
+          ItemName: "Item",
+          LastPurCur: "USD",
+          LastPurPrc: 37.5,
+        },
+      ],
+      type: "purchase",
+    });
+
+    expect(row?.Price).toBe(42);
+    expect(row?.Currency).toBe("INR");
+    expect(row?.LastPurchasePrice).toBe(37.5);
+    expect(row?.LastPurchaseCurrency).toBe("USD");
+  });
+
   it("uses purchase UoM from OITM.BuyUnitMsr / PUoMEntry on purchase catalogs", () => {
     const [row] = mapProductResults({
       ...baseArgs,

@@ -835,7 +835,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     modals,
   ]);
 
-  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
     syncLookupSearchByMode(mode, value, {
       onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
@@ -844,6 +844,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       onVendorName: lookups.handleVendorNameChange,
       onWarehouse: lookups.handleWarehouseChange,
     });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

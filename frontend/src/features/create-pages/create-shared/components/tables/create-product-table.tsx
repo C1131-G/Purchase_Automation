@@ -60,6 +60,8 @@ interface CreateProductTableProps {
    * Required Qty, Quoted Qty (replaces single Quantity column).
    */
   showPqLineDatesAndQtys?: boolean;
+  /** Buyer PQ estimates use Required Qty while Quoted Qty is still zero. */
+  useRequiredQuantityForAmounts?: boolean;
   /** PQ Valid Until — line Required Date cannot be after this. */
   lineRequiredDateMax?: string;
   /** RFQ Valid Until — line Quoted Date cannot be after this. */
@@ -112,6 +114,7 @@ export function CreateProductTable({
   showBinLocation = false,
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
+  useRequiredQuantityForAmounts = false,
   lineRequiredDateMax = "",
   rfqQuotedDateMax = "",
   rfqSellerFill = false,
@@ -300,6 +303,7 @@ export function CreateProductTable({
                     showBinLocation={showBinLocation}
                     showGLAccount={showGLAccount}
                     showPqLineDatesAndQtys={showPqLineDatesAndQtys}
+                    useRequiredQuantityForAmounts={useRequiredQuantityForAmounts}
                     lineRequiredDateMax={lineRequiredDateMax}
                     rfqQuotedDateMax={rfqQuotedDateMax}
                     rfqSellerFill={rfqSellerFill}

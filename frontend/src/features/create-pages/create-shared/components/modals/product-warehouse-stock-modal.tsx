@@ -110,7 +110,6 @@ export function ProductWarehouseStockModal({
           onChange={(event) => {
             const { value } = event.target;
             setWarehouseSearch(value);
-            // Sync back to the inline input (two-way sync with the parent lookup field)
             onSearchChange?.(value);
           }}
           autoComplete="off"

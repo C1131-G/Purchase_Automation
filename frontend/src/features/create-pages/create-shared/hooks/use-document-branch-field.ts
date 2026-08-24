@@ -15,6 +15,10 @@ import {
   type WarehouseWithBranch,
 } from "@/features/create-pages/create-shared/utils/document-branch";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
+import {
+  filterLocationLookupOptions,
+  findBranchSelection,
+} from "@/features/create-pages/create-shared/utils/location-lookup";
 
 type UseDocumentBranchFieldArgs = {
   warehouses: WarehouseWithBranch[];
@@ -89,16 +93,7 @@ export function useDocumentBranchField({
 
   const findBranch = useCallback(
     (value: string) => {
-      const term = value.trim().toLowerCase();
-      if (!term) {
-        return undefined;
-      }
-      return branches.find(
-        (b) =>
-          String(b.code).toLowerCase() === term ||
-          String(b.name).toLowerCase() === term ||
-          formatBranchDisplay(b.name, b.code).toLowerCase() === term,
-      );
+      return findBranchSelection(branches, value);
     },
     [branches],
   );
@@ -117,6 +112,9 @@ export function useDocumentBranchField({
         selectBranch(matched);
         return;
       }
+      // Keep the edited text visible, but detach the stale selected branch
+      // until the user chooses a matching suggestion.
+      setBranchId(null);
       setBranchFocused(true);
     },
     [findBranch, selectBranch, setBranchId],
@@ -189,7 +187,8 @@ export function useDocumentBranchField({
   }, [branches, branchId, branchFocused, branchInput, displayForId]);
 
   const branchSuggestions = useMemo(
-    () => rankAndLimitLookupOptions(branches, branchInput),
+    () =>
+      rankAndLimitLookupOptions(filterLocationLookupOptions(branches, branchInput), branchInput),
     [branches, branchInput],
   );
 

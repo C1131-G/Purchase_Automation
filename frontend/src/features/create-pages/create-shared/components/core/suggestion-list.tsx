@@ -173,12 +173,17 @@ export function SuggestionList({
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                   className={`grid w-full cursor-pointer ${gridColumns} gap-x-2 items-center border-b border-linen-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-linen-50 disabled:hover:bg-transparent`}
+                  aria-label={`${item.name}${showCode ? ` (${item.code})` : ""}`}
                   onMouseDown={(event) => {
                     if (item.disabled) {
                       return;
                     }
                     event.preventDefault();
-                    onSelect(item);
+                  }}
+                  onClick={() => {
+                    if (!item.disabled) {
+                      onSelect(item);
+                    }
                   }}
                 >
                   {showCode && (

@@ -656,7 +656,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     modals,
   ]);
 
-  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
     syncLookupSearchByMode(mode, value, {
       onSeries: seriesField.handleSeriesChange,
       onBranch: branchField.handleBranchChange,
@@ -665,6 +665,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       onVendorName: lookups.handleVendorNameChange,
       onWarehouse: lookups.handleWarehouseChange,
     });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -4,9 +4,14 @@ import { isUnresolvedCurrency } from "@/shared/utils/currency";
 
 const round2 = (num: number) => Math.round(num * 100 + (num >= 0 ? 1e-9 : -1e-9)) / 100;
 
+export interface CalculateLineTotalsOptions {
+  quantityOverride?: number | undefined;
+}
+
 /** Calculate totals for a single product line with tax-exclusive unit price. */
-export const calculateLineTotals = (row: ProductRow) => {
-  const gross = row.price * row.quantity;
+export const calculateLineTotals = (row: ProductRow, options: CalculateLineTotalsOptions = {}) => {
+  const quantity = options.quantityOverride ?? row.quantity;
+  const gross = row.price * quantity;
   // Always recompute discount from percent using SAP-compatible calculation.
   // SAP B1 computes the Line Total by applying the percentage and rounding it to 2 decimal places.
   // The actual discount amount is then mathematically (Gross - Line Total).
@@ -37,11 +42,12 @@ export const calculateLineTotals = (row: ProductRow) => {
 
 export interface CalculateOrderTotalsOptions {
   headerDiscountPercent?: number;
+  quantitySelector?: (row: ProductRow) => number;
 }
 
 export const calculateOrderTotals = (
   productRows: ProductRow[],
-  _options?: CalculateOrderTotalsOptions,
+  options: CalculateOrderTotalsOptions = {},
 ) => {
   // 1. Calculate overall weighted average header discount percentage using integer cents arithmetic
   let totalGrossCents = 0;
@@ -49,7 +55,7 @@ export const calculateOrderTotals = (
 
   for (const row of productRows) {
     const priceCents = Math.round((row.price ?? 0) * 100);
-    const qty = Math.max(0, row.quantity ?? 0);
+    const qty = Math.max(0, options.quantitySelector?.(row) ?? row.quantity ?? 0);
     const lineGrossCents = priceCents * qty;
     totalGrossCents += lineGrossCents;
 
@@ -71,7 +77,9 @@ export const calculateOrderTotals = (
   let weightedTaxRateDenominator = 0; // sum(lineNet)
 
   for (const row of productRows) {
-    const { lineNet } = calculateLineTotals(row);
+    const { lineNet } = calculateLineTotals(row, {
+      quantityOverride: options.quantitySelector?.(row),
+    });
     const taxRate = Math.max(0, row.taxRate ?? 0);
     rawNetTotal += lineNet;
     weightedTaxRateNumerator += lineNet * taxRate;
