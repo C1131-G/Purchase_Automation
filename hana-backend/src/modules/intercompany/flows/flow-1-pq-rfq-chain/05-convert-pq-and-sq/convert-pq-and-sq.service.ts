@@ -341,6 +341,7 @@ export const createConvertPqAndSqService = (deps?: {
         documents,
         draftEntry: pqEntry,
         lines,
+        replaceDocumentLines: true,
       });
 
       const purchaseQuotation = {

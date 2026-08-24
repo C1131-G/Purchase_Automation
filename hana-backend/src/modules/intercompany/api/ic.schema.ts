@@ -43,6 +43,10 @@ const RfqSubmitLineSchema = RfqFillLineSchema.extend({
 /** Seller fill: unit price, quoted qty, delivery date, discount %. itemCode rejected downstream. */
 export const UpdateRfqBodySchema = z.object({
   lines: z.array(RfqFillLineSchema).min(1),
+  removedLineNums: z
+    .array(z.number().int().nonnegative())
+    .refine((values) => new Set(values).size === values.length, "removedLineNums must be unique")
+    .optional(),
   /** Seller warehouse (OSCN / user). Stored on RFQ; omitted from buyer PQ PATCH. */
   warehouse: z.string().trim().max(50).nullable().optional(),
 });
@@ -60,6 +64,10 @@ export const ConfirmArInvoiceBodySchema = z
 export const SubmitRfqBodySchema = z
   .object({
     lines: z.array(RfqSubmitLineSchema).min(1).optional(),
+    removedLineNums: z
+      .array(z.number().int().nonnegative())
+      .refine((values) => new Set(values).size === values.length, "removedLineNums must be unique")
+      .optional(),
     warehouse: z.string().trim().max(50).nullable().optional(),
   })
   .strict()

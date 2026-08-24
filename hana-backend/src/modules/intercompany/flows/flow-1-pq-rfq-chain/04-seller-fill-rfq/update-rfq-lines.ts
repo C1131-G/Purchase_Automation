@@ -85,7 +85,7 @@ export const sanitizeFillLines = (lines: FillRfqLineInput[]): UpdateRfqLineInput
   return sanitized;
 };
 
-/** Overlay seller fill patches onto existing RFQ lines by LineNum (no add/remove). */
+/** Overlay seller fill patches onto existing RFQ lines by LineNum. Draft removals are handled by the service. */
 export const overlayRfqLinePatches = (
   existing: IcRfqLine[],
   patches: UpdateRfqLineInput[],

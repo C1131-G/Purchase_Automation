@@ -315,7 +315,7 @@ describe("lot page routing", () => {
         to: "/purchase/grpo",
       }),
     ).toEqual({
-      search: { sourceDocNum: "55", sourceDocType: "PurchaseQuotation" },
+      search: { sourceDocNum: "55" },
       to: "/purchase/create-grpo",
     });
     expect(grpoLotDocLabel({ draftDocNum: "8" })).toBe("8");

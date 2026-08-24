@@ -8,7 +8,7 @@ export interface GrpoCreateSearch {
   draftDocEntry?: string;
   draftDocNum?: string;
   sourceDocNum?: string;
-  sourceDocType?: "PurchaseOrder" | "PurchaseQuotation";
+  sourceDocType?: "PurchaseOrder";
 }
 
 export interface LotSetupReturnTo {

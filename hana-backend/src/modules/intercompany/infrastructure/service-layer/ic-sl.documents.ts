@@ -63,6 +63,8 @@ export type ApplyPricesToDraftInput = {
   documentLines: Record<string, unknown>[];
   /** Optional Comments patch (appended IC chain — does not wipe lines if caller merged). */
   comments?: string | null;
+  /** When true, omit SAP lines not represented by the retained RFQ line set. */
+  replaceDocumentLines?: boolean;
 };
 
 /** @deprecated Flow 1 no longer converts drafts; kept for tests / legacy callers. */
@@ -461,6 +463,7 @@ export const createIcSlDocuments = (deps?: {
     docEntry: number;
     endpoint: string;
     logCheck: string;
+    replaceDocumentLines?: boolean;
   }): Promise<void> => {
     const { connection, session: slSession } = await withCompanySession(input.companyId);
     logSlRequest({
@@ -481,7 +484,15 @@ export const createIcSlDocuments = (deps?: {
       const existingLines = Array.isArray(draft.DocumentLines)
         ? (draft.DocumentLines as Record<string, unknown>[])
         : [];
-      const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
+      let mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
+      if (input.replaceDocumentLines) {
+        const retainedLineNums = new Set(
+          input.documentLines
+            .map((line) => Number(line.LineNum))
+            .filter((lineNum) => Number.isFinite(lineNum)),
+        );
+        mergedLines = mergedLines.filter((line) => retainedLineNums.has(Number(line.LineNum)));
+      }
 
       const body: Record<string, unknown> = {
         DocumentLines: mergedLines,
@@ -638,6 +649,7 @@ export const createIcSlDocuments = (deps?: {
         docEntry: input.draftEntry,
         endpoint: `/PurchaseQuotations(${input.draftEntry})`,
         logCheck: "sl_apply_prices_lines",
+        replaceDocumentLines: input.replaceDocumentLines,
       });
     },
 

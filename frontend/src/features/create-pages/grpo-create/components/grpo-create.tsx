@@ -36,7 +36,7 @@ interface GRPOCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "PurchaseOrder" | "PurchaseQuotation" | undefined;
+  sourceDocType?: "PurchaseOrder" | undefined;
   draftDocNum?: string | undefined;
   draftDocEntry?: string | undefined;
 }
@@ -66,9 +66,7 @@ export function GRPOCreate({
   });
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
-  const [copyFromSourceType, setCopyFromSourceType] = useState<
-    "PurchaseOrder" | "PurchaseQuotation" | null
-  >(null);
+  const [copyFromSourceType, setCopyFromSourceType] = useState<"PurchaseOrder" | null>(null);
   const [sourceCleared, setSourceCleared] = useState(false);
 
   const committedDocNums =
@@ -107,7 +105,7 @@ export function GRPOCreate({
       to: "/purchase/create-grpo",
       search: {
         sourceDocNum: docNums,
-        sourceDocType: docType as "PurchaseOrder" | "PurchaseQuotation",
+        sourceDocType: docType as "PurchaseOrder",
       },
     });
   };
@@ -142,12 +140,10 @@ export function GRPOCreate({
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
             sourceDocTypes={
-              activeSourceType
-                ? [activeSourceType as "PurchaseQuotation" | "PurchaseOrder"]
-                : ["PurchaseQuotation", "PurchaseOrder"]
+              activeSourceType ? [activeSourceType as "PurchaseOrder"] : ["PurchaseOrder"]
             }
             onSelectSource={(sourceType) => {
-              setCopyFromSourceType(sourceType as "PurchaseOrder" | "PurchaseQuotation");
+              setCopyFromSourceType(sourceType as "PurchaseOrder");
               setCopyFromDialogOpen(true);
             }}
             onReset={

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_layout/purchase/create-ap-invoice")({
   pendingComponent: CreatePageRouteSkeleton,
   validateSearch: z.object({
     sourceDocNum: z.string().or(z.number()).transform(String).optional(),
-    sourceDocType: z.enum(["PurchaseOrder", "GoodsReceiptPO", "PurchaseQuotation"]).optional(),
+    sourceDocType: z.enum(["PurchaseOrder", "GoodsReceiptPO"]).optional(),
     draftDocNum: z.string().or(z.number()).transform(String).optional(),
     draftDocEntry: z.string().or(z.number()).transform(String).optional(),
   }),

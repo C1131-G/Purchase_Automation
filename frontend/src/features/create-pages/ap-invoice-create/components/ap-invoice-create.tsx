@@ -34,7 +34,7 @@ interface APInvoiceCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | undefined;
+  sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | undefined;
   draftDocNum?: string | undefined;
   draftDocEntry?: string | undefined;
 }
@@ -50,7 +50,7 @@ export function APInvoiceCreate({
   const router = useRouter();
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
   const [copyFromSourceType, setCopyFromSourceType] = useState<
-    "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation" | null
+    "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | null
   >(null);
   const [sourceCleared, setSourceCleared] = useState(false);
 
@@ -78,9 +78,7 @@ export function APInvoiceCreate({
   // SAP only allows one base type per A/P Invoice — lock the *other* families out.
   // CopyFromDropdown currently supports locking one family at a time; we lock the dominant
   // "opposite" family so the user can only add from the type they started with.
-  const lockedSourceFamily = useMemo<
-    "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | null
-  >(() => {
+  const lockedSourceFamily = useMemo<"PurchaseOrder" | "GoodsReceiptPO" | null>(() => {
     const hasPORows = state.rows.some((row) => row.baseType === 22 && row.baseEntry != null);
     const hasGRPORows = state.rows.some((row) => row.baseType === 20 && row.baseEntry != null);
     const hasPQRows = state.rows.some((row) => row.baseType === 540000006 && row.baseEntry != null);
@@ -126,7 +124,7 @@ export function APInvoiceCreate({
       to: "/purchase/create-ap-invoice",
       search: {
         sourceDocNum: docNums,
-        sourceDocType: docType as "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation",
+        sourceDocType: docType as "PurchaseOrder" | "GoodsReceiptPO",
       },
     });
   };
@@ -162,17 +160,11 @@ export function APInvoiceCreate({
             vendorName={state.vendorNameInput}
             sourceDocTypes={
               activeSourceType
-                ? [activeSourceType as "PurchaseQuotation" | "PurchaseOrder" | "GoodsReceiptPO"]
-                : ["PurchaseQuotation", "PurchaseOrder", "GoodsReceiptPO"]
+                ? [activeSourceType as "PurchaseOrder" | "GoodsReceiptPO"]
+                : ["PurchaseOrder", "GoodsReceiptPO"]
             }
             onSelectSource={(sourceType) => {
-              setCopyFromSourceType(
-                sourceType as
-                  | "PurchaseOrder"
-                  | "GoodsReceiptPO"
-                  | "APInvoice"
-                  | "PurchaseQuotation",
-              );
+              setCopyFromSourceType(sourceType as "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice");
               setCopyFromDialogOpen(true);
             }}
             lockedSourceFamily={lockedSourceFamily}

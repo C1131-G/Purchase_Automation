@@ -142,6 +142,7 @@ export const updateRfq = async (req: Request, res: Response, next: NextFunction)
       actorCompanyId: companyId,
       lines: body.lines,
       rfqId,
+      removedLineNums: body.removedLineNums,
       warehouse: body.warehouse,
     });
     // Same enrichment as GET so seller UI keeps names/dates/descriptions.
@@ -164,6 +165,7 @@ export const submitRfq = async (req: Request, res: Response, next: NextFunction)
       lines: body.lines,
       portalCreatedBy: requirePortalCreatedBy(req.session),
       rfqId,
+      removedLineNums: body.removedLineNums,
       warehouse: body.warehouse,
     });
     // Fast path: no enrich / no wait for notify or convert (those run in background).

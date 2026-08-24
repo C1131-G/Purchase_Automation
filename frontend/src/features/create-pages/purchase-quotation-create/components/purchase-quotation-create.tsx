@@ -440,7 +440,7 @@ export function PurchaseQuotationCreate({
               <CopyToDropdown
                 docNum={String(docNum)}
                 sourceDocType="PurchaseQuotation"
-                targets={["PO", "GRPO", "AP Invoice"]}
+                targets={["PO"]}
               />
             ) : null
           }

@@ -13,6 +13,7 @@ export type IcSqlClient = {
    * a plain second query may use another pool connection and return 0).
    */
   withConnection?: <T>(callback: (sql: IcSqlClient) => Promise<T>) => Promise<T>;
+  withTransaction?: <T>(callback: (sql: IcSqlClient) => Promise<T>) => Promise<T>;
 };
 
 /** Prefer withConnection when present; otherwise run on the given client. */
@@ -67,6 +68,27 @@ export const createAppSqlClient = (): IcSqlClient => {
           },
         };
         return await callback(pinned);
+      } finally {
+        await runner.release();
+      }
+    },
+    withTransaction: async <T>(callback: (sql: IcSqlClient) => Promise<T>): Promise<T> => {
+      const runner = AppDataSource.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+      try {
+        const pinned: IcSqlClient = {
+          query: async <R extends Record<string, unknown> = Record<string, unknown>>(
+            statement: string,
+            params: unknown[] = [],
+          ): Promise<R[]> => (await runner.query(statement, params)) as R[],
+        };
+        const result = await callback(pinned);
+        await runner.commitTransaction();
+        return result;
+      } catch (error) {
+        await runner.rollbackTransaction();
+        throw error;
       } finally {
         await runner.release();
       }

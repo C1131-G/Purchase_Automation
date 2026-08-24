@@ -26,6 +26,7 @@ interface RfqProductSectionProps {
   prefetchProducts: () => void;
   totals: ReturnType<typeof calculateOrderTotals>;
   canEdit: boolean;
+  canRemoveRows: boolean;
   canSubmit: boolean;
   canUpdate?: boolean;
   isDirty?: boolean;
@@ -53,6 +54,7 @@ export function RfqProductSection({
   prefetchProducts,
   totals,
   canEdit,
+  canRemoveRows,
   canSubmit,
   canUpdate = false,
   isDirty = false,
@@ -77,6 +79,7 @@ export function RfqProductSection({
         openProductPopup={openProductPopup}
         updateProductRow={updateProductRow}
         removeProductRow={removeProductRow}
+        canRemoveProductRow={() => canRemoveRows && productRows.length > 1}
         setProductRowDraft={setProductRowDraft}
         clearProductRowDraft={clearProductRowDraft}
         prefetchProducts={prefetchProducts}

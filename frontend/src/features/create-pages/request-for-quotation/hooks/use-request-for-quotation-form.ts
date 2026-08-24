@@ -82,6 +82,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
   const [headerBranchId, setHeaderBranchId] = useState<number | null>(null);
+  const [removedLineNums, setRemovedLineNums] = useState<number[]>([]);
 
   const submitMutation = useSubmitIcRfq();
   const updateMutation = useUpdateIcRfq();
@@ -103,6 +104,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   }, [detailQuery.isLoading, detailQuery.isPending]);
 
   const canEditLines = canEditRfqLines(header?.status, header?.pqCopiedToPo);
+  const canRemoveRows = isRfqDraft(header?.status);
   const canSubmit = isRfqDraft(header?.status);
   const canUpdate = isRfqCompleted(header?.status) && header?.pqCopiedToPo !== true;
   const canConvert = isRfqSubmitted(header?.status);
@@ -148,6 +150,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     requiredQtyByIdRef.current = requiredMap;
     setProductRows(rows);
     setProductRowDrafts({});
+    setRemovedLineNums([]);
     const serverWarehouse =
       header.warehouseCode?.trim() ||
       rows.find((row) => row.warehouseCode?.trim())?.warehouseCode?.trim() ||
@@ -275,9 +278,29 @@ export function useRequestForQuotationForm(rfqId: number) {
     });
   }, []);
 
-  const removeProductRow = useCallback((_id: string) => {
-    // Seller cannot remove lines.
-  }, []);
+  const removeProductRow = useCallback(
+    (id: string) => {
+      if (!isRfqDraft(header?.status) || productRows.length <= 1) {
+        return;
+      }
+      const row = productRows.find((candidate) => candidate.id === id);
+      if (!row || row.lineNum == null) {
+        return;
+      }
+      const lineNum = row.lineNum;
+      setProductRows((previous) => previous.filter((candidate) => candidate.id !== id));
+      setProductRowDrafts((previous) => {
+        const next = { ...previous };
+        delete next[id];
+        return next;
+      });
+      setRemovedLineNums((previous) =>
+        previous.includes(lineNum) ? previous : [...previous, lineNum],
+      );
+      setFormError(null);
+    },
+    [header?.status, productRows],
+  );
 
   /**
    * Batch fill Quoted Date from the product-section header control.
@@ -344,7 +367,11 @@ export function useRequestForQuotationForm(rfqId: number) {
       // run server-side in background — do not PUT then POST.
       const submitted = await submitMutation.mutateAsync({
         rfqId: header.rfqId,
-        body: { lines: payloadLines, warehouse: warehouseCode.trim() || null },
+        body: {
+          lines: payloadLines,
+          removedLineNums: removedLineNums.length > 0 ? removedLineNums : undefined,
+          warehouse: warehouseCode.trim() || null,
+        },
       });
       const status = String(submitted.data?.status ?? "").toUpperCase();
       notifyActionSuccess(
@@ -363,7 +390,15 @@ export function useRequestForQuotationForm(rfqId: number) {
       setFormError(message);
       notifyCreateApiError(message, "rfq");
     }
-  }, [canSubmit, header, productRowDrafts, productRows, submitMutation, warehouseCode]);
+  }, [
+    canSubmit,
+    header,
+    productRowDrafts,
+    productRows,
+    removedLineNums,
+    submitMutation,
+    warehouseCode,
+  ]);
 
   const handleUpdate = useCallback(async () => {
     if (!header || !canUpdate) {
@@ -384,7 +419,11 @@ export function useRequestForQuotationForm(rfqId: number) {
     try {
       await updateMutation.mutateAsync({
         rfqId: header.rfqId,
-        body: { lines: payloadLines, warehouse: warehouseCode.trim() || null },
+        body: {
+          lines: payloadLines,
+          removedLineNums: removedLineNums.length > 0 ? removedLineNums : undefined,
+          warehouse: warehouseCode.trim() || null,
+        },
       });
       notifyActionSuccess(
         "RFQ updated — purchase quotation and sales quotation synced",
@@ -400,7 +439,15 @@ export function useRequestForQuotationForm(rfqId: number) {
       setFormError(message);
       notifyCreateApiError(message, "rfq");
     }
-  }, [canUpdate, header, productRowDrafts, productRows, updateMutation, warehouseCode]);
+  }, [
+    canUpdate,
+    header,
+    productRowDrafts,
+    productRows,
+    removedLineNums,
+    updateMutation,
+    warehouseCode,
+  ]);
 
   const handleConvert = useCallback(async () => {
     if (!header || !canConvert) {
@@ -560,6 +607,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     branchesLoading: branchField.branchesQuery.isLoading || warehousesQuery.isLoading,
     canConvert,
     canEditLines,
+    canRemoveRows,
     canSubmit,
     canUpdate,
     clearProductRowDraft,

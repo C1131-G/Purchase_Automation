@@ -316,6 +316,7 @@ export function RequestForQuotationForm({
               prefetchProducts={state.prefetchProducts}
               totals={state.totals}
               canEdit={state.canEditLines}
+              canRemoveRows={state.canRemoveRows}
               canSubmit={state.canSubmit}
               canUpdate={state.canUpdate}
               isDirty={state.isDirty}

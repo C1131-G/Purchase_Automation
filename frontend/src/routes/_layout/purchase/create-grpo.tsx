@@ -9,7 +9,7 @@ import { requireActiveSession } from "@/shared/auth/require-active-session";
 
 const createGRPOSearchSchema = z.object({
   sourceDocNum: z.string().or(z.number()).transform(String).optional(),
-  sourceDocType: z.enum(["PurchaseOrder", "PurchaseQuotation"]).optional(),
+  sourceDocType: z.enum(["PurchaseOrder"]).optional(),
   draftDocNum: z.string().optional(),
   draftDocEntry: z.string().optional(),
 });

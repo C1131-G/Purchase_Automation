@@ -32,6 +32,7 @@ export type RfqService = {
     rfqId: number,
     lines: UpdateRfqLineInput[],
     extras?: UpdateRfqExtras,
+    removedLineNums?: number[],
   ) => Promise<IcRfqHeader | null>;
   submit: (rfqId: number) => Promise<IcRfqHeader | null>;
   complete: (rfqId: number) => Promise<IcRfqHeader | null>;
@@ -73,7 +74,8 @@ export const createRfqService = (deps?: {
 
     submit: (rfqId) => mutations.setStatus(rfqId, IC_RFQ_STATUS.SUBMITTED),
 
-    updateLines: (rfqId, lines, extras) => mutations.updateLines(rfqId, lines, extras),
+    updateLines: (rfqId, lines, extras, removedLineNums) =>
+      mutations.updateLines(rfqId, lines, extras, removedLineNums),
   };
 };
 

@@ -33,6 +33,7 @@ interface CreateProductTableProps {
   openProductPopup: (rowId: string | null) => void;
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void;
   removeProductRow: (id: string) => void;
+  canRemoveProductRow?: (row: ProductRow) => boolean;
   setProductRowDraft: (id: string, field: keyof ProductRowDraft, value: string) => void;
   clearProductRowDraft: (id: string, field: keyof ProductRowDraft) => void;
   prefetchProducts: () => void;
@@ -90,6 +91,7 @@ export function CreateProductTable({
   openProductPopup,
   updateProductRow,
   removeProductRow,
+  canRemoveProductRow,
   setProductRowDraft,
   clearProductRowDraft,
   prefetchProducts,
@@ -278,6 +280,7 @@ export function CreateProductTable({
                     openProductPopup={openProductPopup}
                     updateProductRow={updateProductRow}
                     removeProductRow={removeProductRow}
+                    canRemoveProductRow={canRemoveProductRow?.(row)}
                     setProductRowDraft={setProductRowDraft}
                     clearProductRowDraft={clearProductRowDraft}
                     prefetchProducts={prefetchProducts}

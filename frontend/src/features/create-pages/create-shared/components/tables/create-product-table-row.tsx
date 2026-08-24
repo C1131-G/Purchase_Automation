@@ -193,6 +193,7 @@ interface CreateProductTableRowProps {
   openProductPopup: (rowId: string | null) => void;
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void;
   removeProductRow: (id: string) => void;
+  canRemoveProductRow?: boolean | undefined;
   setProductRowDraft: (id: string, field: keyof ProductRowDraft, value: string) => void;
   clearProductRowDraft: (id: string, field: keyof ProductRowDraft) => void;
   prefetchProducts: (warehouseCode?: string) => void;
@@ -238,6 +239,7 @@ export function CreateProductTableRow({
   openProductPopup,
   updateProductRow,
   removeProductRow,
+  canRemoveProductRow = true,
   setProductRowDraft,
   clearProductRowDraft,
   prefetchProducts,
@@ -837,9 +839,9 @@ export function CreateProductTableRow({
           >
             <button
               type="button"
-              disabled={snapshotLocked}
+              disabled={snapshotLocked || !canRemoveProductRow}
               onClick={() => {
-                if (snapshotLocked) {
+                if (snapshotLocked || !canRemoveProductRow) {
                   onInputRestrictedClick?.();
                   return;
                 }
@@ -1104,7 +1106,7 @@ export function CreateProductTableRow({
                   setLineDatePicker((prev) => (prev === "required" ? null : "required"));
                 }}
                 className={`relative flex h-9 w-full items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs outline-none transition ${
-                  snapshotLocked
+                  snapshotLocked || !canRemoveProductRow
                     ? "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-70"
                     : "cursor-pointer border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
@@ -1805,7 +1807,7 @@ export function CreateProductTableRow({
                   ? "cursor-not-allowed bg-linen-50 opacity-40"
                   : "cursor-pointer bg-surface hover:bg-linen-50 hover:text-teal-600"
               }`}
-              aria-label="Remove product row"
+              aria-label={`Remove product row ${(row.lineNum ?? 0) + 1}`}
             >
               <Trash2 className="h-4 w-4" />
             </button>

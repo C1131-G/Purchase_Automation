@@ -538,7 +538,7 @@ export const pickGrpoCreateSearch = (
   if (sourceDocNum) {
     next.sourceDocNum = sourceDocNum;
   }
-  if (search.sourceDocType === "PurchaseOrder" || search.sourceDocType === "PurchaseQuotation") {
+  if (search.sourceDocType === "PurchaseOrder") {
     next.sourceDocType = search.sourceDocType;
   }
   if (draftDocNum) {

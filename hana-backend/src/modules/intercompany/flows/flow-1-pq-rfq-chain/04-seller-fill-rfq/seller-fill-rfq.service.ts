@@ -41,6 +41,7 @@ export type SellerFillRfqService = {
     rfqId: number;
     actorCompanyId: number;
     lines: FillRfqLineInput[];
+    removedLineNums?: number[];
     /** Seller warehouse code — stored on RFQ lines; never PATCHed to buyer PQ. */
     warehouse?: string | null;
   }) => Promise<IcRfqHeader>;
@@ -50,6 +51,7 @@ export type SellerFillRfqService = {
     portalCreatedBy?: string;
     /** Optional — save seller fill in the same request (skip separate PUT). */
     lines?: FillRfqLineInput[];
+    removedLineNums?: number[];
     warehouse?: string | null;
   }) => Promise<IcRfqHeader>;
 };
@@ -189,7 +191,7 @@ export const createSellerFillRfqService = (
   const runConvertInBackground = deps?.runConvertInBackground !== false;
 
   return {
-    updateLines: async ({ rfqId, actorCompanyId, lines, warehouse }) => {
+    updateLines: async ({ rfqId, actorCompanyId, lines, removedLineNums = [], warehouse }) => {
       const startedAt = Date.now();
       const corrId = randomUUID();
       const logCtx = {
@@ -205,6 +207,25 @@ export const createSellerFillRfqService = (
       }
       assertSellerCanAct(header, actorCompanyId);
       throwIfRfqLocked(await locks.checkRfqEditLock(header));
+      if (removedLineNums.length > 0 && header.status !== IC_RFQ_STATUS.DRAFT) {
+        throw new AppError(
+          "RFQ product rows can only be removed while the RFQ is DRAFT",
+          409,
+          "IC_RFQ_LINE_REMOVE_NOT_EDITABLE",
+        );
+      }
+      const existingLineNums = new Set((header.lines ?? []).map((line) => line.lineNum));
+      const unknownRemoved = removedLineNums.filter((lineNum) => !existingLineNums.has(lineNum));
+      if (unknownRemoved.length > 0) {
+        throw new AppError(
+          "RFQ removal contains an unknown product row",
+          400,
+          "IC_RFQ_INVALID_LINE",
+        );
+      }
+      if (removedLineNums.length >= (header.lines?.length ?? 0)) {
+        throw new AppError("RFQ must keep at least one product row", 400, "IC_RFQ_EMPTY");
+      }
 
       const lineSnap = summarizeIcLines(lines as unknown[]);
       logFlowStep(FLOW1_SCOPE, {
@@ -219,6 +240,7 @@ export const createSellerFillRfqService = (
         detail: {
           lineCount: lineSnap.lineCount,
           lines: lineSnap.lines,
+          removedLineNums,
           pqDraftDocEntry: header.pqDraftDocEntry,
           status: header.status,
         },
@@ -235,7 +257,7 @@ export const createSellerFillRfqService = (
       }
 
       const extras = warehouse !== undefined ? { warehouse } : undefined;
-      const updated = await rfq.updateLines(rfqId, sanitized, extras);
+      const updated = await rfq.updateLines(rfqId, sanitized, extras, removedLineNums);
       if (!updated) {
         throw new AppError("RFQ not found after update", 404, "IC_RFQ_NOT_FOUND");
       }
@@ -249,6 +271,7 @@ export const createSellerFillRfqService = (
         detail: {
           durationMs: Date.now() - startedAt,
           lineCount: updated.lines?.length ?? 0,
+          removedLineNums,
           note: isCompleted
             ? "Line save + re-applied PQ and SQ commercials"
             : "Line save only — convert runs on Submit",
@@ -259,7 +282,14 @@ export const createSellerFillRfqService = (
       return updated;
     },
 
-    submit: async ({ rfqId, actorCompanyId, lines: fillLines, portalCreatedBy, warehouse }) => {
+    submit: async ({
+      rfqId,
+      actorCompanyId,
+      lines: fillLines,
+      portalCreatedBy,
+      removedLineNums = [],
+      warehouse,
+    }) => {
       const startedAt = Date.now();
       const corrId = randomUUID();
       const logCtx = {
@@ -277,13 +307,30 @@ export const createSellerFillRfqService = (
       assertRfqSubmittable(header);
 
       // Optional one-shot fill: save lines then submit (avoids PUT + POST round-trip).
-      if ((fillLines && fillLines.length > 0) || warehouse !== undefined) {
+      if (
+        (fillLines && fillLines.length > 0) ||
+        warehouse !== undefined ||
+        removedLineNums.length > 0
+      ) {
         const sanitized =
           fillLines && fillLines.length > 0
             ? capFillLinesToRequired(sanitizeFillLines(fillLines), header.lines ?? [])
             : [];
         const extras = warehouse !== undefined ? { warehouse } : undefined;
-        const updated = await rfq.updateLines(rfqId, sanitized, extras);
+        if (removedLineNums.length > 0) {
+          const existingLineNums = new Set((header.lines ?? []).map((line) => line.lineNum));
+          const unknownRemoved = removedLineNums.filter(
+            (lineNum) => !existingLineNums.has(lineNum),
+          );
+          if (unknownRemoved.length > 0 || removedLineNums.length >= (header.lines?.length ?? 0)) {
+            throw new AppError(
+              "RFQ must keep at least one valid product row",
+              400,
+              "IC_RFQ_INVALID_LINE",
+            );
+          }
+        }
+        const updated = await rfq.updateLines(rfqId, sanitized, extras, removedLineNums);
         if (!updated) {
           throw new AppError("RFQ not found after line update", 404, "IC_RFQ_NOT_FOUND");
         }

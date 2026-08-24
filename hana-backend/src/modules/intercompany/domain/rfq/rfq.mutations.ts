@@ -24,6 +24,7 @@ export type RfqMutations = {
     rfqId: number,
     lines: UpdateRfqLineInput[],
     extras?: UpdateRfqExtras,
+    removedLineNums?: number[],
   ) => Promise<IcRfqHeader | null>;
   setStatus: (rfqId: number, status: string) => Promise<IcRfqHeader | null>;
 };
@@ -114,38 +115,55 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
     return loadHeaderWithLines(sql, rfqId);
   },
 
-  updateLines: async (rfqId, lines, extras) => {
-    for (const line of lines) {
-      await sql.query(
-        `UPDATE "IC_RFQ_LINE"
-            SET "UNIT_PRICE" = ?,
-                "DELIVERY_DATE" = COALESCE(?, "DELIVERY_DATE"),
-                "DISCOUNT" = COALESCE(?, "DISCOUNT"),
-                "QUANTITY" = COALESCE(?, "QUANTITY"),
-                "TAX_CODE" = COALESCE(?, "TAX_CODE"),
-                "UPDATED_AT" = CURRENT_TIMESTAMP
-          WHERE "RFQ_ID" = ? AND "LINE_NUM" = ?`,
-        [
-          line.unitPrice,
-          line.deliveryDate ?? null,
-          line.discount ?? null,
-          line.quantity ?? null,
-          line.taxCode ?? null,
-          rfqId,
-          line.lineNum,
-        ],
-      );
-    }
-    if (extras && Object.hasOwn(extras, "warehouse")) {
-      const warehouse = extras.warehouse?.trim() || null;
-      await sql.query(
-        `UPDATE "IC_RFQ_LINE"
-            SET "WAREHOUSE" = ?, "UPDATED_AT" = CURRENT_TIMESTAMP
-          WHERE "RFQ_ID" = ?`,
-        [warehouse, rfqId],
-      );
-    }
-    return loadHeaderWithLines(sql, rfqId);
+  updateLines: async (rfqId, lines, extras, removedLineNums = []) => {
+    const update = async (connection: IcSqlClient): Promise<IcRfqHeader | null> => {
+      if (removedLineNums.length > 0) {
+        const placeholders = removedLineNums.map(() => "?").join(",");
+        await connection.query(
+          `DELETE FROM "IC_RFQ_LINE"
+             WHERE "RFQ_ID" = ? AND "LINE_NUM" IN (${placeholders})`,
+          [rfqId, ...removedLineNums],
+        );
+        await connection.query(
+          `UPDATE "IC_RFQ_HEADER"
+              SET "UPDATED_AT" = CURRENT_TIMESTAMP
+            WHERE "RFQ_ID" = ?`,
+          [rfqId],
+        );
+      }
+      for (const line of lines) {
+        await connection.query(
+          `UPDATE "IC_RFQ_LINE"
+              SET "UNIT_PRICE" = ?,
+                  "DELIVERY_DATE" = COALESCE(?, "DELIVERY_DATE"),
+                  "DISCOUNT" = COALESCE(?, "DISCOUNT"),
+                  "QUANTITY" = COALESCE(?, "QUANTITY"),
+                  "TAX_CODE" = COALESCE(?, "TAX_CODE"),
+                  "UPDATED_AT" = CURRENT_TIMESTAMP
+            WHERE "RFQ_ID" = ? AND "LINE_NUM" = ?`,
+          [
+            line.unitPrice,
+            line.deliveryDate ?? null,
+            line.discount ?? null,
+            line.quantity ?? null,
+            line.taxCode ?? null,
+            rfqId,
+            line.lineNum,
+          ],
+        );
+      }
+      if (extras && Object.hasOwn(extras, "warehouse")) {
+        const warehouse = extras.warehouse?.trim() || null;
+        await connection.query(
+          `UPDATE "IC_RFQ_LINE"
+              SET "WAREHOUSE" = ?, "UPDATED_AT" = CURRENT_TIMESTAMP
+            WHERE "RFQ_ID" = ?`,
+          [warehouse, rfqId],
+        );
+      }
+      return loadHeaderWithLines(connection, rfqId);
+    };
+    return sql.withTransaction ? sql.withTransaction(update) : update(sql);
   },
 });
 

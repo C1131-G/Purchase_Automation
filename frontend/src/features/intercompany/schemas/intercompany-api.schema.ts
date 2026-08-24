@@ -275,6 +275,7 @@ export const icUpdateRfqLineBodySchema = z.object({
 
 export const icUpdateRfqBodySchema = z.object({
   lines: z.array(icUpdateRfqLineBodySchema).min(1),
+  removedLineNums: z.array(z.number().int().nonnegative()).optional(),
   warehouse: z.string().nullable().optional(),
 });
 
@@ -291,6 +292,7 @@ export type IcUpdateRfqResponse = z.infer<typeof icUpdateRfqResponseSchema>;
 /** POST /rfqs/:id/submit may include lines (same shape as PUT) to save+submit in one call. */
 export const icSubmitRfqBodySchema = z.object({
   lines: z.array(icUpdateRfqLineBodySchema).min(1).optional(),
+  removedLineNums: z.array(z.number().int().nonnegative()).optional(),
   warehouse: z.string().nullable().optional(),
 });
 export type IcSubmitRfqBody = z.infer<typeof icSubmitRfqBodySchema>;
