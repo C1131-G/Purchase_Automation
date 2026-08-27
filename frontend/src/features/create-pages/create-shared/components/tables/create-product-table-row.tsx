@@ -154,8 +154,8 @@ function ReturnReasonDropdown({ value, disabled, onSelect }: ReturnReasonDropdow
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
         onMouseDown={(e) => e.preventDefault()}
-        className={`flex h-10 w-full items-center justify-between rounded-xl border border-linen-200 bg-surface px-3 text-xs font-medium outline-none transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-200 ${
-          disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-linen-200"
+        className={`flex h-10 w-full items-center justify-between rounded-xl border border-linen-200 bg-field-silver px-3 text-xs font-medium outline-none transition-all focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
+          disabled ? "cursor-not-allowed" : "cursor-pointer hover:border-linen-200 hover:bg-surface"
         } ${selectedLabel ? "text-ink-900" : "text-neutral-400"} min-w-[140px]`}
       >
         <span className="truncate">{selectedLabel || "Select reason"}</span>
@@ -219,8 +219,12 @@ interface CreateProductTableRowProps {
   useRequiredQuantityForAmounts?: boolean;
   /** PQ Valid Until — line Required Date cannot be after this. */
   lineRequiredDateMax?: string;
+  /** PQ minimum selectable line Required Date. */
+  lineRequiredDateMin?: string;
   /** RFQ Valid Until — line Quoted Date cannot be after this. */
   rfqQuotedDateMax?: string;
+  /** RFQ minimum selectable line Quoted Date. */
+  rfqQuotedDateMin?: string;
   /**
    * RFQ seller fill: PQ column layout, only quoted qty/date + price + disc editable.
    * Buyer snapshot fields (product, WH, UoM, required date/qty) stay locked.
@@ -265,7 +269,9 @@ export function CreateProductTableRow({
   showPqLineDatesAndQtys = false,
   useRequiredQuantityForAmounts = false,
   lineRequiredDateMax = "",
+  lineRequiredDateMin = "",
   rfqQuotedDateMax = "",
+  rfqQuotedDateMin = "",
   rfqSellerFill = false,
   lineFieldInvalid,
   showTaxCode = true,
@@ -364,9 +370,15 @@ export function CreateProductTableRow({
   const lineRequiredMaxDate = lineRequiredDateMax.trim()
     ? parseISODate(lineRequiredDateMax)
     : undefined;
+  const lineRequiredBaseMinDate = lineRequiredDateMin.trim()
+    ? parseISODate(lineRequiredDateMin)
+    : today;
   const lineRequiredMinDate =
-    lineRequiredMaxDate && lineRequiredMaxDate < today ? lineRequiredMaxDate : today;
+    lineRequiredMaxDate && lineRequiredMaxDate < lineRequiredBaseMinDate
+      ? lineRequiredMaxDate
+      : lineRequiredBaseMinDate;
   const rfqQuotedMaxDate = rfqQuotedDateMax.trim() ? parseISODate(rfqQuotedDateMax) : undefined;
+  const rfqQuotedMinDate = rfqQuotedDateMin.trim() ? parseISODate(rfqQuotedDateMin) : today;
 
   const updateLineCalendarPosition = React.useCallback(() => {
     const anchor =
@@ -888,7 +900,7 @@ export function CreateProductTableRow({
               warehouseError
                 ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                 : "border-linen-200 bg-field-silver focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
-            } ${disableInputs ? "cursor-not-allowed opacity-70" : "cursor-text"}`}
+            } ${disableInputs ? "cursor-not-allowed" : "cursor-text"}`}
           />
           <button
             type="button"
@@ -1030,7 +1042,7 @@ export function CreateProductTableRow({
               type="text"
               value=""
               disabled={true}
-              className="h-9 w-full rounded-lg border border-transparent bg-linen-100 px-2 text-xs text-neutral-400 outline-none cursor-not-allowed"
+              className="h-9 w-full rounded-lg border border-linen-200 bg-field-silver px-2 text-xs text-neutral-500 outline-none cursor-not-allowed"
               placeholder="N/A"
             />
           )}
@@ -1056,7 +1068,7 @@ export function CreateProductTableRow({
               className={`h-9 w-full rounded-lg border pl-2.5 pr-8 text-xs text-ink-900 outline-none cursor-pointer ${
                 row.uomCode ? "border-linen-200 bg-field-silver" : "border-red-300 bg-rose-50/50"
               } focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 transition-all duration-150 ${
-                disableInputs ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+                disableInputs ? "cursor-not-allowed" : "cursor-pointer"
               }`}
             />
             <button
@@ -1109,7 +1121,7 @@ export function CreateProductTableRow({
                 }}
                 className={`relative flex h-9 w-full items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs outline-none transition ${
                   snapshotLocked || !canRemoveProductRow
-                    ? "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-70"
+                    ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
                     : "cursor-pointer border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               >
@@ -1190,6 +1202,7 @@ export function CreateProductTableRow({
                         >
                           <CalendarWithBounds
                             mode="single"
+                            minDate={rfqQuotedMinDate}
                             {...(rfqQuotedMaxDate ? { maxDate: rfqQuotedMaxDate } : {})}
                             {...(row.quotedDate ? { selected: parseISODate(row.quotedDate) } : {})}
                             onSelect={(value) => {
@@ -1217,9 +1230,9 @@ export function CreateProductTableRow({
                       ? "Quoted date is read-only for this status"
                       : "Quoted date is not editable"
                   }
-                  className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-linen-200 bg-linen-100 pl-2 pr-8 text-left text-xs text-neutral-500 outline-none opacity-80"
+                  className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-linen-200 bg-field-silver pl-2 pr-8 text-left text-xs text-ink-900 outline-none"
                 >
-                  <span className={row.quotedDate ? "text-neutral-500" : "text-neutral-400"}>
+                  <span className={row.quotedDate ? "text-ink-900" : "text-neutral-400"}>
                     {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
                   </span>
                   <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-400 opacity-60">
@@ -1261,7 +1274,7 @@ export function CreateProductTableRow({
                 updateProductRow(row.id, { requiredQuantity: next });
                 clearProductRowDraft(row.id, "requiredQuantity");
               }}
-              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${snapshotLocked ? "cursor-not-allowed opacity-70" : ""}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${snapshotLocked ? "cursor-not-allowed" : ""}`}
             />
           </td>
           {/* Quoted Qty — locked on PQ; editable on RFQ seller fill. */}
@@ -1325,7 +1338,7 @@ export function CreateProductTableRow({
                     ? "Quoted quantity is read-only for this status"
                     : "Quoted quantity is not editable"
                 }
-                className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80 placeholder:text-neutral-400"
+                className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-field-silver px-2 text-left text-xs text-ink-900 outline-none placeholder:text-neutral-400"
               />
             )}
           </td>
@@ -1380,7 +1393,7 @@ export function CreateProductTableRow({
                   });
                   clearProductRowDraft(row.id, "quantity");
                 }}
-                className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+                className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed" : ""}`}
               />
             </Tooltip>
           ) : (
@@ -1427,7 +1440,7 @@ export function CreateProductTableRow({
                 });
                 clearProductRowDraft(row.id, "quantity");
               }}
-              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed" : ""}`}
             />
           )}
         </td>
@@ -1444,7 +1457,7 @@ export function CreateProductTableRow({
             tabIndex={-1}
             aria-readonly="true"
             title="Price is not editable"
-            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-field-silver px-2 text-left text-xs text-ink-900 outline-none"
           />
         ) : showPqLineDatesAndQtys && sellerFieldEditable ? (
           <NumericInput
@@ -1503,7 +1516,7 @@ export function CreateProductTableRow({
             tabIndex={-1}
             aria-readonly="true"
             title="Discount % is not editable"
-            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-field-silver px-2 text-left text-xs text-ink-900 outline-none"
           />
         ) : (
           <NumericInput
@@ -1561,7 +1574,7 @@ export function CreateProductTableRow({
               clearProductRowDraft(row.id, "discountPercent");
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
-              discountInputsLocked ? "cursor-not-allowed opacity-70" : ""
+              discountInputsLocked ? "cursor-not-allowed" : ""
             }`}
           />
         )}
@@ -1577,7 +1590,7 @@ export function CreateProductTableRow({
             tabIndex={-1}
             aria-readonly="true"
             title="Discount amount is not editable"
-            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-field-silver px-2 text-left text-xs text-ink-900 outline-none"
           />
         ) : (
           <NumericInput
@@ -1642,7 +1655,7 @@ export function CreateProductTableRow({
               clearProductRowDraft(row.id, "discountAmount");
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-field-silver px-2 text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
-              discountInputsLocked ? "cursor-not-allowed opacity-70" : ""
+              discountInputsLocked ? "cursor-not-allowed" : ""
             }`}
           />
         )}
@@ -1657,7 +1670,7 @@ export function CreateProductTableRow({
             placeholder="Item tax"
             title={taxDisplay || "Tax code comes from the item"}
             aria-label="Tax code from item"
-            className="h-9 w-full cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-xs text-ink-900 opacity-70 outline-none"
+            className="h-9 w-full cursor-not-allowed rounded-lg border border-linen-200 bg-field-silver px-2 text-xs text-ink-900 outline-none"
           />
         </td>
       )}
@@ -1745,10 +1758,10 @@ export function CreateProductTableRow({
               onChange={(e) => {
                 updateProductRow(row.id, { returnReason: e.target.value });
               }}
-              className={`h-10 w-full rounded-xl border border-linen-200 bg-surface px-3 text-xs font-medium outline-none transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-200 ${
+              className={`h-10 w-full rounded-xl border border-linen-200 bg-field-silver px-3 text-xs font-medium outline-none transition-all focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
                 effectiveDisableInputs
-                  ? "cursor-not-allowed opacity-70"
-                  : "cursor-pointer hover:border-linen-200"
+                  ? "cursor-not-allowed"
+                  : "cursor-pointer hover:border-linen-200 hover:bg-surface"
               } ${row.returnReason ? "text-ink-900" : "text-neutral-400"}`}
             >
               <option value="">Select reason</option>

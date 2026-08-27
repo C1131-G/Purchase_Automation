@@ -164,6 +164,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const lookups = usePoLookups({
     clearFieldError,
     closeModal: () => modals.setModalOpen(false),
+    headerVendorCode: header.vendorCode ?? "",
+    headerVendorName: header.vendorName ?? "",
     headerWarehouseCode: header.warehouseCode ?? "",
     setHeader,
     onWarehouseSelected: (warehouseCode: string) => {
@@ -836,14 +838,19 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   ]);
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
-    syncLookupSearchByMode(mode, value, {
-      onBranch: branchField.handleBranchChange,
-      onSalesEmployee: lookups.handleSalesEmployeeChange,
-      onSeries: seriesField.handleSeriesChange,
-      onVendorCode: lookups.handleVendorCodeChange,
-      onVendorName: lookups.handleVendorNameChange,
-      onWarehouse: lookups.handleWarehouseChange,
-    });
+    syncLookupSearchByMode(
+      mode,
+      value,
+      {
+        onBranch: branchField.handleBranchChange,
+        onSalesEmployee: lookups.handleSalesEmployeeChange,
+        onSeries: seriesField.handleSeriesChange,
+        onVendorCode: lookups.handleVendorCodeChange,
+        onVendorName: lookups.handleVendorNameChange,
+        onWarehouse: lookups.handleWarehouseChange,
+      },
+      false,
+    );
   };
 
   useEffect(() => {

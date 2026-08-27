@@ -118,7 +118,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   type="text"
                   readOnly
                   value={paymentDetail.CardName || ""}
-                  className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
+                  className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900"
                 />
               </div>
               <div>
@@ -133,7 +133,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   type="text"
                   readOnly
                   value={paymentDetail.CardCode || ""}
-                  className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
+                  className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900"
                 />
               </div>
               <div>
@@ -145,7 +145,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   type="text"
                   readOnly
                   value={seriesField.seriesInput || String(paymentDetail.Series ?? "")}
-                  className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
+                  className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900"
                 />
               </div>
             </div>
@@ -171,7 +171,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         ? new Date(paymentDetail.DocDate).toLocaleDateString("en-GB")
                         : ""
                     }
-                    className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
+                    className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900"
                   />
                 </div>
                 <div>
@@ -186,7 +186,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                     type="text"
                     readOnly
                     value={paymentDetail.PaymentMode || "N/A"}
-                    className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
+                    className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900"
                   />
                 </div>
               </div>

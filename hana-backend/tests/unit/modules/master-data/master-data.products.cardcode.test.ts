@@ -27,6 +27,20 @@ describe("getProducts / getProductsByCodes — OSCN CardCode gate", () => {
     expect(args?.[7]).toBe("V0011");
   });
 
+  it("forwards PQ catalog scope to the browse loader", async () => {
+    await getProducts(
+      "DB-PQ",
+      undefined,
+      undefined,
+      10,
+      "purchase",
+      undefined,
+      "V0011",
+      "purchase-quotation",
+    );
+    expect(loadProductsForTenant.mock.calls[0]?.[8]).toBe("purchase-quotation");
+  });
+
   it("first browse of 10 warms 50 so a later 50 does not reload HANA", async () => {
     const rows = Array.from({ length: 50 }, (_, index) => ({ ItemCode: `I${index}` }));
     loadProductsForTenant.mockResolvedValue(rows);

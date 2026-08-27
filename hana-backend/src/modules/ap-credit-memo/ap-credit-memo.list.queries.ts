@@ -3,14 +3,22 @@
 import { executeTenantQuery } from "@/db/tenant-query";
 import type { CreditNoteFilters } from "./ap-credit-memo.types";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
+import {
+  buildIcCardCodePredicate,
+  getIcPartnerCodes,
+} from "@/modules/intercompany/api/ic-partner-scope";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
 export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters) => {
   try {
+    const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
     const buildSubQuery = (table: string, isDraft: boolean) => {
       const whereClauses = ["1=1"];
       const params: unknown[] = [];
+      const partnerPredicate = buildIcCardCodePredicate('"CardCode"', allowedCardCodes);
+      whereClauses.push(partnerPredicate.sql);
+      params.push(...partnerPredicate.params);
 
       if (isDraft) {
         whereClauses.push(`"ObjType" = '19'`);

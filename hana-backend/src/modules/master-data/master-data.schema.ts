@@ -17,6 +17,9 @@ export const MasterDataQuerySchema = z.object({
   priceList: z.coerce.number().optional(),
   /** BP CardCode — required for product catalog (OSCN ∩ OITM). */
   cardCode: z.string().trim().optional(),
+  /** Enables PQ-only last purchase currency normalization. */
+  catalog: z.literal("purchase-quotation").optional(),
+  scope: z.literal("intercompany").optional(),
 });
 
 export type MasterDataQuery = z.infer<typeof MasterDataQuerySchema>;

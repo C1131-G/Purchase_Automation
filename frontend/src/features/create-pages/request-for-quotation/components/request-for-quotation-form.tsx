@@ -180,9 +180,7 @@ export function RequestForQuotationForm({
                     state.setBranchFocused(true);
                   }
                 }}
-                onBranchBlur={() => {
-                  state.setBranchFocused(false);
-                }}
+                onBranchBlur={state.finalizeBranchInput}
                 onOpenBranchPopup={() => {
                   if (state.canEditLines) {
                     state.setBranchFocused(true);
@@ -202,9 +200,7 @@ export function RequestForQuotationForm({
                     state.setWarehouseFocused(true);
                   }
                 }}
-                onWarehouseBlur={() => {
-                  state.setWarehouseFocused(false);
-                }}
+                onWarehouseBlur={state.finalizeWarehouseInput}
                 onOpenWarehousePopup={() => {
                   if (state.canEditLines) {
                     state.setWarehouseFocused(true);
@@ -242,6 +238,7 @@ export function RequestForQuotationForm({
                 requiredDate={state.batchQuotedDate}
                 requiredDateReadOnly={!state.canEditLines}
                 requiredDateFutureOnly={false}
+                requiredDateMin={todayIso}
                 requiredDateMax={header.docDueDate?.slice(0, 10) || ""}
                 onRequiredDateChange={(value) => {
                   state.setAllQuotedDate(value);
@@ -324,6 +321,7 @@ export function RequestForQuotationForm({
               formError={state.formError}
               lineFieldErrors={state.lineFieldErrors}
               rfqQuotedDateMax={header.docDueDate?.slice(0, 10) || ""}
+              rfqQuotedDateMin={todayIso}
               onSubmit={() => {
                 void state.handleSubmit();
               }}

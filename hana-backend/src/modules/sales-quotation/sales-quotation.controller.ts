@@ -15,6 +15,7 @@ import {
   UpdateSalesQuotationInputSchema,
 } from "./sales-quotation.schema";
 import type { SalesQuotationDocNumLookupQuery } from "./sales-quotation.schema";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 
 // Fetches a list of sales quotations based on filters like customer name, quotation number, and date range.
 export const getSalesQuotations = async (req: Request, res: Response, next: NextFunction) => {
@@ -64,6 +65,7 @@ export const getSalesQuotation = async (req: Request, res: Response, next: NextF
     if (!data) {
       return res.status(404).json({ message: "Sales Quotation not found", success: false });
     }
+    await assertIcPartnerAllowed(authReq.user.dbName, "sales", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -92,6 +94,7 @@ export const getSalesQuotationByDocNum = async (
     if (!data) {
       return res.status(404).json({ message: "Sales Quotation not found", success: false });
     }
+    await assertIcPartnerAllowed(dbName, "sales", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -131,6 +134,12 @@ export const updateSalesQuotation = async (req: Request, res: Response, next: Ne
     // Filter and validate the update payload to ensure only permissible fields are sent to SAP.
     const validatedPayload = UpdateSalesQuotationInputSchema.parse(payload);
 
+    const detail = await salesQuotationService.getSalesQuotation(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Sales Quotation not found", success: false });
+    }
+    await assertIcPartnerAllowed(authReq.user.dbName, "sales", String(detail.CardCode ?? ""));
+
     const result = await salesQuotationService.updateSalesQuotation(
       sessionId,
       validatedPayload.draftDocEntry !== undefined
@@ -151,6 +160,12 @@ export const cancelSalesQuotation = async (req: Request, res: Response, next: Ne
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
+
+    const detail = await salesQuotationService.getSalesQuotation(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Sales Quotation not found", success: false });
+    }
+    await assertIcPartnerAllowed(authReq.user.dbName, "sales", String(detail.CardCode ?? ""));
 
     const result = await salesQuotationService.cancelSalesQuotation(sessionId, id as string);
 
@@ -191,6 +206,8 @@ export const getOpenSalesQuotationLines = async (
     if (!cardCode) {
       return res.status(400).json({ message: "cardCode is required", success: false });
     }
+
+    await assertIcPartnerAllowed(dbName, "sales", String(cardCode));
 
     const data = await salesQuotationService.getOpenSalesQuotationLines(dbName, cardCode as string);
     res.status(200).json({ data, success: true });

@@ -62,20 +62,30 @@ export const repricePqRows = (rows: ProductRow[], products: ProductLookupItem[])
   const productsByCode = new Map(products.map((product) => [product.code.trim(), product]));
   const nextRows: ProductRow[] = [];
   let repricedCount = 0;
+  let skippedCount = 0;
 
   for (const row of rows) {
     const product = productsByCode.get(row.productCode.trim());
     if (!product) {
+      nextRows.push(row);
+      skippedCount += 1;
+      continue;
+    }
+    const lastPurchasePrice = Number(product.lastPurchasePrice ?? 0);
+    if (!Number.isFinite(lastPurchasePrice) || lastPurchasePrice <= 0) {
+      nextRows.push(row);
+      skippedCount += 1;
       continue;
     }
     const pricing = resolvePqProductPricing(product);
-    nextRows.push({ ...row, ...pricing });
+    nextRows.push({ ...row, price: pricing.price, currency: pricing.currency });
     repricedCount += 1;
   }
 
   return {
-    removedCount: rows.length - nextRows.length,
+    removedCount: 0,
     repricedCount,
+    skippedCount,
     rows: nextRows,
   };
 };
@@ -91,7 +101,7 @@ export function usePqProducts({
   stockPreviewProductCode,
   vendorSelected,
   defaultLineRequiredDate = "",
-  defaultLineQuotedDate: _defaultLineQuotedDate = "",
+  defaultLineQuotedDate = "",
 }: usePqProductsProps) {
   const partnerCardCode = vendorCardCode?.trim() || undefined;
   const queryClient = useQueryClient();
@@ -164,7 +174,13 @@ export function usePqProducts({
     async (cardCode: string) => {
       const previousRows = productRows;
       if (!cardCode.trim() || previousRows.length === 0) {
-        return { previousRows, removedCount: 0, repricedCount: 0, rows: previousRows };
+        return {
+          previousRows,
+          removedCount: 0,
+          repricedCount: 0,
+          skippedCount: previousRows.length,
+          rows: previousRows,
+        };
       }
 
       const requestId = repriceRequestRef.current + 1;
@@ -177,11 +193,19 @@ export function usePqProducts({
           undefined,
           effectiveWarehouseCode || undefined,
           cardCode,
+          "purchase-quotation",
         ),
       );
 
       if (requestId !== repriceRequestRef.current) {
-        return { previousRows, removedCount: 0, repricedCount: 0, rows: previousRows, stale: true };
+        return {
+          previousRows,
+          removedCount: 0,
+          repricedCount: 0,
+          skippedCount: previousRows.length,
+          rows: previousRows,
+          stale: true,
+        };
       }
 
       const result = repricePqRows(previousRows, products);
@@ -305,7 +329,8 @@ export function usePqProducts({
           productName: product.name,
           // Quoted qty/date stay empty until the vendor fills them.
           quantity: 0,
-          quotedDate: "",
+          quotedDate:
+            defaultLineQuotedDate || defaultLineRequiredDate || activeRow?.requiredDate || "",
           requiredQuantity: 1,
           requiredDate: defaultLineRequiredDate || activeRow?.requiredDate || "",
           stock: resolvedStock,
@@ -343,7 +368,7 @@ export function usePqProducts({
           productName: product.name,
           // Quoted qty/date stay empty until the vendor fills them.
           quantity: 0,
-          quotedDate: "",
+          quotedDate: defaultLineQuotedDate || defaultLineRequiredDate || "",
           requiredQuantity: 1,
           requiredDate: defaultLineRequiredDate || "",
           selected: false,

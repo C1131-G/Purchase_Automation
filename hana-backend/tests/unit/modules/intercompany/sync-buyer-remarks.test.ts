@@ -27,13 +27,13 @@ describe("syncBuyerRemarksAfterCreate", () => {
       "session-1",
       "PATCH",
       "/PurchaseDeliveryNotes(50)",
-      { Comments: "User note\nBased on PQ 100\nBased on RFQ 200\nBased on PO 300" },
+      { Comments: "User note\nPQ No. 100\nRFQ No. 200\nPO No. 300" },
     );
   });
 
   it("does not patch when comments are already canonical", async () => {
     await syncBuyerRemarksAfterCreate({
-      createdComments: "User note\nBased on PQ 100\nBased on RFQ 200\nBased on PO 300",
+      createdComments: "User note\nPQ No. 100\nRFQ No. 200\nPO No. 300",
       docEntry: 50,
       endpoint: "/PurchaseDeliveryNotes",
       originalComments: "User note\nBased on RFQ 200",
@@ -50,6 +50,7 @@ describe("syncBuyerRemarksAfterCreate", () => {
 
     await syncBuyerRemarksAfterCreate({
       createdComments: undefined,
+      docNum: 300,
       docEntry: 50,
       endpoint: "/PurchaseOrders",
       originalComments: "Based on RFQ 200",
@@ -68,7 +69,7 @@ describe("syncBuyerRemarksAfterCreate", () => {
       "PATCH",
       "/PurchaseOrders(50)",
       {
-        Comments: "Based on PQ 100\nBased on RFQ 200",
+        Comments: "PQ No. 100\nRFQ No. 200\nPO No. 300",
       },
     );
   });

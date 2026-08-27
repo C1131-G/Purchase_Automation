@@ -7,7 +7,7 @@ import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/d
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
+import { assertIcPartnerForCreate, commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
 import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Fetches a paginated list of A/P Credit Memos from HANA.
@@ -45,6 +45,7 @@ export const createCreditNote = async (
   try {
     const session = serviceLayerClient.getSession(sessionId);
     const resolvedDbName = session?.companyDB || dbName || "";
+    await assertIcPartnerForCreate?.(resolvedDbName, "purchase", String(payload.CardCode ?? ""));
 
     let absoluteEntry: number | null = null;
     if (attachments && attachments.length > 0 && resolvedDbName) {

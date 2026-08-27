@@ -10,8 +10,6 @@ import {
   FileText,
   Download,
   FileSpreadsheet,
-  LayoutDashboard,
-  Table,
   Truck,
   StickyNote,
 } from "lucide-react";
@@ -634,7 +632,6 @@ export function BaseProductSection({
 }: BaseProductSectionProps) {
   const navigate = useNavigate();
   const router = useRouter();
-  const showBackPopover = true;
   const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode);
 
   const [activeAction, setActiveAction] = useState<"save-new" | "view" | "close" | "draft" | null>(
@@ -901,78 +898,18 @@ export function BaseProductSection({
         <div className="mt-3 flex items-center justify-between gap-2">
           {/* Left Side: Go Back Button (Same for both) */}
           <div className="flex items-center gap-2">
-            {showBackPopover ? (
-              <Popover.Root>
-                <Popover.Trigger asChild>
-                  <Button
-                    type="button"
-                    size="md"
-                    variant="outline"
-                    className="group h-11 w-56 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-                    Go Back
-                  </Button>
-                </Popover.Trigger>
-                <Popover.Content side="top" align="start" className="w-56 z-[1001]">
-                  <div className="flex flex-col py-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigate({
-                          to: "/dashboard",
-                        });
-                      }}
-                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-linen-50 transition-all text-left cursor-pointer"
-                    >
-                      <LayoutDashboard className="mt-0.5 h-4 w-4 text-neutral-400 group-hover:text-neutral-500 transition-colors" />
-                      <span className="flex flex-col">
-                        <span className="text-[13px] font-bold text-ink-900 group-hover:text-ink-900 transition-colors">
-                          Back to Dashboard
-                        </span>
-                        <span className="text-[10px] text-neutral-400 mt-0.5">
-                          Go to main dashboard
-                        </span>
-                      </span>
-                    </button>
-                    <div className="border-t border-linen-100" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigate({
-                          to: backToUrl,
-                          search: { limit: 10, page: 1 },
-                        });
-                      }}
-                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-linen-50 transition-all text-left cursor-pointer"
-                    >
-                      <Table className="mt-0.5 h-4 w-4 text-neutral-400 group-hover:text-ink-900 transition-colors" />
-                      <span className="flex flex-col">
-                        <span className="text-[13px] font-bold text-ink-900 group-hover:text-ink-900 transition-colors">
-                          Back to Table
-                        </span>
-                        <span className="text-[10px] text-neutral-400 mt-0.5">
-                          Go to document table
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </Popover.Content>
-              </Popover.Root>
-            ) : (
-              <Button
-                type="button"
-                size="md"
-                variant="outline"
-                onClick={() => navigate({ search: { limit: 10, page: 1 }, to: backToUrl })}
-                className="group h-11 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-                  {backToLabel}
-                </span>
-              </Button>
-            )}
+            <Button
+              type="button"
+              size="md"
+              variant="outline"
+              onClick={() => navigate({ search: { limit: 10, page: 1 }, to: backToUrl })}
+              className="group h-11 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
+            >
+              <span className="inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                {backToLabel}
+              </span>
+            </Button>
           </div>
 
           {/* Right Side: Different for Edit Mode vs. Create Mode */}

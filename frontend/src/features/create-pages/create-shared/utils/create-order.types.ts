@@ -25,6 +25,10 @@ export type CreateLookupOption = Pick<
   | "uomEntry"
   | "rate"
   | "category"
+  | "icCompanyCode"
+  | "icCompanyName"
+  | "defaultWarehouseCode"
+  | "defaultBranchId"
   | "nextNumber"
 > & {
   stock?: number | undefined;

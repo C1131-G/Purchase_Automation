@@ -116,7 +116,7 @@ export function LoginForm() {
                 }
                 autoComplete="off"
               >
-                <Select.Trigger className="border-linen-200 bg-surface hover:bg-surface hover:border-linen-300 focus:ring-4 focus:ring-teal-500/12 focus:border-teal-500 focus:bg-surface">
+                <Select.Trigger className="border-linen-200 bg-field-silver hover:bg-surface hover:border-linen-300 focus:ring-4 focus:ring-teal-500/12 focus:border-teal-500 focus:bg-surface">
                   <div className="flex items-center gap-3 overflow-hidden flex-1">
                     <Building2 className="size-4 text-neutral-400 shrink-0" />
                     <div className="truncate text-left">
@@ -175,7 +175,7 @@ export function LoginForm() {
               placeholder="Enter your username"
               autoComplete="off"
               disabled={isLoggingIn}
-              className="pl-11 border border-linen-200 bg-surface shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/12 focus:bg-surface disabled:pointer-events-none disabled:opacity-60"
+              className="pl-11 border border-linen-200 bg-field-silver shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/12 focus:bg-surface disabled:pointer-events-none"
             />
           </div>
           <Field.Error />
@@ -192,7 +192,7 @@ export function LoginForm() {
               placeholder="Enter your password"
               autoComplete="new-password"
               disabled={isLoggingIn}
-              className="pl-11 pr-12 border border-linen-200 bg-surface shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/12 focus:bg-surface disabled:pointer-events-none disabled:opacity-60"
+              className="pl-11 pr-12 border border-linen-200 bg-field-silver shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/12 focus:bg-surface disabled:pointer-events-none"
             />
             <button
               type="button"

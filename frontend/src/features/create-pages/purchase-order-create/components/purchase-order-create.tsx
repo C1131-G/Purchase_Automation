@@ -15,6 +15,7 @@ import { ReferenceGrid } from "@/features/create-pages/create-shared/components/
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
+import { VendorChangeConfirmationDialog } from "@/features/create-pages/create-shared/components/modals/vendor-change-confirmation-dialog";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import {
   LazyCopyFromDialog,
@@ -207,8 +208,8 @@ export function PurchaseOrderCreate({
               onCodeChange={state.handleVendorCodeChange}
               onNameFocus={() => state.setNameFocused(true)}
               onCodeFocus={() => state.setCodeFocused(true)}
-              onNameBlur={() => setTimeout(() => state.setNameFocused(false), 120)}
-              onCodeBlur={() => setTimeout(() => state.setCodeFocused(false), 120)}
+              onNameBlur={state.finalizeVendorLookup}
+              onCodeBlur={state.finalizeVendorLookup}
               onOpenNamePopup={() => state.openPopup("vendor-name")}
               onOpenCodePopup={() => state.openPopup("vendor-code")}
               onSelectVendor={state.selectVendor}
@@ -256,9 +257,7 @@ export function PurchaseOrderCreate({
               salesEmployeeSuggestions={state.salesEmployeeSuggestions}
               onSalesEmployeeChange={state.handleSalesEmployeeChange}
               onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-              onSalesEmployeeBlur={() =>
-                setTimeout(() => state.setSalesEmployeeFocused(false), 120)
-              }
+              onSalesEmployeeBlur={state.finalizeSalesEmployeeLookup}
               onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
               onSelectSalesEmployee={state.selectSalesEmployee}
               salesEmployeeDisabled={state.isClosed}
@@ -272,7 +271,7 @@ export function PurchaseOrderCreate({
               warehouseSuggestions={state.warehouseSuggestions}
               onWarehouseChange={state.handleWarehouseChange}
               onWarehouseFocus={() => state.setWarehouseFocused(true)}
-              onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+              onWarehouseBlur={state.finalizeWarehouseLookup}
               onOpenWarehousePopup={() => state.openPopup("warehouse")}
               onSelectWarehouse={state.selectWarehouse}
               warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
@@ -285,7 +284,7 @@ export function PurchaseOrderCreate({
               branchSuggestions={state.branchSuggestions}
               onBranchChange={state.handleBranchChange}
               onBranchFocus={() => state.setBranchFocused(true)}
-              onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
+              onBranchBlur={state.finalizeBranchInput}
               onOpenBranchPopup={() => state.openPopup("branch")}
               onSelectBranch={state.selectBranch}
               branchPlaceholder={state.branchPlaceholder ?? "No Branch"}
@@ -459,32 +458,11 @@ export function PurchaseOrderCreate({
         isDirty={state.isDirty}
       />
       <PurchaseOrderModals state={state} />
-      {state.pendingVendorChange && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-ink-900/30">
-          <div className="w-full max-w-sm rounded-xl border border-linen-200 bg-surface p-5 shadow-lg">
-            <h3 className="mb-2 text-sm font-semibold text-ink-900">Confirm Vendor Change</h3>
-            <p className="mb-4 text-sm text-neutral-500">
-              Changing vendor will affect copied document data. Continue?
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={state.cancelVendorChange}
-                className="rounded-full border border-linen-200 bg-surface px-4 py-1.5 text-xs font-medium text-ink-900 transition hover:bg-linen-50"
-              >
-                No
-              </button>
-              <button
-                type="button"
-                onClick={state.confirmVendorChange}
-                className="rounded-full border border-teal-600 bg-teal-600 px-4 py-1.5 text-xs font-medium text-surface transition hover:bg-teal-700"
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VendorChangeConfirmationDialog
+        open={Boolean(state.pendingVendorChange)}
+        onCancel={state.cancelVendorChange}
+        onConfirm={state.confirmVendorChange}
+      />
     </CreatePageWrapper>
   );
 }

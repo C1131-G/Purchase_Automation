@@ -3,6 +3,7 @@
 
 import { logger } from "@/core/logger/pino-logger";
 import { executeTenantQuery } from "@/db/tenant-query";
+import { getIcPartnerCodes } from "@/modules/intercompany/api/ic-partner-scope";
 
 /** One A/R Invoice Draft row for the Overview panel. */
 export type OverviewArApprovalItem = {
@@ -302,6 +303,7 @@ const AR_DRAFT_WHERE = `
 
 async function loadArInvoiceDraftStats(
   dbName: string,
+  allowedCardCodes: string[],
 ): Promise<{ count: number; openValue: number }> {
   try {
     const statsRaw = (await executeTenantQuery(
@@ -311,8 +313,9 @@ async function loadArInvoiceDraftStats(
                SUM(d."DocTotal") AS "OpenValue"
           FROM "ODRF" d
          WHERE ${AR_DRAFT_WHERE}
+           AND ${allowedCardCodes.length > 0 ? `d."CardCode" IN (${allowedCardCodes.map(() => "?").join(", ")})` : "1=0"}
       `,
-      [],
+      allowedCardCodes,
     )) as unknown;
     const statsRows = Array.isArray(statsRaw) ? (statsRaw as Record<string, unknown>[]) : [];
     const stats = statsRows[0];
@@ -349,6 +352,7 @@ export async function loadArInvoiceDraftsPage(
   params: { offset?: number; limit?: number } = {},
 ): Promise<OverviewArDraftsPageResult> {
   const { offset, limit } = clampArDraftPageParams(params);
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "sales");
   try {
     const sql = `
       SELECT
@@ -363,13 +367,18 @@ export async function loadArInvoiceDraftsPage(
         DAYS_BETWEEN(COALESCE(d."DocDate", d."CreateDate"), CURRENT_DATE) AS "AgeDays"
       FROM "ODRF" d
       WHERE ${AR_DRAFT_WHERE}
+        AND ${allowedCardCodes.length > 0 ? `d."CardCode" IN (${allowedCardCodes.map(() => "?").join(", ")})` : "1=0"}
       ORDER BY d."DocDate" DESC, d."DocEntry" DESC
       LIMIT ? OFFSET ?
     `;
 
-    const raw = (await executeTenantQuery(dbName, sql, [limit, offset])) as unknown;
+    const raw = (await executeTenantQuery(dbName, sql, [
+      ...allowedCardCodes,
+      limit,
+      offset,
+    ])) as unknown;
     const items = mapArDraftRows(raw);
-    const stats = await loadArInvoiceDraftStats(dbName);
+    const stats = await loadArInvoiceDraftStats(dbName, allowedCardCodes);
     const nextOffset = offset + items.length;
     const hasMore =
       items.length === limit && (stats.count > 0 ? nextOffset < stats.count : items.length > 0);

@@ -23,6 +23,7 @@ vi.mock("@/modules/attachments/attachments.service", () => ({
 }));
 vi.mock("@/modules/intercompany", () => ({
   afterPoCreated: vi.fn(),
+  assertIcPartnerForCreate: vi.fn(),
   assertPqLinesCopyAllowed: vi.fn(),
   commentsWithoutSapBaseAutoLines: (comments: unknown) => comments,
   recordIcPqToPoLink: vi.fn(),

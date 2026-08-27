@@ -51,6 +51,20 @@ describe("warehouse and branch lookup editing", () => {
     expect(onBranch).toHaveBeenCalledWith("Lau");
   });
 
+  it("can keep popup search text isolated from the inline field", () => {
+    const onWarehouse = vi.fn();
+    const handlers = {
+      onVendorName: vi.fn(),
+      onVendorCode: vi.fn(),
+      onWarehouse,
+      onSalesEmployee: vi.fn(),
+    };
+
+    syncLookupSearchByMode("warehouse", "random", handlers, false);
+
+    expect(onWarehouse).not.toHaveBeenCalled();
+  });
+
   it("uses the current location text only as the initial popup query", () => {
     expect(
       getLookupInlineSearchByMode("warehouse", {

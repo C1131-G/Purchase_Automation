@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -14,22 +14,15 @@ export function useOutgoingPaymentLookups() {
 
   const [nameFocused, setNameFocused] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
+  const vendorSelectedRef = useRef(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"vendor-name" | "vendor-code">("vendor-code");
 
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
 
-  const findVendorByCode = (value: string) =>
-    (vendors as ProductLookupItem[]).find(
-      (vendor) => vendor.code.toLowerCase() === value.trim().toLowerCase(),
-    );
-  const findVendorByName = (value: string) =>
-    (vendors as ProductLookupItem[]).find(
-      (vendor) => vendor.name.toLowerCase() === value.trim().toLowerCase(),
-    );
-
   const selectVendor = (vendor: LookupOption) => {
+    vendorSelectedRef.current = true;
     setNameInput(vendor.name);
     setCodeInput(vendor.code);
     setNameFocused(false);
@@ -38,21 +31,11 @@ export function useOutgoingPaymentLookups() {
   };
 
   const handleVendorNameChange = (value: string) => {
+    vendorSelectedRef.current = false;
     setNameInput(value);
     if (value.trim() === "") {
       setNameFocused(true);
       setCodeInput("");
-      return;
-    }
-    const matched = findVendorByName(value);
-    if (matched) {
-      selectVendor(matched);
-      setTimeout(() => {
-        window.scrollTo({
-          behavior: "smooth",
-          top: document.body.scrollHeight,
-        });
-      }, 150);
       return;
     }
     setNameFocused(true);
@@ -60,19 +43,31 @@ export function useOutgoingPaymentLookups() {
   };
 
   const handleVendorCodeChange = (value: string) => {
+    vendorSelectedRef.current = false;
     setCodeInput(value);
     if (value.trim() === "") {
       setCodeFocused(true);
       setNameInput("");
       return;
     }
-    const matched = findVendorByCode(value);
-    if (matched) {
-      selectVendor(matched);
-      return;
-    }
     setCodeFocused(true);
     setNameInput("");
+  };
+
+  useEffect(() => {
+    if (!nameFocused && !codeFocused && !vendorSelectedRef.current) {
+      setNameInput("");
+      setCodeInput("");
+    }
+  }, [codeFocused, nameFocused]);
+
+  const finalizeVendorLookup = () => {
+    if (!vendorSelectedRef.current) {
+      setNameInput("");
+      setCodeInput("");
+    }
+    setNameFocused(false);
+    setCodeFocused(false);
   };
 
   const nameSuggestions = useMemo(
@@ -96,6 +91,7 @@ export function useOutgoingPaymentLookups() {
     codeSuggestions,
     handleVendorCodeChange,
     handleVendorNameChange,
+    finalizeVendorLookup,
     modalMode,
     modalOpen,
     nameFocused,

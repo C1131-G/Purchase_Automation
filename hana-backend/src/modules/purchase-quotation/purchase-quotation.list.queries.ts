@@ -3,21 +3,31 @@
 import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import type { PurchaseQuotationFilters } from "./purchase-quotation.types";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
+import {
+  buildIcCardCodePredicate,
+  getIcPartnerCodes,
+} from "@/modules/intercompany/api/ic-partner-scope";
 import { listPqCopyAllowedDocEntries } from "@/modules/intercompany";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
+import { buildIcDocumentLineageSql } from "@/modules/intercompany/infrastructure/ic-document-lineage";
 
 // Fetches a filtered and paginated list of Purchase Quotations from the tenant-specific HANA database.
 
 export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuotationFilters) => {
   try {
+    const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
     const copyAllowedDocEntries = filters.rfqSubmittedOnly
       ? await listPqCopyAllowedDocEntries(dbName)
       : null;
 
     const buildSubQuery = (table: string, isDraft: boolean) => {
       const whereClauses = ["1=1"];
-      const params: unknown[] = [];
+      const lineageSql = isDraft ? undefined : buildIcDocumentLineageSql("buyer");
+      const params: unknown[] = lineageSql ? [dbName] : [];
+      const partnerPredicate = buildIcCardCodePredicate('"CardCode"', allowedCardCodes);
+      whereClauses.push(partnerPredicate.sql);
+      params.push(...partnerPredicate.params);
 
       if (isDraft) {
         whereClauses.push(`"ObjType" = '540000006'`);
@@ -35,6 +45,14 @@ export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuo
       if (filters.DocNum) {
         whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
         params.push(`%${filters.DocNum}%`);
+      }
+
+      if (filters.RfqNumber) {
+        if (isDraft) whereClauses.push("1=0");
+        else {
+          whereClauses.push(`LOWER(CAST("ic"."RfqNumber" AS NVARCHAR)) LIKE LOWER(?)`);
+          params.push(`%${filters.RfqNumber}%`);
+        }
       }
 
       if (filters.CardCode) {
@@ -83,10 +101,12 @@ export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuo
       }
 
       const selectColumns = isDraft
-        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus"`
-        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus"`;
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus", CAST(NULL AS NVARCHAR(100)) AS "RfqNumber"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus", "ic"."RfqNumber"`;
 
-      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      const sql = lineageSql
+        ? `SELECT ${selectColumns} FROM "${table}" LEFT JOIN (${lineageSql}) "ic" ON "ic"."PqDocEntry" = CAST("DocEntry" AS NVARCHAR) WHERE ${whereClauses.join(" AND ")}`
+        : `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
       return { sql, params };
     };
 
@@ -111,6 +131,7 @@ export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuo
       DocNum: `"DocNum"`,
       DocStatus: `"DocStatus"`,
       DocTotal: `"DocTotal"`,
+      RfqNumber: `"RfqNumber"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
@@ -147,6 +168,7 @@ export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuo
         DocNum: row.DocNum,
         DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",
         DocTotal: row.DocTotal,
+        RfqNumber: row.RfqNumber == null ? null : String(row.RfqNumber),
         id: row.DocEntry,
       })),
       limit,
@@ -165,6 +187,7 @@ export const getPurchaseQuotationDocNums = async (
   search?: string,
   limit?: number,
 ) => {
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
   const repo = await getTenantRepository(dbName, PurchaseQuotationSchema);
   const queryBuilder = repo.createQueryBuilder("pq");
   const safeLimit = getSafeDocNumLimit(limit);
@@ -174,9 +197,11 @@ export const getPurchaseQuotationDocNums = async (
     .addSelect("pq.cardCode", "CardCode")
     .addSelect("pq.cardName", "CardName")
     .distinct(true);
+  if (allowedCardCodes.length === 0) queryBuilder.where("1=0");
+  else queryBuilder.where("pq.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
 
   if (search && search.trim().length > 0) {
-    queryBuilder.where("CAST(pq.docNum AS NVARCHAR) LIKE :search", {
+    queryBuilder.andWhere("CAST(pq.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
     });
   }

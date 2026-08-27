@@ -9,6 +9,7 @@ import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/d
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
+import { assertIcPartnerForCreate } from "@/modules/intercompany";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
@@ -46,6 +47,7 @@ export const createSalesQuotation = async (
 
     const session = serviceLayerClient.getSession(sessionId);
     const resolvedDbName = session?.companyDB || "";
+    await assertIcPartnerForCreate?.(resolvedDbName, "sales", String(payload.CardCode ?? ""));
 
     let absoluteEntry: number | null = null;
     if (attachments && attachments.length > 0 && resolvedDbName) {

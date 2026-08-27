@@ -26,7 +26,6 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { findWarehouseSelection } from "@/features/create-pages/create-shared/utils/location-lookup";
 import {
   dismissDocumentHydrating,
   notifyCreateApiError,
@@ -223,6 +222,7 @@ export function useGRPOCreate({
   const [warehouseInput, setWarehouseInput] = useState(lotChrome?.warehouseInput ?? "");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
   const warehouseDirtyRef = useRef(false);
+  const buyerSelectedRef = useRef(false);
 
   const resetWarehouse = useCallback(() => {
     warehouseDirtyRef.current = false;
@@ -386,9 +386,8 @@ export function useGRPOCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const matched = findWarehouseSelection(warehouses, warehouseInput);
-    return matched?.code ?? "";
-  }, [warehouseInput, warehouses]);
+    return header.warehouseCode?.trim() ?? "";
+  }, [header.warehouseCode]);
 
   const searchWarehouseCode = useMemo(() => {
     if (activeProductRowId) {
@@ -432,7 +431,7 @@ export function useGRPOCreate({
     documentNumber: isEditMode ? editDocNum : null,
   });
 
-  const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
+  const vendorSelected = Boolean(vendorCodeInput && vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
   const partnerCardCode = vendorCodeInput.trim() || undefined;
 
@@ -1297,6 +1296,7 @@ export function useGRPOCreate({
         setVendorCodeInput(vendorCode);
         setVendorNameInput(vendorName);
         setBuyerInput(buyerName);
+        buyerSelectedRef.current = Boolean(buyerName);
         const matchedWarehouseCopy = warehouses.find(
           (w) => String(w.code).trim() === warehouseCode,
         );
@@ -1492,14 +1492,19 @@ export function useGRPOCreate({
   ]);
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
-    syncLookupSearchByMode(mode, value, {
-      onBranch: branchField.handleBranchChange,
-      onSeries: seriesField.handleSeriesChange,
-      onSalesEmployee: handleBuyerChange,
-      onVendorCode: handleVendorCodeChange,
-      onVendorName: handleVendorNameChange,
-      onWarehouse: handleWarehouseInputChange,
-    });
+    syncLookupSearchByMode(
+      mode,
+      value,
+      {
+        onBranch: branchField.handleBranchChange,
+        onSeries: seriesField.handleSeriesChange,
+        onSalesEmployee: handleBuyerChange,
+        onVendorCode: handleVendorCodeChange,
+        onVendorName: handleVendorNameChange,
+        onWarehouse: handleWarehouseInputChange,
+      },
+      false,
+    );
   };
 
   useEffect(() => {
@@ -1542,6 +1547,12 @@ export function useGRPOCreate({
   }, [submitAttempted, filteredRows]);
 
   const selectVendor = (vendor: LookupItem) => {
+    if (normalizeCodeForCompare(header.vendorCode) === normalizeCodeForCompare(vendor.code)) {
+      setPendingVendorChange(null);
+      setVendorNameInput(header.vendorName || vendor.name);
+      setVendorCodeInput(header.vendorCode || vendor.code);
+      return;
+    }
     // If document has copied rows, confirm before breaking the link
     if (hasCopiedRows) {
       setPendingVendorChange({ vendor });
@@ -1567,7 +1578,8 @@ export function useGRPOCreate({
           )?.name
         : "";
     setBuyerInput(buyerByCode || vendor.salesEmployeeName?.trim() || "");
-    setWarehouseInput("");
+    buyerSelectedRef.current = Boolean(buyerByCode || vendor.salesEmployeeName?.trim());
+    setWarehouseInput(header.warehouseCode.trim());
     setLines([]);
     setCreateError(null);
     setFieldErrors((prev) => ({
@@ -1583,31 +1595,16 @@ export function useGRPOCreate({
   const handleVendorNameChange = (value: string) => {
     setVendorNameInput(value);
     setFieldErrors((prev) => ({ ...prev, vendorName: undefined }));
+    if (hasCopiedRows) {
+      setVendorNameFocused(true);
+      return;
+    }
     if (value.trim() === "") {
       setVendorNameFocused(true);
       setVendorCodeInput("");
       setBuyerInput("");
       setBillToAddress("");
       setShipToAddress("");
-      return;
-    }
-    const matchedByName = vendors.find(
-      (item) => item.name.trim().toLowerCase() === value.trim().toLowerCase(),
-    );
-    if (matchedByName) {
-      setVendorCodeInput(matchedByName.code);
-      setBillToAddress(matchedByName.billToAddress ?? "");
-      setShipToAddress(matchedByName.shipToAddress ?? matchedByName.billToAddress ?? "");
-      const buyerByCode =
-        matchedByName.salesEmployeeCode !== undefined && matchedByName.salesEmployeeCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(matchedByName.salesEmployeeCode),
-            )?.name
-          : "";
-      setBuyerInput(buyerByCode || matchedByName.salesEmployeeName?.trim() || "");
-      setVendorNameFocused(false);
       return;
     }
     // Typing a non-matching name — if copied rows exist, guard
@@ -1624,36 +1621,16 @@ export function useGRPOCreate({
   const handleVendorCodeChange = (value: string) => {
     setVendorCodeInput(value);
     setFieldErrors((prev) => ({ ...prev, vendorCode: undefined }));
+    if (hasCopiedRows) {
+      setVendorCodeFocused(true);
+      return;
+    }
     if (value.trim() === "") {
       setVendorCodeFocused(true);
       setVendorNameInput("");
       setBuyerInput("");
       setBillToAddress("");
       setShipToAddress("");
-      return;
-    }
-    const matchedByCode = vendors.find(
-      (item) => item.code.trim().toLowerCase() === value.trim().toLowerCase(),
-    );
-    if (matchedByCode) {
-      // Switching to a different matched vendor with copied rows — confirm
-      if (hasCopiedRows) {
-        setPendingVendorChange({ vendor: matchedByCode });
-        return;
-      }
-      setVendorNameInput(matchedByCode.name);
-      setBillToAddress(matchedByCode.billToAddress ?? "");
-      setShipToAddress(matchedByCode.shipToAddress ?? matchedByCode.billToAddress ?? "");
-      const buyerByCode =
-        matchedByCode.salesEmployeeCode !== undefined && matchedByCode.salesEmployeeCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(matchedByCode.salesEmployeeCode),
-            )?.name
-          : "";
-      setBuyerInput(buyerByCode || matchedByCode.salesEmployeeName?.trim() || "");
-      setVendorCodeFocused(false);
       return;
     }
     // Typing a non-matching code — if copied rows exist, guard
@@ -1694,6 +1671,10 @@ export function useGRPOCreate({
 
   const cancelVendorChange = () => {
     setPendingVendorChange(null);
+    setVendorNameInput(header.vendorName);
+    setVendorCodeInput(header.vendorCode);
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
   };
 
   /** Apply vendor without clearing lines/warehouse — used only during vendor-change confirmation. */
@@ -1734,31 +1715,16 @@ export function useGRPOCreate({
       setHeader({ warehouseCode: "" });
       return;
     }
-    const matched = findWarehouseSelection(warehouses, value);
-    if (matched) {
-      selectWarehouse(matched);
-      return;
-    }
     setHeader({ warehouseCode: "" });
     setWarehouseFocused(true);
   };
 
   const handleBuyerChange = (value: string) => {
+    buyerSelectedRef.current = false;
     setBuyerInput(value);
     setFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }));
     if (!value.trim()) {
       setBuyerFocused(true);
-      return;
-    }
-    const byName = salesEmployees.find(
-      (item) => item.name.trim().toLowerCase() === value.trim().toLowerCase(),
-    );
-    const byCode = salesEmployees.find(
-      (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(value),
-    );
-    const matched = byName ?? byCode;
-    if (matched) {
-      selectBuyer(matched);
       return;
     }
     setBuyerFocused(true);
@@ -1793,6 +1759,7 @@ export function useGRPOCreate({
   };
 
   const selectBuyer = (item: LookupItem) => {
+    buyerSelectedRef.current = true;
     setBuyerInput(item.name);
     setBuyerFocused(false);
     setFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }));
@@ -2553,6 +2520,29 @@ export function useGRPOCreate({
     });
   }, [continueSubmit, isEditMode]);
 
+  const finalizeVendorLookup = () => {
+    if (!vendorCodeInput.trim() || !vendorNameInput.trim()) {
+      setVendorNameInput("");
+      setVendorCodeInput("");
+    }
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
+  };
+
+  const finalizeWarehouseLookup = () => {
+    if (!header.warehouseCode?.trim()) {
+      setWarehouseInput("");
+    }
+    setWarehouseFocused(false);
+  };
+
+  const finalizeBuyerLookup = () => {
+    if (!buyerSelectedRef.current) {
+      setBuyerInput("");
+    }
+    setBuyerFocused(false);
+  };
+
   return {
     isEditMode,
     isEditHydrated,
@@ -2598,6 +2588,9 @@ export function useGRPOCreate({
     setBuyerFocused,
     warehouseFocused,
     setWarehouseFocused,
+    finalizeVendorLookup,
+    finalizeWarehouseLookup,
+    finalizeBuyerLookup,
     resetWarehouse,
     ...branchField,
     ...seriesField,

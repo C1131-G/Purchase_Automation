@@ -11,6 +11,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import {
   afterPoCreated,
+  assertIcPartnerForCreate,
   assertPqLinesCopyAllowed,
   commentsWithoutSapBaseAutoLines,
   recordIcPqToPoLink,
@@ -31,6 +32,9 @@ export const createPurchaseOrder = async (
 ) => {
   try {
     const isDraft = payload.isDraft === true;
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = session?.companyDB || dbName || "";
+    await assertIcPartnerForCreate?.(resolvedDbName, "purchase", String(payload.CardCode ?? ""));
     const draftDocEntry = Number(payload.draftDocEntry || 0);
 
     // Defensive fallback: when converting a draft to a real document, re-read the draft from SAP
@@ -79,8 +83,6 @@ export const createPurchaseOrder = async (
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
-    const session = serviceLayerClient.getSession(sessionId);
-    const resolvedDbName = session?.companyDB || dbName || "";
     if (resolvedDbName) {
       await assertPqLinesCopyAllowed(resolvedDbName, lines);
     }
@@ -268,6 +270,7 @@ export const createPurchaseOrder = async (
     await syncBuyerRemarksAfterCreate({
       createdComments: result.Comments,
       docEntry: result.DocEntry,
+      docNum: result.DocNum ?? result.DocEntry,
       endpoint: isDraft ? "/Drafts" : "/PurchaseOrders",
       originalComments: sapPayload.Comments,
       sessionId,

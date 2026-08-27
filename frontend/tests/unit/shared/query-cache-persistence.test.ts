@@ -9,8 +9,8 @@ describe("shouldPersistQueryKey", () => {
   });
 
   it("persists static create-shared master keys", () => {
-    expect(shouldPersistQueryKey(["create-shared", "vendors-v4"])).toBe(true);
-    expect(shouldPersistQueryKey(["create-shared", "customers-v4"])).toBe(true);
+    expect(shouldPersistQueryKey(["create-shared", "vendors-ic-v1"])).toBe(true);
+    expect(shouldPersistQueryKey(["create-shared", "customers-ic-v1"])).toBe(true);
     expect(shouldPersistQueryKey(["create-shared", "warehouses"])).toBe(true);
     expect(shouldPersistQueryKey(["create-shared", "sales-employees"])).toBe(true);
     expect(shouldPersistQueryKey(["create-shared", "tax-codes"])).toBe(true);

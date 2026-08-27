@@ -10,6 +10,8 @@ export type IcBpMapping = {
 
 /** Mapping row with optional IC_COMPANY names (list / overview). */
 export type IcBpMappingWithCompanies = IcBpMapping & {
+  buyerCompanyCode?: string | null;
   buyerCompanyName: string | null;
+  vendorCompanyCode?: string | null;
   vendorCompanyName: string | null;
 };

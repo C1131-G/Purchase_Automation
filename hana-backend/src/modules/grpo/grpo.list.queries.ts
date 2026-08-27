@@ -4,13 +4,21 @@ import type { GRPOFilters } from "./grpo.types";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
+import {
+  buildIcCardCodePredicate,
+  getIcPartnerCodes,
+} from "@/modules/intercompany/api/ic-partner-scope";
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
 export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
   try {
+    const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
     const buildSubQuery = (table: string, isDraft: boolean) => {
       const whereClauses = ["1=1"];
       const params: unknown[] = [];
+      const partnerPredicate = buildIcCardCodePredicate('"CardCode"', allowedCardCodes);
+      whereClauses.push(partnerPredicate.sql);
+      params.push(...partnerPredicate.params);
 
       if (isDraft) {
         whereClauses.push(`"ObjType" = '20'`);
@@ -145,6 +153,7 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
 };
 
 export const getGRPODocNums = async (dbName: string, search?: string, limit?: number) => {
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
   const repo = await getTenantRepository(dbName, GRPOSchema);
   const queryBuilder = repo.createQueryBuilder("grpo");
   const safeLimit = getSafeDocNumLimit(limit);
@@ -154,9 +163,11 @@ export const getGRPODocNums = async (dbName: string, search?: string, limit?: nu
     .addSelect("grpo.cardCode", "CardCode")
     .addSelect("grpo.cardName", "CardName")
     .distinct(true);
+  if (allowedCardCodes.length === 0) queryBuilder.where("1=0");
+  else queryBuilder.where("grpo.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
 
   if (search && search.trim().length > 0) {
-    queryBuilder.where("CAST(grpo.docNum AS NVARCHAR) LIKE :search", {
+    queryBuilder.andWhere("CAST(grpo.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
     });
   }

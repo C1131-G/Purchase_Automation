@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, LayoutDashboard, Loader2, Table } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/button";
-import { Popover } from "@/components/popover";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { CreateProductTable } from "@/features/create-pages/create-shared/components/tables/create-product-table";
@@ -35,6 +34,7 @@ interface RfqProductSectionProps {
   formError: string | null;
   lineFieldErrors: RfqLineFieldErrors;
   rfqQuotedDateMax?: string;
+  rfqQuotedDateMin?: string;
   onSubmit: () => void;
   onUpdate?: () => void;
 }
@@ -62,6 +62,7 @@ export function RfqProductSection({
   formError,
   lineFieldErrors,
   rfqQuotedDateMax = "",
+  rfqQuotedDateMin = "",
   onSubmit,
   onUpdate,
 }: RfqProductSectionProps) {
@@ -97,6 +98,7 @@ export function RfqProductSection({
         uoms={[]}
         showPqLineDatesAndQtys
         rfqQuotedDateMax={rfqQuotedDateMax}
+        rfqQuotedDateMin={rfqQuotedDateMin}
         rfqSellerFill
         disableLineInputs={!canEdit}
         onLineInputRestrictedClick={restricted}
@@ -139,61 +141,23 @@ export function RfqProductSection({
 
         <div className="mt-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Popover.Root>
-              <Popover.Trigger asChild>
-                <Button
-                  type="button"
-                  size="md"
-                  variant="outline"
-                  className="group flex h-11 w-56 cursor-pointer items-center justify-center gap-2 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold tracking-normal text-ink-900 shadow-sm outline-none ring-0 transition-all hover:bg-linen-50 hover:text-teal-600 focus:outline-none focus:ring-0 normal-case"
-                >
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-                  Go Back
-                </Button>
-              </Popover.Trigger>
-              <Popover.Content side="top" align="start" className="z-[1001] w-56">
-                <div className="flex flex-col py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void navigate({ to: "/dashboard" });
-                    }}
-                    className="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-all hover:bg-linen-50"
-                  >
-                    <LayoutDashboard className="mt-0.5 h-4 w-4 text-neutral-400 transition-colors group-hover:text-neutral-500" />
-                    <span className="flex flex-col">
-                      <span className="text-[13px] font-bold text-ink-900 transition-colors group-hover:text-ink-900">
-                        Back to Dashboard
-                      </span>
-                      <span className="mt-0.5 text-[10px] text-neutral-400">
-                        Go to main dashboard
-                      </span>
-                    </span>
-                  </button>
-                  <div className="border-t border-linen-100" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void navigate({
-                        search: { limit: 10, page: 1 },
-                        to: "/sales/request-for-quotations",
-                      });
-                    }}
-                    className="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-all hover:bg-linen-50"
-                  >
-                    <Table className="mt-0.5 h-4 w-4 text-neutral-400 transition-colors group-hover:text-ink-900" />
-                    <span className="flex flex-col">
-                      <span className="text-[13px] font-bold text-ink-900 transition-colors group-hover:text-ink-900">
-                        Back to Table
-                      </span>
-                      <span className="mt-0.5 text-[10px] text-neutral-400">
-                        Go to document table
-                      </span>
-                    </span>
-                  </button>
-                </div>
-              </Popover.Content>
-            </Popover.Root>
+            <Button
+              type="button"
+              size="md"
+              variant="outline"
+              onClick={() => {
+                void navigate({
+                  search: { limit: 10, page: 1 },
+                  to: "/sales/request-for-quotations",
+                });
+              }}
+              className="group h-11 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
+            >
+              <span className="inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                Back to Table
+              </span>
+            </Button>
           </div>
 
           {canSubmit ? (

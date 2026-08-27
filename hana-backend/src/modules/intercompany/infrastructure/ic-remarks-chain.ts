@@ -1,10 +1,10 @@
 /**
  * IC document remarks / Comments chain.
  *
- * Current format (short, one link per line — fits SAP Comments 254):
- *   Based on PQ 8000586
- *   Based on RFQ 8000586
- *   Based on SQ 810
+ * Current format (one short document type + number per line):
+ *   PQ No. 8000586
+ *   RFQ No. 8000586
+ *   SQ No. 810
  *
  * Staged chain by document:
  *   RFQ open (create)     → PQ only
@@ -23,7 +23,7 @@
  * Company / BP names are not written on new lines (keeps Comments short).
  */
 
-/** @deprecated Old long-form prefix; new lines use `Based on PQ 123`. */
+/** @deprecated Old long-form prefix; new lines use `PQ No. 123`. */
 export const AUTO_GENERATED_REMARK_PREFIX = "Auto Generated";
 
 export type IcRemarkLink = {
@@ -45,9 +45,11 @@ export const IC_REMARK_PROFILE = {
 
 export type IcRemarkProfile = (typeof IC_REMARK_PROFILE)[keyof typeof IC_REMARK_PROFILE];
 
+const IC_REMARK_KEY_ORDER = ["PQ", "RFQ", "PO", "SQ"] as const;
+
 const REMARK_KEYS_BY_PROFILE: Record<IcRemarkProfile, readonly string[]> = {
-  [IC_REMARK_PROFILE.BUYER]: ["PQ", "RFQ", "PO"],
-  [IC_REMARK_PROFILE.SELLER]: ["RFQ", "SQ"],
+  [IC_REMARK_PROFILE.BUYER]: IC_REMARK_KEY_ORDER,
+  [IC_REMARK_PROFILE.SELLER]: IC_REMARK_KEY_ORDER,
 };
 
 /** Buyer owns PQ/PO; seller owns RFQ/SQ/AR. Prefer IC_COMPANY.COMPANY_NAME. */
@@ -120,7 +122,7 @@ const normalizeRemarkKey = (key: string): string => {
 const parseShortIcLine = (
   trimmed: string,
 ): { cardName?: string; key: string; text: string } | null => {
-  const match = trimmed.match(/^(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+(\S+)\s*$/i);
+  const match = trimmed.match(/^(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+(?:No\.?\s+)?(\S+)\s*$/i);
   if (!match?.[1] || !match[2]) {
     return null;
   }
@@ -131,13 +133,15 @@ const parseShortIcLine = (
 };
 
 /**
- * Current form: `Based on PQ 8000586` (optional Auto Generated prefix).
+ * Current/legacy form: `PQ No. 8000586` or `Based on PQ 8000586` (optional Auto Generated prefix).
  */
 const parseBasedOnShortLine = (
   trimmed: string,
 ): { cardName?: string; key: string; text: string } | null => {
   const withoutAutoPrefix = trimmed.replace(/^auto\s+generated\s+/i, "").trim();
-  const match = withoutAutoPrefix.match(/^(?:based on\s+)(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+(\S+)\s*$/i);
+  const match = withoutAutoPrefix.match(
+    /^(?:based on\s+)(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+(?:No\.?\s+)?(\S+)\s*$/i,
+  );
   if (!match?.[1] || !match[2]) {
     return null;
   }
@@ -168,7 +172,10 @@ const parseBasedOnLine = (
   }
   for (const [label, key] of LABEL_ENTRIES_SORTED) {
     // Optional multi-word CardName before the known document label.
-    const pattern = new RegExp(`^(?:(.+?)\\s+)?${escapeRegExp(label)}\\s+(\\S+)\\s*$`, "i");
+    const pattern = new RegExp(
+      `^(?:(.+?)\\s+)?${escapeRegExp(label)}\\s+(?:No\\.?\\s+)?(\\S+)\\s*$`,
+      "i",
+    );
     const match = rest.match(pattern);
     if (match?.[2]) {
       const cardName = match[1]?.trim();
@@ -210,8 +217,8 @@ const isAutoRemarkLine = (trimmed: string): boolean =>
   parseBasedOnLine(trimmed) != null;
 
 /**
- * Format one IC chain line: `Based on PQ 8000586`.
- * `cardName` is ignored (kept for API compatibility; long company names blew SAP 254).
+ * Format one IC chain line with its unique document type and number.
+ * `cardName` is ignored so a repeated company/BP name never bloats every line.
  */
 export const formatIcRemarkLine = (
   key: string,
@@ -219,7 +226,7 @@ export const formatIcRemarkLine = (
   _cardName?: string | null,
 ): string => {
   const code = normalizeRemarkKey(key);
-  return `Based on ${code} ${docRefText.trim()}`;
+  return `${code} No. ${docRefText.trim()}`;
 };
 
 /** Collect IC keys already present in comments (short + legacy + Based on). */
@@ -351,8 +358,8 @@ export const hasIcRemarkChain = (remarks: string | null | undefined): boolean =>
   parseIcRemarkLinks(remarks).some((link) => ["PQ", "RFQ", "PO", "SQ"].includes(link.key));
 
 /**
- * Rebuild IC lines in their side-specific business order while retaining user text.
- * A seller never receives buyer-side PQ/PO references.
+ * Rebuild IC lines in the shared PQ → RFQ → PO → SQ business order while retaining user text.
+ * Both sides receive the same known chain; unavailable document numbers are simply omitted.
  */
 export const normalizeIcRemarks = (
   remarks: string | null | undefined,
@@ -699,8 +706,7 @@ export const compactPoTag = (docNum: number | null | undefined, docEntry: number
   hasDocNum(docNum) ? `IC-PO-${docNum}` : `IC-PO-E${docEntry}`;
 
 /**
- * RFQ header remarks at create / open time.
- * A seller-side RFQ has no prior seller document, so it keeps user text only.
+ * RFQ header remarks at create / open time. The known PQ and RFQ references are retained.
  */
 export const buildFlow1RfqRemarks = (
   params: {
@@ -711,12 +717,15 @@ export const buildFlow1RfqRemarks = (
     rfqId?: number | null;
   } & IcDocOwnerNames,
 ): string => {
-  return normalizeIcRemarks(params.existing, IC_REMARK_PROFILE.SELLER);
+  const { buyer, seller } = resolveOwnerNames(params);
+  return normalizeIcRemarks(params.existing, IC_REMARK_PROFILE.SELLER, [
+    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry, buyer),
+    icLinkRfq(params.rfqNumber, params.rfqId, seller),
+  ]);
 };
 
 /**
- * Convert chain remarks after RFQ submit (PQ updated).
- * The PQ is the current document, so buyer comments reference only its RFQ.
+ * Convert chain remarks after RFQ submit (PQ updated). Both known references are retained.
  */
 export const buildFlow1ConvertRemarks = (
   params: {
@@ -729,8 +738,13 @@ export const buildFlow1ConvertRemarks = (
     pqDocEntry?: number | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { seller } = resolveOwnerNames(params);
+  const { buyer, seller } = resolveOwnerNames(params);
   return normalizeIcRemarks(params.existing, IC_REMARK_PROFILE.BUYER, [
+    icLinkPq(
+      params.pqDocNum ?? params.pqDraftDocNum,
+      params.pqDocEntry ?? params.pqDraftDocEntry,
+      buyer,
+    ),
     icLinkRfq(params.rfqNumber, params.rfqId, seller),
   ]);
 };
@@ -764,7 +778,7 @@ export const ensureVendorRefInRemarks = (
 };
 
 /**
- * Seller SQ Comments: vendor ref (user line) + RFQ only.
+ * Seller SQ Comments: vendor ref (user line) + known PQ/RFQ/SQ references.
  */
 export const buildFlow1SqRemarks = (
   params: {
@@ -781,16 +795,23 @@ export const buildFlow1SqRemarks = (
     vendorRefNo?: string | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { seller } = resolveOwnerNames(params);
+  const { buyer, seller } = resolveOwnerNames(params);
   const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);
-  return normalizeIcRemarks(withVendorRef, IC_REMARK_PROFILE.SELLER, [
+  const links: IcRemarkLink[] = [
+    icLinkPq(params.pqDocNum ?? params.pqDraftDocNum, params.pqDocEntry, buyer),
     icLinkRfq(params.rfqNumber, params.rfqId, seller),
-  ]);
+  ];
+  if (hasDocNum(params.sqDocNum)) {
+    links.push(icLinkSq(params.sqDocNum, params.sqDocEntry ?? params.sqDocNum, seller));
+  } else if (hasEntry(params.sqDocEntry)) {
+    links.push(icLinkSq(null, params.sqDocEntry, seller));
+  }
+  return normalizeIcRemarks(withVendorRef, IC_REMARK_PROFILE.SELLER, links);
 };
 
 /**
- * Seller A/R draft Comments: keep user remarks + ensure RFQ + SQ only.
- * Neither buyer-side links nor the A/R draft self-link are retained.
+ * Seller A/R draft Comments: keep user remarks and carry the complete PQ/RFQ/PO/SQ chain.
+ * The A/R draft self-link is never retained.
  */
 export const buildFlow2ArRemarks = (
   params: {
@@ -802,9 +823,9 @@ export const buildFlow2ArRemarks = (
     rfqId?: number | null;
     sqDocNum?: number | null;
     sqDocEntry?: number | null;
-    /** @deprecated PO is not part of AR IC chain — ignored. */
+    /** Buyer PO identity included in the final seller-side chain. */
     poDocNum?: number | null | undefined;
-    /** @deprecated PO is not part of AR IC chain — ignored. */
+    /** Buyer PO identity included in the final seller-side chain. */
     poDocEntry?: number | null | undefined;
     /** @deprecated AR self-link is not written — ignored. */
     arDocEntry?: number | null;
@@ -812,8 +833,13 @@ export const buildFlow2ArRemarks = (
     arDocNum?: number | null;
   } & IcDocOwnerNames,
 ): string => {
-  const { seller } = resolveOwnerNames(params);
+  const { buyer, seller } = resolveOwnerNames(params);
   const links: IcRemarkLink[] = [];
+  if (hasDocNum(params.pqDocNum)) {
+    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry ?? params.pqDocNum, buyer));
+  } else if (hasEntry(params.pqDocEntry)) {
+    links.push(icLinkPq(null, params.pqDocEntry, buyer));
+  }
   const rfqNum = params.rfqNumber != null ? String(params.rfqNumber).trim() : "";
   if (rfqNum || hasEntry(params.rfqId)) {
     links.push(icLinkRfq(rfqNum || null, params.rfqId, seller));
@@ -822,6 +848,11 @@ export const buildFlow2ArRemarks = (
     links.push(icLinkSq(params.sqDocNum, params.sqDocEntry ?? params.sqDocNum, seller));
   } else if (hasEntry(params.sqDocEntry)) {
     links.push(icLinkSq(null, params.sqDocEntry, seller));
+  }
+  if (hasDocNum(params.poDocNum)) {
+    links.push(icLinkPo(params.poDocNum, params.poDocEntry ?? params.poDocNum, buyer));
+  } else if (hasEntry(params.poDocEntry)) {
+    links.push(icLinkPo(null, params.poDocEntry, buyer));
   }
   return normalizeIcRemarks(params.existingComments, IC_REMARK_PROFILE.SELLER, links);
 };

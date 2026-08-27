@@ -11,6 +11,7 @@ import {
   fetchBusinessPartnerAddresses,
   fetchSalesEmployeeNames,
 } from "./master-data.partner-lookup";
+import { getIcPartnerLookupContext } from "@/modules/intercompany/api/ic-partner-scope";
 export const getProductWarehouseStocks = async (dbName: string, itemCode: string) => {
   const normalizedItemCode = toTrimmed(itemCode);
   if (!normalizedItemCode) {
@@ -177,7 +178,11 @@ export const getProductWarehouseStocksBatch = async (
 // OCRD.CardType is the source of truth ('S' for vendors/suppliers, 'C' for customers).
 // OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
 
-export const getVendors = async (dbName: string) => {
+export const getVendors = async (dbName: string, scope?: "intercompany") => {
+  const icContext =
+    scope === "intercompany" ? await getIcPartnerLookupContext(dbName, "purchase") : [];
+  const allowedVendorCodes = new Set(icContext.map((item) => item.code));
+  const icByCode = new Map(icContext.map((item) => [item.code, item]));
   const [settingsRows, displayCurrency, results] = await Promise.all([
     (async () => {
       const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
@@ -198,20 +203,24 @@ export const getVendors = async (dbName: string) => {
       where: { CardType: "S", frozenFor: "N" } as Record<string, unknown>,
     }),
   ]);
+  const filteredResults =
+    scope === "intercompany"
+      ? results.filter((item) => allowedVendorCodes.has(toTrimmed(item.CardCode)))
+      : results;
   const adminSettings = settingsRows[0] ?? null;
   // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
   const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
-  const vendorCodes = results.map((item) => item.CardCode).filter(Boolean);
+  const vendorCodes = filteredResults.map((item) => item.CardCode).filter(Boolean);
   const salesEmployeeCodes = [
     ...new Set(
-      results
+      filteredResults
         .map((item) => toNullableInt(item.SlpCode))
         .filter((code): code is number => code !== undefined),
     ),
   ];
 
   const defaultsMap = new Map<string, { billToDef?: string; shipToDef?: string }>();
-  for (const item of results) {
+  for (const item of filteredResults) {
     if (item.CardCode) {
       defaultsMap.set(toTrimmed(item.CardCode), {
         billToDef: item.BillToDef,
@@ -228,9 +237,10 @@ export const getVendors = async (dbName: string) => {
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
-  return results.map((item) => {
+  return filteredResults.map((item) => {
     const normalizedCardCode = toTrimmed(item.CardCode);
     const slpCode = toNullableInt(item.SlpCode);
+    const icPartner = icByCode.get(normalizedCardCode);
     return {
       id: normalizedCardCode,
       CardCode: normalizedCardCode,
@@ -249,6 +259,14 @@ export const getVendors = async (dbName: string) => {
         "",
       salesEmployeeCode: slpCode,
       salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
+      ...(icPartner
+        ? {
+            icCompanyCode: icPartner.companyCode,
+            icCompanyName: icPartner.companyName,
+            defaultWarehouseCode: icPartner.defaultWarehouseCode,
+            defaultBranchId: icPartner.defaultBranchId,
+          }
+        : {}),
     };
   });
 };

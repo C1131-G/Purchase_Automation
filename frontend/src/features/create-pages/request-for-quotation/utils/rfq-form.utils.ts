@@ -16,6 +16,7 @@ import {
   capQuantityToMax,
   parseDocumentLineQuantity,
 } from "@/features/create-pages/create-shared/utils/document-line-quantity";
+import { toISODate } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { parseNumericDraft } from "@/shared/validation/numeric-input.validation";
 
 export type RfqEditableLine = {
@@ -88,13 +89,29 @@ const formatNumberInput = (value: number | null | undefined): string => {
   return String(value);
 };
 
-export const mapRfqLinesToEditable = (lines: IcRfqLine[] | undefined): RfqEditableLine[] => {
+export const normalizeRfqQuotedDate = (
+  value: string | undefined,
+  minDate: string,
+  maxDate: string,
+): string => {
+  const raw =
+    String(value ?? "")
+      .trim()
+      .slice(0, 10) || minDate;
+  const atLeastMin = raw < minDate ? minDate : raw;
+  return maxDate && atLeastMin > maxDate ? maxDate : atLeastMin;
+};
+
+export const mapRfqLinesToEditable = (
+  lines: IcRfqLine[] | undefined,
+  defaultDeliveryDate: string = toISODate(new Date()),
+): RfqEditableLine[] => {
   if (!lines?.length) {
     return [];
   }
 
   const mapped = lines.map((line) => ({
-    deliveryDate: toDateInputValue(line.deliveryDate),
+    deliveryDate: toDateInputValue(line.deliveryDate) || defaultDeliveryDate,
     description: String(line.description ?? "").trim(),
     discount: formatNumberInput(line.discount),
     itemCode: String(line.itemCode ?? "").trim(),
@@ -112,7 +129,12 @@ export const mapRfqLinesToEditable = (lines: IcRfqLine[] | undefined): RfqEditab
 };
 
 /** Map IC RFQ lines into PQ-style product rows for the shared create table. */
-export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): ProductRow[] => {
+export const mapRfqLinesToProductRows = (
+  lines: IcRfqLine[] | undefined,
+  defaultQuotedDate: string = toISODate(new Date()),
+  quotedDateMin = "",
+  quotedDateMax = "",
+): ProductRow[] => {
   if (!lines?.length) {
     return [];
   }
@@ -140,9 +162,10 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
       const gross = unitPrice * quantity;
       const discountAmount =
         discountPercent > 0 ? Math.round(((gross * discountPercent) / 100) * 100) / 100 : 0;
-      // deliveryDate is quoted date only (not required date).
-      const quotedDate = toDateInputValue(line.deliveryDate);
       const requiredDate = toDateInputValue(line.requiredDate);
+      // Quoted date is seller-editable, but defaults to the buyer's required date when absent.
+      const quotedDate = toDateInputValue(line.deliveryDate);
+      const fallbackQuotedDate = requiredDate || defaultQuotedDate;
       const itemCode = String(line.itemCode ?? "").trim();
       const description = String(line.description ?? "").trim();
       const salesUom = String(line.sqUomCode ?? line.uomCode ?? "").trim();
@@ -165,7 +188,12 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
         requiredDate: requiredDate || undefined,
         // Buyer snapshot — stay locked; do not update when seller revises quoted qty.
         requiredQuantity: requiredQty,
-        quotedDate: quotedDate || undefined,
+        quotedDate:
+          quotedDate ||
+          (quotedDateMin
+            ? normalizeRfqQuotedDate(fallbackQuotedDate, quotedDateMin, quotedDateMax)
+            : fallbackQuotedDate) ||
+          undefined,
         stock: 0,
         taxRate: 0,
         // Seller sales UoM when enrich resolved it; else buyer PQ snapshot.

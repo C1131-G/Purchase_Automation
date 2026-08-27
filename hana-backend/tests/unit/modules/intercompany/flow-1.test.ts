@@ -295,10 +295,10 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // Seller RFQ has no parent seller document; never expose buyer PQ.
+    // RFQ remarks carry the known PQ/RFQ chain exactly once.
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).not.toContain("PQ 9001");
-    expect(storedRemarks).not.toContain("RFQ ");
+    expect(storedRemarks).toContain("PQ No. 9001");
+    expect(storedRemarks).toContain("RFQ No. 9001");
     expect(storedRemarks).not.toContain("Auto Generated");
     expect(storedRemarks).not.toContain("V-B");
     expect(storedRemarks).not.toContain("C-A-ON-B");
@@ -478,16 +478,15 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(appliedLines[0]?.VatGroup).toBeUndefined();
     // Buyer PQ references its RFQ after seller submit.
     expect(sqCommentsOnPatch).toContain("Parent typed on PQ");
-    expect(sqCommentsOnPatch).toContain("RFQ 70");
+    expect(sqCommentsOnPatch).toContain("RFQ No. 70");
     // Vendor ref must reach seller SQ NumAtCard + remarks (was missing before).
     expect(sqNumAtCard).toBe("VENDOR-REF-99");
     expect(sqPortalCreatedBy).toBe("Portal_Seller1");
     expect(sqRemarks).toContain("Vendor Ref No: VENDOR-REF-99");
     expect(sqRemarks).toContain("Parent typed on PQ");
-    // Seller SQ: RFQ only, never buyer PQ or SQ self-link.
-    expect(sqRemarks).not.toContain("PQ 70");
-    expect(sqRemarks).toContain("RFQ 70");
-    expect(sqRemarks).not.toContain("SQ ");
+    // Seller SQ carries the known PQ/RFQ chain before its SAP number exists.
+    expect(sqRemarks).toContain("PQ No. 70");
+    expect(sqRemarks).toContain("RFQ No. 70");
     expect(sqRemarks).not.toContain("Auto Generated");
     expect(sqRemarks).not.toContain("V-B");
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.COMPLETED);

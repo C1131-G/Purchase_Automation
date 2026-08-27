@@ -9,7 +9,11 @@ import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { assertPqLinesCopyAllowed, commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
+import {
+  assertIcPartnerForCreate,
+  assertPqLinesCopyAllowed,
+  commentsWithoutSapBaseAutoLines,
+} from "@/modules/intercompany";
 import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 
@@ -23,6 +27,9 @@ export const createGRPO = async (
 ) => {
   try {
     const isDraft = payload.isDraft === true;
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = session?.companyDB || dbName || "";
+    await assertIcPartnerForCreate?.(resolvedDbName, "purchase", String(payload.CardCode ?? ""));
     const draftDocEntry = Number(payload.draftDocEntry || 0);
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
@@ -49,8 +56,6 @@ export const createGRPO = async (
       await resolveBaseLineQuantities(sessionId, lines);
     }
 
-    const session = serviceLayerClient.getSession(sessionId);
-    const resolvedDbName = session?.companyDB || dbName || "";
     if (resolvedDbName) {
       await assertPqLinesCopyAllowed(resolvedDbName, lines);
     }

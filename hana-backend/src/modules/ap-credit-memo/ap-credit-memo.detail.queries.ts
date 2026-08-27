@@ -11,18 +11,22 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService, type FileMetadata } from "@/modules/attachments/attachments.service";
 import { pickSapSeries } from "@/modules/master-data/document-series";
+import { getIcPartnerCodes } from "@/modules/intercompany/api/ic-partner-scope";
 
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
 export const getCreditNoteDocNums = async (dbName: string, search?: string, limit?: number) => {
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
   const repo = await getTenantRepository(dbName, APCreditMemoSchema);
   const queryBuilder = repo.createQueryBuilder("cn");
   const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("cn.docNum", "DocNum").distinct(true);
+  if (allowedCardCodes.length === 0) queryBuilder.where("1=0");
+  else queryBuilder.where("cn.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
   if (search && search.trim().length > 0) {
-    queryBuilder.where("CAST(cn.docNum AS NVARCHAR) LIKE :search", {
+    queryBuilder.andWhere("CAST(cn.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
     });
   }

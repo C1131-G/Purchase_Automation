@@ -11,6 +11,7 @@ import {
   UpdatePurchaseOrderInputSchema,
 } from "./purchase-order.schema";
 import type { PurchaseOrderDocNumLookupQuery } from "./purchase-order.schema";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 
 // Retrieves all Purchase Orders matching the specified filters (status, cancelled flag).
 export const getPurchaseOrders = async (req: Request, res: Response, next: NextFunction) => {
@@ -74,6 +75,7 @@ export const getPurchaseOrder = async (req: Request, res: Response, next: NextFu
         success: false,
       });
     }
+    await assertIcPartnerAllowed(authReq.user.dbName, "purchase", String(data.CardCode ?? ""));
 
     res.status(200).json({
       data,
@@ -99,6 +101,7 @@ export const getPurchaseOrderByDocNum = async (req: Request, res: Response, next
       docNum as string,
       draftDocEntry,
     );
+    await assertIcPartnerAllowed(dbName, "purchase", String(data?.CardCode ?? ""));
 
     res.status(200).json({
       data,
@@ -146,6 +149,12 @@ export const updatePurchaseOrder = async (req: Request, res: Response, next: Nex
 
     // Zod validation filters out any fields that SAP doesn't allow in a PATCH request.
     const validatedPayload = UpdatePurchaseOrderInputSchema.parse(payload);
+
+    const detail = await purchaseOrderService.getPurchaseOrder(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Purchase Order not found", success: false });
+    }
+    await assertIcPartnerAllowed(authReq.user.dbName, "purchase", String(detail.CardCode ?? ""));
 
     const result = await purchaseOrderService.updatePurchaseOrder(
       sessionId,

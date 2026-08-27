@@ -100,6 +100,17 @@ export const mapVendorLookup = (item: unknown): LookupItem => {
       record.salesEmployeeName ?? record.SalesEmployeeName ?? record.SlpName ?? "",
     ),
     shipToAddress: mappedShipTo,
+    ...(typeof record.icCompanyCode === "string" ? { icCompanyCode: record.icCompanyCode } : {}),
+    ...(typeof record.icCompanyName === "string" ? { icCompanyName: record.icCompanyName } : {}),
+    ...(typeof record.defaultWarehouseCode === "string"
+      ? { defaultWarehouseCode: record.defaultWarehouseCode }
+      : {}),
+    ...(record.defaultBranchId == null || Number.isFinite(Number(record.defaultBranchId))
+      ? {
+          defaultBranchId:
+            record.defaultBranchId == null ? null : Math.trunc(Number(record.defaultBranchId)),
+        }
+      : {}),
   };
 };
 

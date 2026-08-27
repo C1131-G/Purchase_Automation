@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { PurchaseQuotationQuerySchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
+import { MasterDataQuerySchema } from "@/modules/master-data/master-data.schema";
 
 describe("PurchaseQuotationQuerySchema", () => {
+  it("accepts the PQ master-data catalog scope", () => {
+    expect(MasterDataQuerySchema.safeParse({ catalog: "purchase-quotation" }).success).toBe(true);
+    expect(MasterDataQuerySchema.safeParse({ catalog: "purchase-order" }).success).toBe(false);
+  });
   it("accepts empty query", () => {
     expect(PurchaseQuotationQuerySchema.safeParse({}).success).toBe(true);
   });

@@ -30,15 +30,28 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
           ? Number(req.query.priceList)
           : undefined;
     const cardCode = typeof req.query.cardCode === "string" ? req.query.cardCode : undefined;
-    const productsResult = await masterDataService.getProducts(
-      dbName,
-      warehouseCode,
-      search,
-      limit,
-      type,
-      priceList,
-      cardCode,
-    );
+    const catalog =
+      req.query.catalog === "purchase-quotation" ? ("purchase-quotation" as const) : undefined;
+    const productsResult = catalog
+      ? await masterDataService.getProducts(
+          dbName,
+          warehouseCode,
+          search,
+          limit,
+          type,
+          priceList,
+          cardCode,
+          catalog,
+        )
+      : await masterDataService.getProducts(
+          dbName,
+          warehouseCode,
+          search,
+          limit,
+          type,
+          priceList,
+          cardCode,
+        );
     res.status(200).json({ data: productsResult, success: true });
   } catch (error) {
     next(error);
@@ -79,14 +92,26 @@ export const getProductsByCodes = async (req: Request, res: Response, next: Next
           ? Number(req.query.priceList)
           : undefined;
     const cardCode = typeof req.query.cardCode === "string" ? req.query.cardCode : undefined;
-    const productsResult = await masterDataService.getProductsByCodes(
-      dbName,
-      codes,
-      type,
-      priceList,
-      warehouseCode,
-      cardCode,
-    );
+    const catalog =
+      req.query.catalog === "purchase-quotation" ? ("purchase-quotation" as const) : undefined;
+    const productsResult = catalog
+      ? await masterDataService.getProductsByCodes(
+          dbName,
+          codes,
+          type,
+          priceList,
+          warehouseCode,
+          cardCode,
+          catalog,
+        )
+      : await masterDataService.getProductsByCodes(
+          dbName,
+          codes,
+          type,
+          priceList,
+          warehouseCode,
+          cardCode,
+        );
     res.status(200).json({ data: productsResult, success: true });
   } catch (error) {
     next(error);
@@ -120,7 +145,8 @@ export const getVendors = async (req: Request, res: Response, next: NextFunction
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { dbName } = authReq.user;
-    const vendorsResult = await masterDataService.getVendors(dbName);
+    const scope = req.query.scope === "intercompany" ? "intercompany" : undefined;
+    const vendorsResult = await masterDataService.getVendors(dbName, scope);
     res.status(200).json({ data: vendorsResult, success: true });
   } catch (error) {
     next(error);
@@ -132,7 +158,8 @@ export const getCustomers = async (req: Request, res: Response, next: NextFuncti
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { dbName } = authReq.user;
-    const customersResult = await masterDataService.getCustomers(dbName);
+    const scope = req.query.scope === "intercompany" ? "intercompany" : undefined;
+    const customersResult = await masterDataService.getCustomers(dbName, scope);
     res.status(200).json({ data: customersResult, success: true });
   } catch (error) {
     next(error);

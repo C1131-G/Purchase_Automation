@@ -451,9 +451,10 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(payload.U_Origin).toBeUndefined();
     // Existing remarks preserved; seller AR draft chain = RFQ + SQ (short).
     expect(payload.Comments).toContain("User note keep me");
-    expect(payload.Comments).not.toContain("PQ 2042");
-    expect(payload.Comments).toContain("RFQ 9001");
-    expect(payload.Comments).toContain("SQ 810");
+    expect(payload.Comments).toContain("PQ No. 2042");
+    expect(payload.Comments).toContain("RFQ No. 9001");
+    expect(payload.Comments).toContain("SQ No. 810");
+    expect(payload.Comments).toContain("PO No. 100");
     expect(payload.Comments).not.toContain("Auto Generated");
     expect(payload.Comments).not.toContain("C-A-ON-B");
     expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);

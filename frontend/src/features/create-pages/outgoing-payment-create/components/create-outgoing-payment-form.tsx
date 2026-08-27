@@ -437,8 +437,8 @@ export function CreateOutgoingPaymentForm() {
             onCodeChange={lookups.handleVendorCodeChange}
             onNameFocus={() => lookups.setNameFocused(true)}
             onCodeFocus={() => lookups.setCodeFocused(true)}
-            onNameBlur={() => setTimeout(() => lookups.setNameFocused(false), 120)}
-            onCodeBlur={() => setTimeout(() => lookups.setCodeFocused(false), 120)}
+            onNameBlur={lookups.finalizeVendorLookup}
+            onCodeBlur={lookups.finalizeVendorLookup}
             onOpenNamePopup={() => lookups.openPopup("vendor-name")}
             onOpenCodePopup={() => lookups.openPopup("vendor-code")}
             onSelectVendor={(v) => {
@@ -787,10 +787,10 @@ export function CreateOutgoingPaymentForm() {
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     disabled={!selected}
-                                    className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold text-ink-900 outline-none transition-all ${
+                                    className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold outline-none transition-all ${
                                       selected
-                                        ? "border-linen-200 bg-surface"
-                                        : "border-transparent bg-transparent"
+                                        ? "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                                        : "border-linen-200 bg-field-silver text-neutral-500 cursor-not-allowed"
                                     }`}
                                   />
                                 </td>

@@ -40,7 +40,10 @@ import {
   buildFlow1SqRemarks,
   compactRfqTag,
   formatIcDocLabel,
+  icLinkSq,
+  IC_REMARK_PROFILE,
   mergeUserAndIcRemarks,
+  normalizeIcRemarks,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -440,6 +443,52 @@ export const createConvertPqAndSqService = (deps?: {
           sellerCompanyId: header.targetCompanyId,
           warehouseMasters,
         });
+
+        // SQ now has an authoritative number. Persist the same canonical chain on
+        // both sides so a later PO copy inherits PQ + RFQ + SQ without duplicates.
+        const completedBuyerChainRemarks = normalizeIcRemarks(
+          remarksWithPq,
+          IC_REMARK_PROFILE.BUYER,
+          [icLinkSq(salesQuotation.docNum ?? null, salesQuotation.docEntry, sellerCompanyName)],
+        );
+        const completedSellerChainRemarks = buildFlow1SqRemarks({
+          buyerCompanyName,
+          sellerCompanyName,
+          existing: sqRemarks,
+          pqDraftDocNum: header.pqDraftDocNum,
+          pqDraftDocEntry: header.pqDraftDocEntry,
+          pqDocEntry: purchaseQuotation.docEntry,
+          pqDocNum: purchaseQuotation.docNum ?? null,
+          rfqId: header.rfqId,
+          rfqNumber: header.rfqNumber,
+          sqDocEntry: salesQuotation.docEntry,
+          sqDocNum: salesQuotation.docNum ?? null,
+          vendorRefNo,
+        });
+        try {
+          await Promise.all([
+            documents.patchPurchaseQuotationComments?.({
+              comments: completedBuyerChainRemarks,
+              companyId: header.sourceCompanyId,
+              docEntry: purchaseQuotation.docEntry,
+            }),
+            documents.patchSalesQuotationComments?.({
+              comments: completedSellerChainRemarks,
+              companyId: header.targetCompanyId,
+              docEntry: salesQuotation.docEntry,
+            }),
+          ]);
+        } catch (remarksError: unknown) {
+          // The SQ already exists and is mapped below. Do not re-enter the
+          // create-SQ retry path, which could create a duplicate document.
+          icLog.warn(CONVERT_SCOPE, "IC remarks chain patch deferred", {
+            check: "remarks_chain_patch",
+            err: remarksError instanceof Error ? remarksError : new Error(String(remarksError)),
+            outcome: "skip",
+            pqDocEntry: purchaseQuotation.docEntry,
+            sqDocEntry: salesQuotation.docEntry,
+          });
+        }
 
         const sqMap = await documentMap.create({
           sourceCompanyId: header.sourceCompanyId,

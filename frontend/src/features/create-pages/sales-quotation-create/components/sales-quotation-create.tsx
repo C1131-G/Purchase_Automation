@@ -143,8 +143,8 @@ export function SalesQuotationCreate({
                 onCodeChange={state.handleVendorCodeChange}
                 onNameFocus={() => state.setNameFocused(true)}
                 onCodeFocus={() => state.setCodeFocused(true)}
-                onNameBlur={() => setTimeout(() => state.setNameFocused(false), 120)}
-                onCodeBlur={() => setTimeout(() => state.setCodeFocused(false), 120)}
+                onNameBlur={state.finalizeVendorLookup}
+                onCodeBlur={state.finalizeVendorLookup}
                 onOpenNamePopup={() => state.openPopup("vendor-name")}
                 onOpenCodePopup={() => state.openPopup("vendor-code")}
                 onSelectVendor={state.selectVendor}
@@ -192,9 +192,7 @@ export function SalesQuotationCreate({
                 salesEmployeeSuggestions={state.salesEmployeeSuggestions}
                 onSalesEmployeeChange={state.handleSalesEmployeeChange}
                 onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-                onSalesEmployeeBlur={() =>
-                  setTimeout(() => state.setSalesEmployeeFocused(false), 120)
-                }
+                onSalesEmployeeBlur={state.finalizeSalesEmployeeLookup}
                 onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
                 onSelectSalesEmployee={state.selectSalesEmployee}
                 salesEmployeeDisabled={state.isClosed}
@@ -208,7 +206,7 @@ export function SalesQuotationCreate({
                 warehouseSuggestions={state.warehouseSuggestions}
                 onWarehouseChange={state.handleWarehouseChange}
                 onWarehouseFocus={() => state.setWarehouseFocused(true)}
-                onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+                onWarehouseBlur={state.finalizeWarehouseLookup}
                 onOpenWarehousePopup={() => state.openPopup("warehouse")}
                 onSelectWarehouse={state.selectWarehouse}
                 warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
@@ -221,7 +219,7 @@ export function SalesQuotationCreate({
                 branchSuggestions={state.branchSuggestions}
                 onBranchChange={state.handleBranchChange}
                 onBranchFocus={() => state.setBranchFocused(true)}
-                onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
+                onBranchBlur={state.finalizeBranchInput}
                 onOpenBranchPopup={() => state.openPopup("branch")}
                 onSelectBranch={state.selectBranch}
                 branchPlaceholder={state.branchPlaceholder ?? "No Branch"}

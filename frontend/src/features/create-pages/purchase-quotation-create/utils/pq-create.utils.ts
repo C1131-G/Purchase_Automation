@@ -1,5 +1,33 @@
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { PURCHASE_QUOTATION_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
+import {
+  addCalendarDays,
+  addCalendarMonths,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+
+export const PQ_REQUIRED_DATE_GAP_DAYS = 2;
+
+export const getPqDefaultDates = (today: string) => {
+  const requiredDate = addCalendarMonths(today, 1);
+  return {
+    requiredDate,
+    validUntil: addCalendarDays(requiredDate, PQ_REQUIRED_DATE_GAP_DAYS),
+  };
+};
+
+export const getPqRequiredDateMin = (today: string): string => addCalendarMonths(today, 1);
+
+export const getPqRequiredDateMax = (validUntil: string): string =>
+  addCalendarDays(validUntil, -PQ_REQUIRED_DATE_GAP_DAYS);
+
+export const getPqValidUntilMin = (requiredDate: string, rowRequiredDates: string[]): string => {
+  const latestRequiredDate = [requiredDate, ...rowRequiredDates]
+    .map((date) => date.trim().slice(0, 10))
+    .filter(Boolean)
+    .toSorted()
+    .at(-1);
+  return latestRequiredDate ? addCalendarDays(latestRequiredDate, PQ_REQUIRED_DATE_GAP_DAYS) : "";
+};
 
 export interface ProductSearchFieldError {
   vendorName: string | undefined;

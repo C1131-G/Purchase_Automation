@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   documentSeriesPayload,
+  findSeriesSelection,
   formatSeriesDisplay,
   suggestSeries,
   toPositiveSeries,
@@ -32,5 +33,18 @@ describe("document-series helpers", () => {
     expect(suggestSeries(items, 7)?.code).toBe("20");
     expect(suggestSeries(items, 9)?.code).toBe("10");
     expect(suggestSeries([], 1)).toBeNull();
+  });
+
+  it("auto-selects only exact codes and complete formatted displays", () => {
+    const items = [
+      { code: "10", name: "Main", branchId: 1, nextNumber: 100 },
+      { code: "20", name: "RCM", branchId: 7, nextNumber: 200 },
+    ];
+
+    expect(findSeriesSelection(items, "10")).toEqual(items[0]);
+    expect(findSeriesSelection(items, "Main · 100")).toEqual(items[0]);
+    expect(findSeriesSelection(items, "main")).toBeUndefined();
+    expect(findSeriesSelection(items, "100")).toBeUndefined();
+    expect(findSeriesSelection(items, "main · 100")).toEqual(items[0]);
   });
 });

@@ -53,6 +53,14 @@ export function PurchaseOrderLookupLayer({
   const vendorsQuery = useQuery(createSharedQueries.vendors());
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const tableRows = table.getRowModel().rows;
+  const relatedDocSuggestions = useMemo<LookupItem[]>(() => {
+    const values = new Set<string>();
+    for (const row of table.getCoreRowModel().rows) {
+      const value = String(row.getValue("SqDocNum") ?? "").trim();
+      if (value) values.add(value);
+    }
+    return [...values].map((code) => ({ code, name: code }));
+  }, [table]);
   const {
     lookupPopupOpen,
     lookupColumnId,
@@ -66,6 +74,7 @@ export function PurchaseOrderLookupLayer({
     onLookupSelect: handleLookupSelect,
   } = useTableLookupPopupSync({
     table,
+    allowedColumnIds: ["CardCode", "CardName", "DocNum", "SqDocNum"],
     tableId,
     // Sync Logic: Bridges toolbar search with global lookup popup state.
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
@@ -198,7 +207,13 @@ export function PurchaseOrderLookupLayer({
               : "vendor-name"
         }
         search={lookupSearch}
-        results={lookupColumnId === "DocNum" ? docNumLookupResults : vendors}
+        results={
+          lookupColumnId === "DocNum"
+            ? docNumLookupResults
+            : lookupColumnId === "SqDocNum"
+              ? relatedDocSuggestions
+              : vendors
+        }
         loading={
           lookupColumnId === "DocNum"
             ? docNumSuggestionsQuery.isFetching ||

@@ -5,15 +5,25 @@ import type { SalesQuotationFilters } from "./sales-quotation.types";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
+import {
+  buildIcCardCodePredicate,
+  getIcPartnerCodes,
+} from "@/modules/intercompany/api/ic-partner-scope";
+import { buildIcDocumentLineageSql } from "@/modules/intercompany/infrastructure/ic-document-lineage";
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
 // matching the Purchase Order reference implementation.
 
 export const getSalesQuotations = async (dbName: string, filters: SalesQuotationFilters) => {
   try {
+    const allowedCardCodes = await getIcPartnerCodes(dbName, "sales");
     const buildSubQuery = (table: string, isDraft: boolean) => {
       const whereClauses = ["1=1"];
-      const params: unknown[] = [];
+      const lineageSql = isDraft ? undefined : buildIcDocumentLineageSql("seller");
+      const params: unknown[] = lineageSql ? [dbName] : [];
+      const partnerPredicate = buildIcCardCodePredicate('"CardCode"', allowedCardCodes);
+      whereClauses.push(partnerPredicate.sql);
+      params.push(...partnerPredicate.params);
 
       if (isDraft) {
         whereClauses.push(`"ObjType" = '23'`);
@@ -22,6 +32,14 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
       if (filters.DocNum) {
         whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
         params.push(`%${filters.DocNum}%`);
+      }
+
+      if (filters.PoDocNum) {
+        if (isDraft) whereClauses.push("1=0");
+        else {
+          whereClauses.push(`LOWER(CAST("ic"."PoDocNum" AS NVARCHAR)) LIKE LOWER(?)`);
+          params.push(`%${filters.PoDocNum}%`);
+        }
       }
 
       if (filters.CardCode) {
@@ -72,10 +90,12 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
       }
 
       const selectColumns = isDraft
-        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus", "Address", "Address2"`
-        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus", "Address", "Address2"`;
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus", "Address", "Address2", CAST(NULL AS NVARCHAR(100)) AS "PoDocNum"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus", "Address", "Address2", "ic"."PoDocNum"`;
 
-      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      const sql = lineageSql
+        ? `SELECT ${selectColumns} FROM "${table}" LEFT JOIN (${lineageSql}) "ic" ON "ic"."SqDocEntry" = CAST("DocEntry" AS NVARCHAR) WHERE ${whereClauses.join(" AND ")}`
+        : `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
       return { sql, params };
     };
 
@@ -100,6 +120,7 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
       DocNum: `"DocNum"`,
       DocStatus: `"DocStatus"`,
       DocTotal: `"DocTotal"`,
+      PoDocNum: `"PoDocNum"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
@@ -143,6 +164,7 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
                 ? "Draft"
                 : row.DocStatus,
         DocTotal: row.DocTotal,
+        PoDocNum: row.PoDocNum == null ? null : String(row.PoDocNum),
         Address: row.Address,
         Address2: row.Address2,
         id: row.DocEntry,
@@ -159,13 +181,16 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
 };
 
 export const getSalesQuotationDocNums = async (dbName: string, search?: string, limit?: number) => {
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "sales");
   const repo = await getTenantRepository(dbName, SalesQuotationSchema);
   const queryBuilder = repo.createQueryBuilder("sq");
   const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("sq.docNum", "DocNum").distinct(true);
+  if (allowedCardCodes.length === 0) queryBuilder.where("1=0");
+  else queryBuilder.where("sq.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
   if (search && search.trim().length > 0) {
-    queryBuilder.where("CAST(sq.docNum AS NVARCHAR) LIKE :search", {
+    queryBuilder.andWhere("CAST(sq.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
     });
   }

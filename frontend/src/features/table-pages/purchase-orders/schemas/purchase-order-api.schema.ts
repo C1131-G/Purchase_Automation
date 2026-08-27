@@ -8,6 +8,7 @@ export const purchaseOrderListItemSchema = z.object({
   DocNum: z.number(),
   DocStatus: z.enum(["Open", "Partial", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
+  SqDocNum: z.string().nullable(),
   id: z.number(),
 });
 
@@ -29,8 +30,11 @@ export const purchaseOrderListParamsSchema = z.object({
   DocStatus: z.enum(["Open", "Partial", "Closed", "Draft"]).optional(),
   DocTotal: z.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  SqDocNum: z.string().optional(),
   limit: z.number().optional(),
   page: z.number().optional(),
-  sortBy: z.enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"]).optional(),
+  sortBy: z
+    .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus", "SqDocNum"])
+    .optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });

@@ -65,7 +65,7 @@ export function TablePagination<TData>({
               onPrefetchPageSize?.(nextPageSize);
             }}
           >
-            <Select.Trigger className="group h-9 px-3 py-1 rounded-lg border-linen-200 bg-surface text-[10px] font-bold uppercase tracking-[0.15em] hover:text-teal-700 hover:border-teal-300 transition-all focus:border-teal-500 focus:outline-none ring-offset-0">
+            <Select.Trigger className="group h-9 px-3 py-1 rounded-lg border-linen-200 bg-field-silver text-[10px] font-bold uppercase tracking-[0.15em] hover:text-teal-700 hover:border-teal-300 transition-all focus:border-teal-500 focus:outline-none ring-offset-0">
               <Select.Value />
               <Select.Icon>
                 <ChevronDown className="size-3.5 text-neutral-400 ml-1 transition-all duration-200 group-hover:translate-y-0.5 group-hover:text-teal-600 group-data-[state=open]:rotate-180" />

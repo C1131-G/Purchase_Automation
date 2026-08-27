@@ -61,6 +61,22 @@ export const toISODate = (value: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+/** Add calendar months without allowing the day to overflow into a later month. */
+export const addCalendarMonths = (value: string, months: number): string => {
+  const source = parseISODate(value);
+  const target = new Date(source.getFullYear(), source.getMonth() + months, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(source.getDate(), lastDay));
+  return toISODate(target);
+};
+
+/** Add or subtract calendar days from a YYYY-MM-DD date. */
+export const addCalendarDays = (value: string, days: number): string => {
+  const date = parseISODate(value);
+  date.setDate(date.getDate() + days);
+  return toISODate(date);
+};
+
 /** YYYY-MM-DD string compare. If `value` is after `maxIso`, return `maxIso`. */
 export const capIsoDateToMax = (value: string | undefined, maxIso: string | undefined): string => {
   const next = (value ?? "").trim().slice(0, 10);

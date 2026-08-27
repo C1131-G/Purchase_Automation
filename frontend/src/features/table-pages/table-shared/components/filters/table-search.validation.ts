@@ -5,7 +5,13 @@ import {
   parseNumericDraft,
 } from "@/shared/validation/numeric-input.validation";
 
-export const NUMBER_ONLY_COLUMN_IDS = new Set(["DocNum"]);
+export const NUMBER_ONLY_COLUMN_IDS = new Set([
+  "DocNum",
+  "pqDraftDocNum",
+  "RfqNumber",
+  "SqDocNum",
+  "PoDocNum",
+]);
 export const ALPHANUMERIC_COLUMN_IDS = new Set(["CardCode", "Filler", "ToWhsCode"]);
 export const LETTERS_SYMBOLS_COLUMN_IDS = new Set<string>([]);
 

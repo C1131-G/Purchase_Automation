@@ -25,6 +25,10 @@ export const lookupItemSchema = z.object({
   /** NNM1.NextNumber when this lookup is a document series. */
   nextNumber: z.number().nullable().optional(),
   enableBinLocations: z.boolean().optional(),
+  icCompanyCode: z.string().optional(),
+  icCompanyName: z.string().optional(),
+  defaultWarehouseCode: z.string().optional(),
+  defaultBranchId: z.number().nullable().optional(),
 });
 
 export const productLookupItemSchema = lookupItemSchema.extend({

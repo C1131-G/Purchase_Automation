@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { CreditNoteQuery } from "./ap-credit-memo.types";
 import type { AuthenticatedRequest } from "@/types/express.types";
 import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 import { apCreditMemoService } from "./ap-credit-memo.service";
 import { CreateCreditNoteInputSchema, UpdateCreditNoteInputSchema } from "./ap-credit-memo.schema";
 import type { CreditNoteDocNumLookupQuery } from "./ap-credit-memo.schema";
@@ -65,6 +66,7 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
     if (!data) {
       return res.status(404).json({ message: "A/P Credit Memo not found", success: false });
     }
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -118,6 +120,7 @@ export const updateCreditNote = async (req: Request, res: Response, next: NextFu
         dbName,
         id as string,
       );
+      await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
       targetDocEntry = String(detail.id);
     }
 

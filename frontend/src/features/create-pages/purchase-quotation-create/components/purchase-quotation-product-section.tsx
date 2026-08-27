@@ -53,6 +53,8 @@ interface PurchaseQuotationProductSectionProps {
   isDirty?: boolean;
   isSubmitting?: boolean;
   validUntilDate?: string;
+  requiredDateMin?: string;
+  requiredDateMax?: string;
 }
 
 /**
@@ -104,6 +106,8 @@ export function PurchaseQuotationProductSection({
   isDirty,
   isSubmitting,
   validUntilDate = "",
+  requiredDateMin = "",
+  requiredDateMax = "",
 }: PurchaseQuotationProductSectionProps) {
   return (
     <BaseProductSection
@@ -170,7 +174,8 @@ export function PurchaseQuotationProductSection({
         taxSide="purchase"
         showPqLineDatesAndQtys
         useRequiredQuantityForAmounts
-        lineRequiredDateMax={validUntilDate}
+        lineRequiredDateMax={requiredDateMax || validUntilDate}
+        lineRequiredDateMin={requiredDateMin}
       />
     </BaseProductSection>
   );

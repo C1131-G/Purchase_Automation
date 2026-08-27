@@ -22,11 +22,21 @@ import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-
 import { apiClient } from "@/shared/api/client";
 import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
-const fetchVendorsFromMasterDataRoute = async () =>
-  apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/master-data/vendors");
+const fetchVendorsFromMasterDataRoute = async (): Promise<{
+  success: boolean;
+  data: unknown[];
+}> => {
+  const response = await masterDataAPI.getVendors({ scope: "intercompany" });
+  return Array.isArray(response) ? { data: response, success: true } : response;
+};
 
-const fetchCustomersFromMasterDataRoute = async () =>
-  apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/master-data/customers");
+const fetchCustomersFromMasterDataRoute = async (): Promise<{
+  success: boolean;
+  data: unknown[];
+}> => {
+  const response = await masterDataAPI.getCustomers({ scope: "intercompany" });
+  return Array.isArray(response) ? { data: response, success: true } : response;
+};
 
 const fetchSalesEmployees = async () =>
   apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/sales-quotations/SalesEmployee");
@@ -44,7 +54,7 @@ export type ProductCatalogScope =
 export const createSharedKeys = {
   all: ["create-shared"] as const,
   // v4: list payload omits addresses[]; use businessPartnerAddresses for pickers.
-  customers: () => [...createSharedKeys.all, "customers-v4"] as const,
+  customers: () => [...createSharedKeys.all, "customers-ic-v1"] as const,
   businessPartnerAddresses: (cardCode: string) =>
     [...createSharedKeys.all, "business-partner-addresses", cardCode] as const,
   priceLists: () => [...createSharedKeys.all, "price-lists"] as const,
@@ -56,7 +66,7 @@ export const createSharedKeys = {
   salesEmployees: () => [...createSharedKeys.all, "sales-employees"] as const,
   taxCodes: () => [...createSharedKeys.all, "tax-codes"] as const,
   uoms: () => [...createSharedKeys.all, "uoms"] as const,
-  vendors: () => [...createSharedKeys.all, "vendors-v4"] as const,
+  vendors: () => [...createSharedKeys.all, "vendors-ic-v1"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
   series: (documentType: string) =>
     [...createSharedKeys.all, "series", documentType, "v2"] as const,
@@ -205,6 +215,7 @@ export const createSharedQueries = {
     priceList?: string,
     warehouseCode?: string,
     cardCode?: string,
+    catalog?: ProductCatalogScope,
   ) => {
     const normalizedCodes = [...new Set(codes.map((code) => String(code).trim()).filter(Boolean))];
     const codesKey = batchCodesKey(normalizedCodes);
@@ -222,6 +233,7 @@ export const createSharedQueries = {
             ...(type ? { type } : {}),
             ...(priceList !== undefined && priceList !== "" ? { priceList } : {}),
             ...(warehouseCode ? { warehouseCode } : {}),
+            ...(catalog === "purchase-quotation" ? { catalog } : {}),
           }),
         )
           .map(mapProductLookup)
@@ -234,6 +246,7 @@ export const createSharedQueries = {
         priceList ?? "default",
         warehouseCode ?? "",
         partnerCode,
+        catalog ?? "shared",
       ],
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     });
@@ -264,12 +277,14 @@ export const createSharedQueries = {
           type?: "sales" | "purchase";
           priceList?: string;
           cardCode?: string;
+          catalog?: "purchase-quotation";
         } = { cardCode: partnerCode };
         if (warehouseCode) params.warehouseCode = warehouseCode;
         if (search) params.search = search;
         if (typeof limit === "number") params.limit = limit;
         if (type) params.type = type;
         if (priceList !== undefined && priceList !== "") params.priceList = priceList;
+        if (catalog === "purchase-quotation") params.catalog = catalog;
 
         return unwrapMasterData(await masterDataAPI.getProducts(params))
           .map(mapProductLookup)

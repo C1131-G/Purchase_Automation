@@ -33,6 +33,7 @@ export const salesQuotationSearchSchema = z.object({
   DocStatus: z.string().optional(),
   DocTotal: z.coerce.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  PoDocNum: z.string().optional(),
   columnFilters: z.array(salesQuotationColumnFilterSchema).optional(),
   columnOrder: z.array(z.string()).optional(),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),

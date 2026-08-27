@@ -12,6 +12,7 @@ import {
   UpdatePurchaseQuotationInputSchema,
 } from "./purchase-quotation.schema";
 import type { PurchaseQuotationDocNumLookupQuery } from "./purchase-quotation.schema";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 
 // Fetches a list of purchase quotations based on filters like vendor name, quotation number, and date range.
 export const getPurchaseQuotations = async (req: Request, res: Response, next: NextFunction) => {
@@ -65,6 +66,7 @@ export const getPurchaseQuotation = async (req: Request, res: Response, next: Ne
     if (!data) {
       return res.status(404).json({ message: "Purchase Quotation not found", success: false });
     }
+    await assertIcPartnerAllowed(authReq.user.dbName, "purchase", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -93,6 +95,7 @@ export const getPurchaseQuotationByDocNum = async (
     if (!data) {
       return res.status(404).json({ message: "Purchase Quotation not found", success: false });
     }
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -131,6 +134,12 @@ export const updatePurchaseQuotation = async (req: Request, res: Response, next:
 
     const validatedPayload = UpdatePurchaseQuotationInputSchema.parse(payload);
 
+    const detail = await purchaseQuotationService.getPurchaseQuotation(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Purchase Quotation not found", success: false });
+    }
+    await assertIcPartnerAllowed(authReq.user.dbName, "purchase", String(detail.CardCode ?? ""));
+
     const result = await purchaseQuotationService.updatePurchaseQuotation(
       sessionId,
       id as string,
@@ -149,6 +158,12 @@ export const cancelPurchaseQuotation = async (req: Request, res: Response, next:
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
+
+    const detail = await purchaseQuotationService.getPurchaseQuotation(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Purchase Quotation not found", success: false });
+    }
+    await assertIcPartnerAllowed(authReq.user.dbName, "purchase", String(detail.CardCode ?? ""));
 
     const result = await purchaseQuotationService.cancelPurchaseQuotation(sessionId, id as string);
 
@@ -188,6 +203,8 @@ export const getOpenPurchaseQuotationLines = async (
     if (!cardCode) {
       return res.status(400).json({ message: "cardCode is required", success: false });
     }
+
+    await assertIcPartnerAllowed(dbName, "purchase", String(cardCode));
 
     const data = await purchaseQuotationService.getOpenPurchaseQuotationLines(
       dbName,

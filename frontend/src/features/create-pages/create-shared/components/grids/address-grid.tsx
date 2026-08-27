@@ -13,13 +13,15 @@ interface AddressGridProps {
   shipToAddress: string;
   loading?: boolean;
   className?: string;
-  onBillToAddressChange: (value: string) => void;
+  onBillToAddressChange?: (value: string) => void;
   onShipToAddressChange: (value: string) => void;
   billToAddressInvalid?: boolean | undefined;
   shipToAddressInvalid?: boolean | undefined;
   billToAddressErrorText?: string | undefined;
   shipToAddressErrorText?: string | undefined;
   readOnly?: boolean;
+  billToReadOnly?: boolean;
+  shipToReadOnly?: boolean;
   editableHighlight?: boolean;
   /** Visual-only override: read-only fields render with the same background as editable fields. */
   uniformReadOnlyAppearance?: boolean;
@@ -45,13 +47,18 @@ export function AddressGrid({
   billToAddressErrorText,
   shipToAddressErrorText,
   readOnly = false,
+  billToReadOnly = true,
+  shipToReadOnly,
   editableHighlight = false,
-  uniformReadOnlyAppearance = false,
+  uniformReadOnlyAppearance: _uniformReadOnlyAppearance = false,
   billToOptions = [],
   shipToOptions = [],
   billToLabel,
   shipToLabel,
 }: AddressGridProps) {
+  const isBillToReadOnly = billToReadOnly || readOnly;
+  const isShipToReadOnly = shipToReadOnly ?? readOnly;
+
   const displayBillToLabel = billToLabel || "Bill To Address";
   const displayShipToLabel = shipToLabel || "Ship To Address";
 
@@ -103,8 +110,10 @@ export function AddressGrid({
             >
               <span className="inline-flex items-center gap-1.5">
                 <span>{displayBillToLabel}</span>
-                {readOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
-                {!readOnly && editableHighlight ? (
+                {isBillToReadOnly ? (
+                  <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
+                ) : null}
+                {!isBillToReadOnly && editableHighlight ? (
                   <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
                 ) : null}
               </span>
@@ -118,14 +127,14 @@ export function AddressGrid({
                   if (val === "custom") return;
                   const opt = billToOptions.find((o) => o.addressName === val);
                   if (opt) {
-                    onBillToAddressChange(opt.addressText);
+                    onBillToAddressChange?.(opt.addressText);
                   }
                 }}
               >
                 <Select.Trigger
                   className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
                     readOnly || billToOptions.length === 0
-                      ? "border-linen-200 bg-linen-100 text-neutral-400 cursor-not-allowed"
+                      ? "border-linen-200 bg-field-silver text-neutral-400 cursor-not-allowed"
                       : "border-linen-200 bg-field-silver text-ink-900 hover:bg-surface hover:border-linen-200"
                   }`}
                 >
@@ -163,24 +172,45 @@ export function AddressGrid({
               <textarea
                 id="po-bill-to-address"
                 value={billToAddress}
-                readOnly={readOnly}
-                onChange={(event) =>
-                  onBillToAddressChange(clipSapText(event.target.value, SAP_FIELD_MAX.address))
+                readOnly={isBillToReadOnly}
+                onKeyDown={(event) => {
+                  if (
+                    isBillToReadOnly &&
+                    (event.key === "Backspace" ||
+                      event.key === "Delete" ||
+                      (!event.ctrlKey && !event.metaKey && event.key.length === 1))
+                  ) {
+                    event.preventDefault();
+                  }
+                }}
+                onCut={(event) => {
+                  if (isBillToReadOnly) {
+                    event.preventDefault();
+                  }
+                }}
+                onPaste={(event) => {
+                  if (isBillToReadOnly) {
+                    event.preventDefault();
+                  }
+                }}
+                onChange={
+                  isBillToReadOnly
+                    ? undefined
+                    : (event) =>
+                        onBillToAddressChange?.(
+                          clipSapText(event.target.value, SAP_FIELD_MAX.address),
+                        )
                 }
                 maxLength={SAP_FIELD_MAX.address}
-                placeholder={`Enter ${displayBillToLabel}`}
+                placeholder={isBillToReadOnly ? displayBillToLabel : `Enter ${displayBillToLabel}`}
                 className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 ${
                   billToAddressInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
-                    : editableHighlight
+                    : !isBillToReadOnly && editableHighlight
                       ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
-                      : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
-                } ${
-                  readOnly
-                    ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
-                      : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500"
-                    : ""
+                      : isBillToReadOnly
+                        ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
+                        : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               />
             )}
@@ -195,8 +225,10 @@ export function AddressGrid({
             >
               <span className="inline-flex items-center gap-1.5">
                 <span>{displayShipToLabel}</span>
-                {readOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
-                {!readOnly && editableHighlight ? (
+                {isShipToReadOnly ? (
+                  <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
+                ) : null}
+                {!isShipToReadOnly && editableHighlight ? (
                   <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
                 ) : null}
               </span>
@@ -204,7 +236,7 @@ export function AddressGrid({
 
             <div className="mb-2">
               <Select
-                disabled={readOnly || shipToOptions.length === 0}
+                disabled={isShipToReadOnly || shipToOptions.length === 0}
                 value={shipToSelectValue}
                 onValueChange={(val) => {
                   if (val === "custom") return;
@@ -216,8 +248,8 @@ export function AddressGrid({
               >
                 <Select.Trigger
                   className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
-                    readOnly || shipToOptions.length === 0
-                      ? "border-linen-200 bg-linen-100 text-neutral-400 cursor-not-allowed"
+                    isShipToReadOnly || shipToOptions.length === 0
+                      ? "border-linen-200 bg-field-silver text-neutral-400 cursor-not-allowed"
                       : "border-linen-200 bg-field-silver text-ink-900 hover:bg-surface hover:border-linen-200"
                   }`}
                 >
@@ -255,7 +287,7 @@ export function AddressGrid({
               <textarea
                 id="po-ship-to-address"
                 value={shipToAddress}
-                readOnly={readOnly}
+                readOnly={isShipToReadOnly}
                 onChange={(event) =>
                   onShipToAddressChange(clipSapText(event.target.value, SAP_FIELD_MAX.address))
                 }
@@ -264,15 +296,11 @@ export function AddressGrid({
                 className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 ${
                   shipToAddressInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
-                    : editableHighlight
+                    : !isShipToReadOnly && editableHighlight
                       ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
-                      : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
-                } ${
-                  readOnly
-                    ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
-                      : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500"
-                    : ""
+                      : isShipToReadOnly
+                        ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
+                        : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               />
             )}

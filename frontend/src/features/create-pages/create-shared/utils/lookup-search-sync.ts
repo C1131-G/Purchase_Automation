@@ -23,7 +23,11 @@ export const syncLookupSearchByMode = (
   mode: PopupMode,
   value: string,
   handlers: LookupSearchSyncHandlers,
+  syncInline = true,
 ) => {
+  if (!syncInline) {
+    return;
+  }
   if (mode === "vendor-name") {
     handlers.onVendorName(value);
     return;

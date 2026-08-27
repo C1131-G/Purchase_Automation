@@ -4,6 +4,7 @@ import { purgeCache } from "@/core/utils/cache";
 import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/document-series";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
+import { assertIcPartnerForCreate } from "@/modules/intercompany";
 // Fetches a paginated list of Outgoing Payments from HANA.
 
 export const createPayment = async (
@@ -18,6 +19,12 @@ export const createPayment = async (
     if (!payload.CardCode || String(payload.CardCode).trim() === "") {
       throw new Error("Vendor code (CardCode) is required.");
     }
+    const session = serviceLayerClient.getSession(sessionId);
+    await assertIcPartnerForCreate?.(
+      session?.companyDB || "",
+      "purchase",
+      String(payload.CardCode),
+    );
 
     // Preflight: validate PaymentInvoices
     const invoices = (payload.PaymentInvoices as Record<string, unknown>[]) || [];
@@ -189,7 +196,6 @@ export const createPayment = async (
       sapPayload,
     )) as { DocEntry: number; DocNum: number };
 
-    const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dashboard:overview:${session.companyDB}`);
     }

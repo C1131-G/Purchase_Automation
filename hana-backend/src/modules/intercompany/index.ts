@@ -32,3 +32,12 @@ export type { IcPoHookInput, IcPqDraftHookInput } from "./flows/shared/flow.type
 export { IC_OBJECT } from "./infrastructure/object-codes";
 export { IC_CONFIG_KEY } from "./infrastructure/constants";
 export { commentsWithoutSapBaseAutoLines } from "./infrastructure/ic-remarks-chain";
+export {
+  assertIcPartnerAllowed,
+  assertIcPartnerForCreate,
+  buildIcCardCodePredicate,
+  getIcPartnerCodes,
+  getIcPartnerScope,
+  getIcPartnerLookupContext,
+} from "./api/ic-partner-scope";
+export type { IcPartnerRole, IcPartnerScope, IcPartnerLookupContext } from "./api/ic-partner-scope";

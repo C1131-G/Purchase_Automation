@@ -7,7 +7,11 @@ import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { assertPqLinesCopyAllowed, commentsWithoutSapBaseAutoLines } from "@/modules/intercompany";
+import {
+  assertIcPartnerForCreate,
+  assertPqLinesCopyAllowed,
+  commentsWithoutSapBaseAutoLines,
+} from "@/modules/intercompany";
 import { syncBuyerRemarksAfterCreate } from "@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
@@ -44,6 +48,7 @@ export const createInvoice = async (
 
   const session = serviceLayerClient.getSession(sessionId);
   const resolvedDbName = session?.companyDB || dbName || "";
+  await assertIcPartnerForCreate?.(resolvedDbName, "purchase", String(payload.CardCode ?? ""));
   if (resolvedDbName) {
     await assertPqLinesCopyAllowed(resolvedDbName, lines);
   }

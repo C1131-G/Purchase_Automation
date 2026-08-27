@@ -45,7 +45,15 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 
 const routeApi = getRouteApi("/_layout/sales/quotations");
 const TABLE_ID = "sales-quotations";
-const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"];
+const DEFAULT_COLUMN_ORDER = [
+  "DocNum",
+  "PoDocNum",
+  "DocDate",
+  "CardCode",
+  "CardName",
+  "DocTotal",
+  "DocStatus",
+];
 
 const toSalesQuotationColumnFilters = (
   filters: ColumnFiltersState,
@@ -172,6 +180,7 @@ export function SalesQuotationTable() {
     if (searchParams.CardName) built.push({ id: "CardName", value: searchParams.CardName });
     if (searchParams.DocNum) built.push({ id: "DocNum", value: searchParams.DocNum });
     if (searchParams.DocStatus) built.push({ id: "DocStatus", value: searchParams.DocStatus });
+    if (searchParams.PoDocNum) built.push({ id: "PoDocNum", value: searchParams.PoDocNum });
     if (searchParams.DocDateStart || searchParams.DocDateEnd) {
       built.push({
         id: "DocDate",
@@ -249,6 +258,7 @@ export function SalesQuotationTable() {
       const cardCodeVal = nextFilters.find((f) => f.id === "CardCode")?.value;
       const cardNameVal = nextFilters.find((f) => f.id === "CardName")?.value;
       const docStatusVal = nextFilters.find((f) => f.id === "DocStatus")?.value;
+      const poDocNumVal = nextFilters.find((f) => f.id === "PoDocNum")?.value;
       const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
       const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
 
@@ -262,6 +272,7 @@ export function SalesQuotationTable() {
           CardCode: cardCodeVal ? String(cardCodeVal) : undefined,
           CardName: cardNameVal ? String(cardNameVal) : undefined,
           DocStatus: docStatusVal ? String(docStatusVal) : undefined,
+          PoDocNum: poDocNumVal ? String(poDocNumVal) : undefined,
           DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
           DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
           DocTotalOperator: docTotalVal?.operator ?? undefined,
@@ -390,6 +401,7 @@ export function SalesQuotationTable() {
         ...prev,
         DocTotal: undefined,
         DocTotalOperator: undefined,
+        PoDocNum: undefined,
         columnFilters: [],
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnVisibility: {},

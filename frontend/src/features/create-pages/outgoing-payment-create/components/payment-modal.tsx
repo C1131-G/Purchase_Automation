@@ -804,7 +804,7 @@ export function PaymentModal({
                         }}
                         placeholder="Enter cheque number"
                         disabled={!manualCheckNo}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver disabled:text-neutral-400 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="flex-1">
@@ -940,13 +940,13 @@ export function PaymentModal({
                     <label className="mb-1.5 block text-xs font-bold text-neutral-500">
                       GL Account (Transfer)
                     </label>
-                    <div className="flex h-10 w-full items-center rounded-xl border border-linen-200 bg-linen-100 px-3 text-sm text-neutral-500">
+                    <div className="flex h-10 w-full items-center rounded-xl border border-linen-200 bg-field-silver px-3 text-sm text-ink-900">
                       {isLoadingTransferAccount ? (
-                        <span className="animate-pulse">Resolving...</span>
+                        <span className="animate-pulse text-neutral-500">Resolving...</span>
                       ) : resolvedTransferAccount ? (
                         <span className="font-medium text-ink-900">{resolvedTransferAccount}</span>
                       ) : (
-                        <span>Select date to resolve</span>
+                        <span className="text-neutral-500">Select date to resolve</span>
                       )}
                     </div>
                   </div>

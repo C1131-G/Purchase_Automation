@@ -657,14 +657,19 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   ]);
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
-    syncLookupSearchByMode(mode, value, {
-      onSeries: seriesField.handleSeriesChange,
-      onBranch: branchField.handleBranchChange,
-      onSalesEmployee: lookups.handleSalesEmployeeChange,
-      onVendorCode: lookups.handleVendorCodeChange,
-      onVendorName: lookups.handleVendorNameChange,
-      onWarehouse: lookups.handleWarehouseChange,
-    });
+    syncLookupSearchByMode(
+      mode,
+      value,
+      {
+        onSeries: seriesField.handleSeriesChange,
+        onBranch: branchField.handleBranchChange,
+        onSalesEmployee: lookups.handleSalesEmployeeChange,
+        onVendorCode: lookups.handleVendorCodeChange,
+        onVendorName: lookups.handleVendorNameChange,
+        onWarehouse: lookups.handleWarehouseChange,
+      },
+      false,
+    );
   };
 
   useEffect(() => {

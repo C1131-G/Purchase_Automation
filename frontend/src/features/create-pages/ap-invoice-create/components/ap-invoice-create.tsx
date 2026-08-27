@@ -18,6 +18,7 @@ import { ReferenceGrid } from "@/features/create-pages/create-shared/components/
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
+import { VendorChangeConfirmationDialog } from "@/features/create-pages/create-shared/components/modals/vendor-change-confirmation-dialog";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import {
   LazyCopyFromDialog,
@@ -233,8 +234,8 @@ export function APInvoiceCreate({
               onCodeChange={state.handleVendorCodeChange}
               onNameFocus={() => state.setVendorNameFocused(true)}
               onCodeFocus={() => state.setVendorCodeFocused(true)}
-              onNameBlur={() => setTimeout(() => state.setVendorNameFocused(false), 120)}
-              onCodeBlur={() => setTimeout(() => state.setVendorCodeFocused(false), 120)}
+              onNameBlur={state.finalizeVendorLookup}
+              onCodeBlur={state.finalizeVendorLookup}
               onOpenNamePopup={() => state.openPopup("vendor-name")}
               onOpenCodePopup={() => state.openPopup("vendor-code")}
               onSelectVendor={state.selectVendor}
@@ -274,7 +275,7 @@ export function APInvoiceCreate({
               salesEmployeeSuggestions={state.buyerSuggestions}
               onSalesEmployeeChange={state.setBuyerInput}
               onSalesEmployeeFocus={() => state.setBuyerFocused(true)}
-              onSalesEmployeeBlur={() => setTimeout(() => state.setBuyerFocused(false), 120)}
+              onSalesEmployeeBlur={state.finalizeBuyerLookup}
               onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
               onSelectSalesEmployee={state.selectSalesEmployee}
               salesEmployeeLabel="BUYER"
@@ -289,7 +290,7 @@ export function APInvoiceCreate({
               warehouseSuggestions={state.warehouseSuggestions}
               onWarehouseChange={state.setWarehouseInput}
               onWarehouseFocus={() => state.setWarehouseFocused(true)}
-              onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+              onWarehouseBlur={state.finalizeWarehouseLookup}
               onOpenWarehousePopup={() => state.openPopup("warehouse")}
               onSelectWarehouse={state.selectWarehouse}
               warehouseInvalid={Boolean(state.fieldErrors.warehouseCode)}
@@ -440,32 +441,11 @@ export function APInvoiceCreate({
 
       <APInvoiceModals state={state} />
 
-      {state.pendingVendorChange && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-ink-900/30">
-          <div className="w-full max-w-sm rounded-xl border border-linen-200 bg-surface p-5 shadow-lg">
-            <h3 className="mb-2 text-sm font-semibold text-ink-900">Confirm Vendor Change</h3>
-            <p className="mb-4 text-sm text-neutral-500">
-              Changing vendor will affect copied document data. Continue?
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={state.cancelVendorChange}
-                className="rounded-full border border-linen-200 bg-surface px-4 py-1.5 text-xs font-medium text-ink-900 transition hover:bg-linen-50"
-              >
-                No
-              </button>
-              <button
-                type="button"
-                onClick={state.confirmVendorChange}
-                className="rounded-full border border-teal-600 bg-teal-600 px-4 py-1.5 text-xs font-medium text-surface transition hover:bg-teal-700"
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VendorChangeConfirmationDialog
+        open={Boolean(state.pendingVendorChange)}
+        onCancel={state.cancelVendorChange}
+        onConfirm={state.confirmVendorChange}
+      />
     </CreatePageWrapper>
   );
 }

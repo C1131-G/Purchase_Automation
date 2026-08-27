@@ -42,7 +42,7 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
     disabled,
     onDisabledClick,
     editableHighlight,
-    uniformReadOnlyAppearance,
+    uniformReadOnlyAppearance: _uniformReadOnlyAppearance,
     badge,
     maxLength,
   },
@@ -120,11 +120,7 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
                 : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
           } ${
             disabled
-              ? `cursor-not-allowed opacity-100 ${
-                  uniformReadOnlyAppearance
-                    ? "border-linen-200 bg-field-silver text-ink-900"
-                    : "border-linen-200 bg-linen-100 text-neutral-500"
-                }`
+              ? "cursor-not-allowed opacity-100 border-linen-200 bg-field-silver text-ink-900"
               : ""
           }`}
           placeholder={placeholder}

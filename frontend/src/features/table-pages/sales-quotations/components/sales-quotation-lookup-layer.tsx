@@ -53,6 +53,14 @@ export function SalesQuotationLookupLayer({
   const customersQuery = useQuery(createSharedQueries.customers());
   const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data]);
   const tableRows = table.getRowModel().rows;
+  const relatedDocSuggestions = useMemo<LookupItem[]>(() => {
+    const values = new Set<string>();
+    for (const row of table.getCoreRowModel().rows) {
+      const value = String(row.getValue("PoDocNum") ?? "").trim();
+      if (value) values.add(value);
+    }
+    return [...values].map((code) => ({ code, name: code }));
+  }, [table]);
   const {
     lookupPopupOpen,
     lookupColumnId,
@@ -66,6 +74,7 @@ export function SalesQuotationLookupLayer({
     onLookupSelect: handleLookupSelect,
   } = useTableLookupPopupSync({
     table,
+    allowedColumnIds: ["CardCode", "CardName", "DocNum", "PoDocNum"],
     tableId,
     // Sync Logic: Bridges toolbar search with global lookup popup state.
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
@@ -193,7 +202,13 @@ export function SalesQuotationLookupLayer({
               : "customer-name"
         }
         search={lookupSearch}
-        results={lookupColumnId === "DocNum" ? docNumLookupResults : customers}
+        results={
+          lookupColumnId === "DocNum"
+            ? docNumLookupResults
+            : lookupColumnId === "PoDocNum"
+              ? relatedDocSuggestions
+              : customers
+        }
         loading={
           lookupColumnId === "DocNum"
             ? docNumSuggestionsQuery.isFetching ||

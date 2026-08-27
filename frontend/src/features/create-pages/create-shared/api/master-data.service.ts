@@ -8,6 +8,7 @@ interface MasterDataItem {
 }
 
 interface MasterDataQuery {
+  scope?: "intercompany";
   search?: string;
   limit?: number;
   warehouseCode?: string;
@@ -19,6 +20,7 @@ interface MasterDataQuery {
   priceList?: string; // price list code (e.g. "1", "-1", "-2")
   /** BP CardCode — scopes product list to OSCN ∩ OITM for that partner. */
   cardCode?: string;
+  catalog?: "purchase-quotation";
 }
 
 const joinCodes = (codes: string[] | string | undefined): string => {
@@ -34,6 +36,7 @@ const joinCodes = (codes: string[] | string | undefined): string => {
 export const masterDataAPI = {
   getCustomers: async (params?: MasterDataQuery) => {
     const query = new URLSearchParams();
+    if (params?.scope) query.set("scope", params.scope);
     if (params?.search) {
       query.set("search", params.search);
     }
@@ -60,6 +63,7 @@ export const masterDataAPI = {
     priceList?: string;
     warehouseCode?: string;
     cardCode?: string;
+    catalog?: "purchase-quotation";
   }) => {
     const query = new URLSearchParams();
     const codes = joinCodes(params.codes);
@@ -77,6 +81,9 @@ export const masterDataAPI = {
     }
     if (params.cardCode) {
       query.set("cardCode", params.cardCode);
+    }
+    if (params.catalog) {
+      query.set("catalog", params.catalog);
     }
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/products-by-codes?${query.toString()}`,
@@ -120,6 +127,9 @@ export const masterDataAPI = {
     if (params?.cardCode) {
       query.set("cardCode", params.cardCode);
     }
+    if (params?.catalog) {
+      query.set("catalog", params.catalog);
+    }
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/products?${query.toString()}`,
     );
@@ -142,6 +152,7 @@ export const masterDataAPI = {
   },
   getVendors: async (params?: MasterDataQuery) => {
     const query = new URLSearchParams();
+    if (params?.scope) query.set("scope", params.scope);
     if (params?.search) {
       query.set("search", params.search);
     }

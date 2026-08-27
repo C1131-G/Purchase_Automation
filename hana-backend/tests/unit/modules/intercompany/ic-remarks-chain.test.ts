@@ -16,7 +16,7 @@ import {
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 
 describe("ic-remarks-chain", () => {
-  it("RFQ open remarks retain user text without a buyer PQ reference", () => {
+  it("RFQ remarks retain user text and include the PQ/RFQ chain", () => {
     const merged = buildFlow1RfqRemarks({
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
@@ -28,7 +28,8 @@ describe("ic-remarks-chain", () => {
 
     expect(merged).toContain("Please match last quote");
     expect(merged).toContain("Urgent for plant B");
-    expect(merged).not.toContain("Based on PQ");
+    expect(merged).toContain("PQ No. 9001");
+    expect(merged).toContain("RFQ No. 9001");
     expect(merged).not.toContain("Auto Generated");
     expect(merged).not.toContain("AJAX Industries");
     expect(merged).not.toContain("Request For Quotation");
@@ -49,8 +50,8 @@ describe("ic-remarks-chain", () => {
       rfqId: 9,
       rfqNumber: "9001",
     });
-    expect(remarks).toContain("Based on RFQ 9001");
-    expect(remarks).not.toContain("Based on PQ");
+    expect(remarks).toContain("PQ No. 2042");
+    expect(remarks).toContain("RFQ No. 9001");
     expect(remarks).not.toContain("Auto Generated");
     expect(remarks).not.toContain("Sales Quotation");
   });
@@ -58,9 +59,9 @@ describe("ic-remarks-chain", () => {
   it("mergeUserAndIcRemarks recovers parent typed text when RFQ only has IC lines", () => {
     const merged = mergeUserAndIcRemarks("IC | PQ: PQ No 1\nIC | RFQ: RFQ-1", "Parent typed on PQ");
     expect(merged).toContain("Parent typed on PQ");
-    expect(merged).toContain("Based on PQ 1");
-    expect(merged).toContain("Based on RFQ 1");
-    expect(merged.indexOf("Parent typed on PQ")).toBeLessThan(merged.indexOf("Based on PQ 1"));
+    expect(merged).toContain("PQ No. 1");
+    expect(merged).toContain("RFQ No. 1");
+    expect(merged.indexOf("Parent typed on PQ")).toBeLessThan(merged.indexOf("PQ No. 1"));
   });
 
   it("mergeUserAndIcRemarks unions user text from both sides + IC keys", () => {
@@ -72,16 +73,16 @@ describe("ic-remarks-chain", () => {
     expect(merged).toContain("Buyer note A");
     expect(merged).toContain("Seller-side note");
     // secondary wins on same IC key
-    expect(merged).toContain("Based on PQ 99");
-    expect(merged).toContain("Based on RFQ 1");
-    expect(merged.indexOf("Buyer note A")).toBeLessThan(merged.indexOf("Based on PQ 99"));
+    expect(merged).toContain("PQ No. 99");
+    expect(merged).toContain("RFQ No. 1");
+    expect(merged.indexOf("Buyer note A")).toBeLessThan(merged.indexOf("PQ No. 99"));
   });
 
   it("mergeUserAndIcRemarks normalizes legacy Based on lines to Based on TYPE form", () => {
     const chain =
       "Offline Sync\nAuto Generated Based on Purchase Quotation 8000590\nAuto Generated Based on Request For Quotation 8000590";
     const merged = mergeUserAndIcRemarks(chain, chain);
-    expect(merged).toBe("Offline Sync\nBased on PQ 8000590\nBased on RFQ 8000590");
+    expect(merged).toBe("Offline Sync\nPQ No. 8000590\nRFQ No. 8000590");
   });
 
   it("buildFlow2ArRemarks keeps PO user comments and seller RFQ + SQ lines", () => {
@@ -89,6 +90,8 @@ describe("ic-remarks-chain", () => {
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
       existingComments: "Ship to dock 3",
+      poDocEntry: 301,
+      poDocNum: 3001,
       pqDocEntry: 55,
       pqDocNum: 2042,
       rfqId: 9,
@@ -97,9 +100,9 @@ describe("ic-remarks-chain", () => {
       sqDocNum: 810,
     });
     expect(comments).toContain("Ship to dock 3");
-    expect(comments).toBe("Ship to dock 3\nBased on RFQ 9001\nBased on SQ 810");
+    expect(comments).toBe("Ship to dock 3\nPQ No. 2042\nRFQ No. 9001\nPO No. 3001\nSQ No. 810");
     expect(comments).not.toContain("Auto Generated");
-    expect(comments).not.toContain("Purchase Order");
+    expect(comments).toContain("PO No. 3001");
     expect(comments).not.toContain("AR Invoice");
   });
 
@@ -121,7 +124,7 @@ describe("ic-remarks-chain", () => {
     expect(over.length).toBeGreaterThan(254);
     const clamped = clampSapDocumentComments(over);
     expect(clamped.length).toBeLessThanOrEqual(254);
-    expect(clamped).toMatch(/\bPQ\b|\bRFQ\b|\bSQ\b/);
+    expect(clamped).toMatch(/PQ No\.|RFQ No\.|SQ No\./);
   });
 
   it("appendIcRemarkLines is idempotent for existing keys", () => {
@@ -129,7 +132,7 @@ describe("ic-remarks-chain", () => {
     const second = appendIcRemarkLines(first, [{ key: "PO", text: "999" }]);
     expect(second).toBe(first);
     expect(second).toContain("User text");
-    expect(first).toBe("User text\nBased on PO 1");
+    expect(first).toBe("User text\nPO No. 1");
   });
 
   it("formatIcDocLabel prefers document numbers", () => {
@@ -146,7 +149,7 @@ describe("ic-remarks-chain", () => {
     expect(second).toBe(first);
   });
 
-  it("buildFlow1SqRemarks is seller RFQ only", () => {
+  it("buildFlow1SqRemarks includes the known PQ/RFQ/SQ chain", () => {
     const remarks = buildFlow1SqRemarks({
       buyerCompanyName: "AJAX Industries",
       sellerCompanyName: "RCM Trading",
@@ -163,13 +166,12 @@ describe("ic-remarks-chain", () => {
     });
     expect(remarks).toContain("Ship ASAP");
     expect(remarks).toContain("Vendor Ref No: BUYER-REF-42");
-    expect(remarks).toContain("Based on RFQ 9001");
-    expect(remarks).not.toContain("Based on PQ");
-    // SQ does not self-link even when sqDocEntry is passed.
-    expect(remarks).not.toContain("Based on SQ");
+    expect(remarks).toContain("RFQ No. 9001");
+    expect(remarks).toContain("PQ No. 2042");
+    expect(remarks).toContain("SQ No. 810");
     expect(remarks).not.toContain("Auto Generated");
-    expect(remarks.indexOf("Ship ASAP")).toBeLessThan(remarks.indexOf("Based on RFQ 9001"));
-    expect(remarks.indexOf("Vendor Ref No")).toBeLessThan(remarks.indexOf("Based on RFQ 9001"));
+    expect(remarks.indexOf("Ship ASAP")).toBeLessThan(remarks.indexOf("RFQ No. 9001"));
+    expect(remarks.indexOf("Vendor Ref No")).toBeLessThan(remarks.indexOf("RFQ No. 9001"));
   });
 
   it("normalizes buyer chains to PQ, RFQ, then PO", () => {
@@ -178,23 +180,23 @@ describe("ic-remarks-chain", () => {
       IC_REMARK_PROFILE.BUYER,
     );
 
-    expect(remarks).toBe("User note\nBased on PQ 999\nBased on RFQ 200\nBased on PO 300");
+    expect(remarks).toBe("User note\nPQ No. 999\nRFQ No. 200\nPO No. 300");
   });
 
-  it("normalizes seller chains to RFQ then SQ and removes buyer links", () => {
+  it("normalizes seller chains to PQ, RFQ, PO, then SQ", () => {
     const remarks = normalizeIcRemarks(
       "Seller note\nBased on PQ 100\nBased on SQ 300\nBased on PO 200\nBased on RFQ 250",
       IC_REMARK_PROFILE.SELLER,
     );
 
-    expect(remarks).toBe("Seller note\nBased on RFQ 250\nBased on SQ 300");
+    expect(remarks).toBe("Seller note\nPQ No. 100\nRFQ No. 250\nPO No. 200\nSQ No. 300");
   });
 
   it("parses multi-word company name legacy Based on lines for merge/idempotency", () => {
     const first = appendIcRemarkLines("Note", [
       { cardName: "AJAX Industries", key: "PQ", text: "132424" },
     ]);
-    expect(first).toBe("Note\nBased on PQ 132424");
+    expect(first).toBe("Note\nPQ No. 132424");
     const second = appendIcRemarkLines(first, [
       { cardName: "AJAX Industries", key: "PQ", text: "999" },
     ]);
@@ -213,14 +215,14 @@ describe("ic-remarks-chain", () => {
     const existing =
       "Created from portal\rBased on PQ 8000586\rBased On Purchase Quotations 8000586";
     const next = appendIcRemarkLines(existing, [{ key: "RFQ", text: "8000586" }]);
-    expect(next).toBe("Created from portal\nBased on PQ 8000586\nBased on RFQ 8000586");
+    expect(next).toBe("Created from portal\nBased on PQ 8000586\nRFQ No. 8000586");
     expect(next.match(/PQ|Purchase Quotation/gi)?.length).toBe(1);
   });
 
   it("strips Based on PQ when lines are SAP-based on a purchase quotation", () => {
     const comments = "User note\nBased on PQ 8000586\nBased on RFQ 8000586";
     const stripped = commentsWithoutSapBaseAutoLines(comments, [{ BaseType: 540000006 }]);
-    expect(stripped).toBe("User note\nBased on RFQ 8000586");
+    expect(stripped).toBe("User note\nRFQ No. 8000586");
     expect(stripped).not.toContain("Based on PQ");
   });
 });

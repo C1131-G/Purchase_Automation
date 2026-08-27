@@ -160,6 +160,18 @@ export const createPurchaseOrderColumns = (options?: CreatePurchaseOrderColumnsO
       minSize: 10,
       size: 14,
     }),
+    columnHelper.accessor("SqDocNum", {
+      cell: (info) => info.getValue() || "—",
+      enableSorting: true,
+      filterFn: "includesString",
+      header: ({ column, table }) => (
+        <TableColumnSort column={column} sortingState={table.getState().sorting} title="SQ No." />
+      ),
+      id: "SqDocNum",
+      meta: { filterType: "text" },
+      minSize: 12,
+      size: 14,
+    }),
   ];
 
   return baseColumns;

@@ -10,6 +10,7 @@ import {
   type OverviewArApprovalItem,
 } from "@/modules/dashboard/dashboard.ar-approval.queries";
 import { getDisplayCurrency } from "@/services/currency-format";
+import { getIcPartnerCodes } from "@/modules/intercompany/api/ic-partner-scope";
 
 const OPEN_DOC_STATUS_SEARCH = "DocStatus=Open";
 const OVERVIEW_KPI_HREFS = {
@@ -50,6 +51,7 @@ async function aggregateOpenDocs(
   dbName: string,
   schema: typeof PurchaseQuotationSchema | typeof SalesQuotationSchema | typeof PurchaseOrderSchema,
   alias: string,
+  allowedCardCodes: string[],
 ): Promise<{ count: number; openValue: number }> {
   const repo = await getTenantRepository(dbName, schema);
   const stats = await repo
@@ -57,6 +59,10 @@ async function aggregateOpenDocs(
     .select("COUNT(*)", "openCount")
     .addSelect(`SUM(${alias}.docTotal)`, "openValue")
     .where(`${alias}.docStatus = :status`, { status: "O" })
+    .andWhere(
+      allowedCardCodes.length > 0 ? `${alias}.cardCode IN (:...allowedCardCodes)` : "1=0",
+      allowedCardCodes.length > 0 ? { allowedCardCodes } : {},
+    )
     .getRawOne();
 
   return {
@@ -69,11 +75,15 @@ export const getOverviewWork = async (dbName: string): Promise<OverviewWork> =>
   getCachedData(
     `dashboard:overview:${dbName}:work`,
     async () => {
+      const [purchaseCodes, salesCodes] = await Promise.all([
+        getIcPartnerCodes(dbName, "purchase"),
+        getIcPartnerCodes(dbName, "sales"),
+      ]);
       const [currency, openPq, openSq, openPo, arApproval] = await Promise.all([
         getDisplayCurrency(dbName),
-        aggregateOpenDocs(dbName, PurchaseQuotationSchema, "pq"),
-        aggregateOpenDocs(dbName, SalesQuotationSchema, "sq"),
-        aggregateOpenDocs(dbName, PurchaseOrderSchema, "po"),
+        aggregateOpenDocs(dbName, PurchaseQuotationSchema, "pq", purchaseCodes),
+        aggregateOpenDocs(dbName, SalesQuotationSchema, "sq", salesCodes),
+        aggregateOpenDocs(dbName, PurchaseOrderSchema, "po", purchaseCodes),
         loadArApprovalPending(dbName),
       ]);
 

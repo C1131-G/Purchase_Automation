@@ -10,8 +10,8 @@ describe("business partner addresses query key", () => {
     expect(key[2]).toBe("V-100");
   });
 
-  it("uses v4 vendor/customer list keys (slim payload)", () => {
-    expect(createSharedKeys.vendors()).toEqual(["create-shared", "vendors-v4"]);
-    expect(createSharedKeys.customers()).toEqual(["create-shared", "customers-v4"]);
+  it("uses intercompany vendor/customer list keys (slim payload)", () => {
+    expect(createSharedKeys.vendors()).toEqual(["create-shared", "vendors-ic-v1"]);
+    expect(createSharedKeys.customers()).toEqual(["create-shared", "customers-ic-v1"]);
   });
 });

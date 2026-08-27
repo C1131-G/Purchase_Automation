@@ -39,7 +39,6 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { findWarehouseSelection } from "@/features/create-pages/create-shared/utils/location-lookup";
 import {
   notifyCreateApiError,
   notifyDocumentHydrateError,
@@ -173,6 +172,7 @@ export function useAPInvoiceCreate({
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
   const warehouseDirtyRef = useRef(false);
+  const buyerSelectedRef = useRef(false);
 
   const setSeries = useCallback(
     (series: number | null) => {
@@ -259,9 +259,8 @@ export function useAPInvoiceCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const matched = findWarehouseSelection(warehouses, warehouseInput);
-    return matched?.code ?? "";
-  }, [warehouseInput, warehouses]);
+    return header.warehouseCode?.trim() ?? "";
+  }, [header.warehouseCode]);
 
   const searchWarehouseCode = useMemo(() => {
     if (activeProductRowId) {
@@ -273,7 +272,7 @@ export function useAPInvoiceCreate({
     return effectiveWarehouseCode || undefined;
   }, [activeProductRowId, rows, effectiveWarehouseCode]);
 
-  const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
+  const vendorSelected = Boolean(vendorCodeInput && vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
   const partnerCardCode = vendorCodeInput.trim() || undefined;
 
@@ -1039,6 +1038,7 @@ export function useAPInvoiceCreate({
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
+      buyerSelectedRef.current = Boolean(buyerName);
       const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
       setWarehouseInput(
         formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
@@ -1123,13 +1123,18 @@ export function useAPInvoiceCreate({
   };
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
-    syncLookupSearchByMode(mode, value, {
-      onSalesEmployee: handleBuyerChange,
-      onSeries: seriesField.handleSeriesChange,
-      onVendorCode: handleVendorCodeChange,
-      onVendorName: handleVendorNameChange,
-      onWarehouse: handleWarehouseInputChange,
-    });
+    syncLookupSearchByMode(
+      mode,
+      value,
+      {
+        onSalesEmployee: handleBuyerChange,
+        onSeries: seriesField.handleSeriesChange,
+        onVendorCode: handleVendorCodeChange,
+        onVendorName: handleVendorNameChange,
+        onWarehouse: handleWarehouseInputChange,
+      },
+      false,
+    );
   };
 
   useEffect(() => {
@@ -1159,6 +1164,12 @@ export function useAPInvoiceCreate({
   ]);
 
   const selectVendor = (vendor: LookupItem) => {
+    if (normalizeCodeForCompare(header.vendorCode) === normalizeCodeForCompare(vendor.code)) {
+      setPendingVendorChange(null);
+      setVendorNameInput(header.vendorName || vendor.name);
+      setVendorCodeInput(header.vendorCode || vendor.code);
+      return;
+    }
     if (hasCopiedRows) {
       setPendingVendorChange({ vendor });
       return;
@@ -1184,8 +1195,9 @@ export function useAPInvoiceCreate({
             ?.name?.trim() || ""
         : "");
     setBuyerInput(buyerName);
+    buyerSelectedRef.current = Boolean(buyerName);
 
-    setWarehouseInput("");
+    setWarehouseInput(header.warehouseCode?.trim() ?? "");
     setLines([]);
     setCreateError(null);
     setFieldErrors((prev) => ({
@@ -1200,34 +1212,16 @@ export function useAPInvoiceCreate({
   const handleVendorNameChange = (value: string) => {
     setVendorNameInput(value);
     setFieldErrors((prev) => ({ ...prev, vendorName: undefined }));
+    if (hasCopiedRows) {
+      setVendorNameFocused(true);
+      return;
+    }
     if (value.trim() === "") {
       setVendorNameFocused(true);
       setVendorCodeInput("");
       setBuyerInput("");
       setBillToAddress("");
       setShipToAddress("");
-      return;
-    }
-    const matched = vendors.find((v) => v.name.trim().toLowerCase() === value.trim().toLowerCase());
-    if (matched) {
-      setVendorCodeInput(matched.code);
-      setBillToAddress(matched.billToAddress ?? "");
-      setShipToAddress(matched.shipToAddress ?? matched.billToAddress ?? "");
-
-      const buyerName =
-        matched.salesEmployeeName?.trim() ||
-        (matched.salesEmployeeCode
-          ? salesEmployees
-              .find(
-                (s) =>
-                  normalizeCodeForCompare(s.code) ===
-                  normalizeCodeForCompare(matched.salesEmployeeCode),
-              )
-              ?.name?.trim() || ""
-          : "");
-      setBuyerInput(buyerName);
-      setVendorNameFocused(false);
-      setVendorCodeFocused(false);
       return;
     }
     if (hasCopiedRows) {
@@ -1242,38 +1236,16 @@ export function useAPInvoiceCreate({
   const handleVendorCodeChange = (value: string) => {
     setVendorCodeInput(value);
     setFieldErrors((prev) => ({ ...prev, vendorCode: undefined }));
+    if (hasCopiedRows) {
+      setVendorCodeFocused(true);
+      return;
+    }
     if (value.trim() === "") {
       setVendorCodeFocused(true);
       setVendorNameInput("");
       setBuyerInput("");
       setBillToAddress("");
       setShipToAddress("");
-      return;
-    }
-    const matched = vendors.find((v) => v.code.trim().toLowerCase() === value.trim().toLowerCase());
-    if (matched) {
-      if (hasCopiedRows) {
-        setPendingVendorChange({ vendor: matched });
-        return;
-      }
-      setVendorNameInput(matched.name);
-      setBillToAddress(matched.billToAddress ?? "");
-      setShipToAddress(matched.shipToAddress ?? matched.billToAddress ?? "");
-
-      const buyerName =
-        matched.salesEmployeeName?.trim() ||
-        (matched.salesEmployeeCode
-          ? salesEmployees
-              .find(
-                (s) =>
-                  normalizeCodeForCompare(s.code) ===
-                  normalizeCodeForCompare(matched.salesEmployeeCode),
-              )
-              ?.name?.trim() || ""
-          : "");
-      setBuyerInput(buyerName);
-      setVendorNameFocused(false);
-      setVendorCodeFocused(false);
       return;
     }
     if (hasCopiedRows) {
@@ -1312,6 +1284,10 @@ export function useAPInvoiceCreate({
 
   const cancelVendorChange = () => {
     setPendingVendorChange(null);
+    setVendorNameInput(header.vendorName);
+    setVendorCodeInput(header.vendorCode);
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
   };
 
   /** Apply vendor without clearing lines/warehouse — used only during vendor-change confirmation. */
@@ -1335,6 +1311,7 @@ export function useAPInvoiceCreate({
             ?.name?.trim() || ""
         : "");
     setBuyerInput(buyerName);
+    buyerSelectedRef.current = Boolean(buyerName);
     setCreateError(null);
     setFieldErrors((prev) => ({
       ...prev,
@@ -1352,26 +1329,15 @@ export function useAPInvoiceCreate({
       setHeader({ warehouseCode: "" });
       return;
     }
-    const matched = findWarehouseSelection(warehouses, value);
-    if (matched) {
-      selectWarehouse(matched);
-      return;
-    }
     setHeader({ warehouseCode: "" });
     setWarehouseFocused(true);
   };
 
   const handleBuyerChange = (value: string) => {
+    buyerSelectedRef.current = false;
     setBuyerInput(value);
     setFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }));
-    const matched = salesEmployees.find(
-      (s) =>
-        s.name.trim().toLowerCase() === value.trim().toLowerCase() ||
-        s.code.trim().toLowerCase() === value.trim().toLowerCase(),
-    );
-    if (matched) {
-      setBuyerFocused(false);
-    }
+    setBuyerFocused(true);
   };
 
   const openProductPopup = (rowId: string | null = null) => {
@@ -1397,6 +1363,7 @@ export function useAPInvoiceCreate({
   };
 
   const selectBuyer = (item: LookupItem) => {
+    buyerSelectedRef.current = true;
     setBuyerInput(item.name);
     setBuyerFocused(false);
   };
@@ -2021,6 +1988,29 @@ export function useAPInvoiceCreate({
     [missingMandatoryFields],
   );
 
+  const finalizeVendorLookup = () => {
+    if (!vendorCodeInput.trim() || !vendorNameInput.trim()) {
+      setVendorNameInput("");
+      setVendorCodeInput("");
+    }
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
+  };
+
+  const finalizeWarehouseLookup = () => {
+    if (!header.warehouseCode?.trim()) {
+      setWarehouseInput("");
+    }
+    setWarehouseFocused(false);
+  };
+
+  const finalizeBuyerLookup = () => {
+    if (!buyerSelectedRef.current) {
+      setBuyerInput("");
+    }
+    setBuyerFocused(false);
+  };
+
   return {
     isEditMode,
     isDirty,
@@ -2064,6 +2054,9 @@ export function useAPInvoiceCreate({
     setBuyerFocused,
     warehouseFocused,
     setWarehouseFocused,
+    finalizeVendorLookup,
+    finalizeWarehouseLookup,
+    finalizeBuyerLookup,
     resetWarehouse,
     ...seriesField,
     selectSeries: (item: LookupItem) => {

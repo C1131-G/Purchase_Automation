@@ -22,11 +22,9 @@ import {
 import {
   capIsoDateToMax,
   formatWarehouseDisplay,
+  toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import {
-  filterLocationLookupOptions,
-  findWarehouseSelection,
-} from "@/features/create-pages/create-shared/utils/location-lookup";
+import { filterLocationLookupOptions } from "@/features/create-pages/create-shared/utils/location-lookup";
 import { capQuantityToMax } from "@/features/create-pages/create-shared/utils/document-line-quantity";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 import {
@@ -48,6 +46,7 @@ import {
   isRfqDraft,
   isRfqSubmitted,
   mapRfqLinesToProductRows,
+  normalizeRfqQuotedDate,
   productRowsFingerprint,
   type RfqLineFieldErrors,
   type RfqSellerProductPatch,
@@ -146,7 +145,13 @@ export function useRequestForQuotationForm(rfqId: number) {
       return;
     }
 
-    const rows = applyRfqSalesTaxToRows(mapRfqLinesToProductRows(header.lines), taxCodes);
+    const todayIso = toISODate(new Date());
+    const docDueDate = (header.docDueDate ?? "").trim().slice(0, 10);
+    const defaultQuotedDate = docDueDate ? capIsoDateToMax(todayIso, docDueDate) : todayIso;
+    const rows = applyRfqSalesTaxToRows(
+      mapRfqLinesToProductRows(header.lines, defaultQuotedDate, todayIso, docDueDate),
+      taxCodes,
+    );
     const requiredMap: Record<string, number> = {};
     for (const row of rows) {
       // Buyer required qty only — never seed from quoted qty.
@@ -163,11 +168,13 @@ export function useRequestForQuotationForm(rfqId: number) {
     setWarehouseCode(serverWarehouse);
     warehouseDirtyRef.current = false;
     setWarehouseFocused(false);
-    // Seed header Quoted Date display: only when every line shares one date.
-    const lineDates = rows.map((row) => (row.quotedDate ?? "").trim().slice(0, 10)).filter(Boolean);
-    const commonDate =
-      lineDates.length === rows.length && new Set(lineDates).size <= 1 ? (lineDates[0] ?? "") : "";
-    setBatchQuotedDate(commonDate);
+    const requiredDates = rows
+      .map((row) => normalizeRfqQuotedDate(row.requiredDate, todayIso, docDueDate))
+      .filter(Boolean)
+      .toSorted();
+    const initialBatchDate = requiredDates.at(-1) || defaultQuotedDate;
+    lastBatchQuotedDateRef.current = initialBatchDate;
+    setBatchQuotedDate(initialBatchDate);
     setHydratedKey(fingerprint);
     setFormError(null);
     setSubmitAttempted(false);
@@ -188,7 +195,10 @@ export function useRequestForQuotationForm(rfqId: number) {
     if (!header?.lines) {
       return productRows.length > 0;
     }
-    const server = mapRfqLinesToProductRows(header.lines);
+    const todayIso = toISODate(new Date());
+    const docDueDate = (header.docDueDate ?? "").trim().slice(0, 10);
+    const defaultQuotedDate = docDueDate ? capIsoDateToMax(todayIso, docDueDate) : todayIso;
+    const server = mapRfqLinesToProductRows(header.lines, defaultQuotedDate, todayIso, docDueDate);
     const serverWarehouse =
       header.warehouseCode?.trim() ||
       server.find((row) => row.warehouseCode?.trim())?.warehouseCode?.trim() ||
@@ -197,7 +207,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       productRowsFingerprint(server) !== productRowsFingerprint(productRows) ||
       serverWarehouse !== warehouseCode.trim()
     );
-  }, [header?.lines, header?.warehouseCode, productRows, warehouseCode]);
+  }, [header?.docDueDate, header?.lines, header?.warehouseCode, productRows, warehouseCode]);
 
   const updateProductRow = useCallback(
     (id: string, patch: Partial<ProductRow>) => {
@@ -224,9 +234,11 @@ export function useRequestForQuotationForm(rfqId: number) {
         }
         if (patch.quotedDate !== undefined) {
           const docDueDate = (header?.docDueDate ?? "").trim().slice(0, 10);
-          allowed.quotedDate = docDueDate
-            ? capIsoDateToMax(patch.quotedDate, docDueDate)
-            : patch.quotedDate;
+          allowed.quotedDate = normalizeRfqQuotedDate(
+            patch.quotedDate,
+            toISODate(new Date()),
+            docDueDate,
+          );
         }
       }
       if (Object.keys(allowed).length === 0) {
@@ -310,8 +322,7 @@ export function useRequestForQuotationForm(rfqId: number) {
 
   /**
    * Batch fill Quoted Date from the product-section header control.
-   * Only rows still empty or still matching the previous batch value get
-   * overwritten (mirrors PQ header Required Date sync); user can override per row.
+   * The header is an explicit batch control and applies to every row.
    */
   const setAllQuotedDate = useCallback(
     (value: string) => {
@@ -323,21 +334,10 @@ export function useRequestForQuotationForm(rfqId: number) {
         return;
       }
       const docDueDate = (header?.docDueDate ?? "").trim().slice(0, 10);
-      const nextDate = docDueDate ? capIsoDateToMax(rawDate, docDueDate) : rawDate;
-      const prevBatchDate = lastBatchQuotedDateRef.current;
+      const nextDate = normalizeRfqQuotedDate(rawDate, toISODate(new Date()), docDueDate);
       lastBatchQuotedDateRef.current = nextDate;
       setBatchQuotedDate(nextDate);
-      setProductRows((prev) =>
-        prev.map((row) => {
-          const lineDate = (row.quotedDate ?? "").trim().slice(0, 10);
-          const stillMatchesPrevious =
-            !lineDate || (prevBatchDate !== null && lineDate === prevBatchDate);
-          if (!stillMatchesPrevious) {
-            return row;
-          }
-          return { ...row, quotedDate: nextDate };
-        }),
-      );
+      setProductRows((prev) => prev.map((row) => ({ ...row, quotedDate: nextDate })));
       setFormError(null);
     },
     [canEditLines, header?.docDueDate],
@@ -512,13 +512,6 @@ export function useRequestForQuotationForm(rfqId: number) {
     [applyWarehouse],
   );
 
-  const findWarehouse = useCallback(
-    (value: string) => {
-      return findWarehouseSelection(warehouses, value);
-    },
-    [warehouses],
-  );
-
   const handleWarehouseChange = useCallback(
     (value: string) => {
       if (!canEditLines) {
@@ -531,15 +524,10 @@ export function useRequestForQuotationForm(rfqId: number) {
         setWarehouseFocused(true);
         return;
       }
-      const matched = findWarehouse(value);
-      if (matched) {
-        selectWarehouse(matched);
-        return;
-      }
       setWarehouseCode("");
       setWarehouseFocused(true);
     },
-    [applyWarehouse, canEditLines, findWarehouse, selectWarehouse],
+    [applyWarehouse, canEditLines],
   );
 
   useEffect(() => {
@@ -602,6 +590,13 @@ export function useRequestForQuotationForm(rfqId: number) {
     [branchField, canEditLines, selectWarehouse, warehouseCode, warehouses],
   );
 
+  const finalizeWarehouseInput = useCallback(() => {
+    if (!warehouseCode) {
+      setWarehouseInput("");
+    }
+    setWarehouseFocused(false);
+  }, [warehouseCode]);
+
   return {
     batchQuotedDate,
     branchDisabled: branchField.branchDisabled || !canEditLines,
@@ -610,6 +605,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     branchInput: branchField.branchInput,
     branchPlaceholder: branchField.branchPlaceholder,
     branchSuggestions: branchField.branchSuggestions,
+    finalizeBranchInput: branchField.finalizeBranchInput,
     branchesLoading: branchField.branchesQuery.isLoading || warehousesQuery.isLoading,
     canConvert,
     canEditLines,
@@ -625,6 +621,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     handleSubmit,
     handleUpdate,
     handleWarehouseChange,
+    finalizeWarehouseInput,
     header,
     isDirty,
     isSubmitting,

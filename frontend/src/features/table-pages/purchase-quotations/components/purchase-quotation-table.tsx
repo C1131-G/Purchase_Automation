@@ -45,7 +45,15 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 
 const routeApi = getRouteApi("/_layout/purchase/quotations");
 const TABLE_ID = "purchase-quotations";
-const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"];
+const DEFAULT_COLUMN_ORDER = [
+  "DocNum",
+  "RfqNumber",
+  "DocDate",
+  "CardCode",
+  "CardName",
+  "DocTotal",
+  "DocStatus",
+];
 
 const toPurchaseQuotationColumnFilters = (
   filters: ColumnFiltersState,
@@ -167,6 +175,7 @@ export function PurchaseQuotationTable() {
     if (searchParams.CardName) built.push({ id: "CardName", value: searchParams.CardName });
     if (searchParams.DocNum) built.push({ id: "DocNum", value: searchParams.DocNum });
     if (searchParams.DocStatus) built.push({ id: "DocStatus", value: searchParams.DocStatus });
+    if (searchParams.RfqNumber) built.push({ id: "RfqNumber", value: searchParams.RfqNumber });
     if (searchParams.DocDateStart || searchParams.DocDateEnd) {
       built.push({
         id: "DocDate",
@@ -244,6 +253,7 @@ export function PurchaseQuotationTable() {
       const cardCodeVal = nextFilters.find((f) => f.id === "CardCode")?.value;
       const cardNameVal = nextFilters.find((f) => f.id === "CardName")?.value;
       const docStatusVal = nextFilters.find((f) => f.id === "DocStatus")?.value;
+      const rfqNumberVal = nextFilters.find((f) => f.id === "RfqNumber")?.value;
       const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
       const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
 
@@ -257,6 +267,7 @@ export function PurchaseQuotationTable() {
           CardCode: cardCodeVal ? String(cardCodeVal) : undefined,
           CardName: cardNameVal ? String(cardNameVal) : undefined,
           DocStatus: docStatusVal ? String(docStatusVal) : undefined,
+          RfqNumber: rfqNumberVal ? String(rfqNumberVal) : undefined,
           DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
           DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
           DocTotalOperator: docTotalVal?.operator ?? undefined,
@@ -385,6 +396,7 @@ export function PurchaseQuotationTable() {
         ...prev,
         DocTotal: undefined,
         DocTotalOperator: undefined,
+        RfqNumber: undefined,
         columnFilters: [],
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnVisibility: {},

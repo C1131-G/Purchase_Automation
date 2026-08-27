@@ -45,6 +45,7 @@ export const purchaseOrderSearchSchema = z.object({
   DocDateEnd: z.string().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
   DocTotal: z.coerce.number().optional(),
+  SqDocNum: z.string().optional(),
   highlightDocNum: z.string().optional(),
   highlightUntil: z.coerce.number().optional(),
 });

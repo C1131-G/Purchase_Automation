@@ -20,7 +20,7 @@ const getEnv = (): Env => {
       return EnvSchema.parse({
         ATTACHMENTS_BASE_PATH: "/tmp/attachments",
         COMMON_DB: "SBOCOMMON",
-        DEFAULT_CURRENCY_CODE: "USD",
+        DEFAULT_CURRENCY_CODE: "FJD",
         HANA_HOST: "localhost",
         HANA_PASSWORD: "TestPassword123!",
         HANA_PORT: 30015,

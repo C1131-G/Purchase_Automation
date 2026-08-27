@@ -45,6 +45,28 @@ export const formatSeriesDisplay = (
   return label;
 };
 
+/**
+ * Auto-commit only canonical series codes or complete formatted displays.
+ * Exact names and next numbers remain suggestions because either may be ambiguous.
+ */
+export const findSeriesSelection = <T extends SeriesLookupItem>(
+  items: readonly T[],
+  value: string,
+): T | undefined => {
+  const term = value.trim().toLowerCase();
+  if (!term) {
+    return undefined;
+  }
+
+  return items.find((item) => {
+    const id = toPositiveSeries(item.code);
+    return (
+      String(item.code).trim().toLowerCase() === term ||
+      (id != null && formatSeriesDisplay(item.name, item.nextNumber, id).toLowerCase() === term)
+    );
+  });
+};
+
 export const suggestSeries = (
   items: SeriesLookupItem[],
   branchId?: number | null,

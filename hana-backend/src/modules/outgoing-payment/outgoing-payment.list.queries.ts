@@ -8,14 +8,18 @@ import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import type { OutgoingPayment } from "@/db/schemas/outgoing-payment.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { PageService } from "@/services/page-service";
+import { getIcPartnerCodes } from "@/modules/intercompany/api/ic-partner-scope";
 // Fetches a paginated list of Outgoing Payments from HANA.
 
 export const getPayments = async (dbName: string, filters: PaymentFilters) => {
   try {
+    const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
     const repo = await getTenantRepository(dbName, OutgoingPaymentSchema);
     const queryBuilder = repo.createQueryBuilder("p");
 
     queryBuilder.where("1=1");
+    if (allowedCardCodes.length === 0) queryBuilder.andWhere("1=0");
+    else queryBuilder.andWhere("p.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
 
     if (filters.DocNum) {
       queryBuilder.andWhere("CAST(p.docNum AS NVARCHAR) LIKE :docNum", {
@@ -120,13 +124,18 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
 };
 
 export const getPaymentDocNums = async (dbName: string, search?: string, limit?: number) => {
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
   const repo = await getTenantRepository(dbName, OutgoingPaymentSchema);
   const queryBuilder = repo.createQueryBuilder("payment");
   const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("payment.docNum", "DocNum").distinct(true);
+  if (allowedCardCodes.length === 0) queryBuilder.where("1=0");
+  else {
+    queryBuilder.where("payment.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
+  }
   if (search && search.trim().length > 0) {
-    queryBuilder.where("CAST(payment.docNum AS NVARCHAR) LIKE :search", {
+    queryBuilder.andWhere("CAST(payment.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
     });
   }

@@ -1,8 +1,11 @@
 import {
   createHeaderOnlyDraftStore,
-  getAutoDocDueDate,
-  getTodayISO,
+  getLocalTodayISO,
 } from "@/store/create/document-draft.factory";
+import {
+  addCalendarDays,
+  addCalendarMonths,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
 
 /** PQHeaderState: Top-level purchase quotation metadata. */
 export interface PQHeaderState {
@@ -26,13 +29,14 @@ export interface PQHeaderState {
  * Store owns header only — no dead lines APIs.
  */
 const getDefaultHeader = (): PQHeaderState => {
-  const today = getTodayISO();
-  const autoDue = getAutoDocDueDate(today);
+  const today = getLocalTodayISO();
+  const requiredDate = addCalendarMonths(today, 1);
+  const autoDue = addCalendarDays(requiredDate, 2);
   return {
     comments: "",
     docDate: today,
     docDueDate: autoDue,
-    requiredDate: autoDue,
+    requiredDate,
     branchId: null,
     series: null,
     referenceNo: "",

@@ -10,8 +10,8 @@ const PERSIST_AUTH_SEGMENTS = new Set(["organization", "user"]);
 
 /** Static create-page master data only (not products/stocks/bins). */
 const PERSIST_CREATE_SHARED_SEGMENTS = new Set([
-  "vendors-v4",
-  "customers-v4",
+  "vendors-ic-v1",
+  "customers-ic-v1",
   "warehouses",
   "sales-employees",
   "tax-codes",

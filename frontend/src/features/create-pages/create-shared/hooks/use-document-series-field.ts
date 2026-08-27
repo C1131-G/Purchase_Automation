@@ -85,27 +85,6 @@ export function useDocumentSeriesField({
     [setSeries],
   );
 
-  const findSeries = useCallback(
-    (value: string) => {
-      const term = value.trim().toLowerCase();
-      if (!term) {
-        return undefined;
-      }
-      return seriesList.find((item) => {
-        const id = toPositiveSeries(item.code);
-        const next = toPositiveSeries(item.nextNumber);
-        return (
-          String(item.code).toLowerCase() === term ||
-          String(item.name).toLowerCase() === term ||
-          (id != null &&
-            formatSeriesDisplay(item.name, item.nextNumber, id).toLowerCase() === term) ||
-          (next != null && String(next) === term)
-        );
-      });
-    },
-    [seriesList],
-  );
-
   const handleSeriesChange = useCallback(
     (value: string) => {
       setSeriesInput(value);
@@ -115,14 +94,12 @@ export function useDocumentSeriesField({
         setSeriesFocused(true);
         return;
       }
-      const matched = findSeries(value);
-      if (matched) {
-        selectSeries(matched);
-        return;
-      }
+      // Typing is search-only. A series is committed only by selecting a suggestion
+      // or a lookup-popup row.
+      setSeries(null);
       setSeriesFocused(true);
     },
-    [findSeries, selectSeries, setSeries],
+    [selectSeries, seriesList, setSeries],
   );
 
   // Auto-suggest default series for this document + branch. User can switch afterward.
@@ -227,7 +204,12 @@ export function useDocumentSeriesField({
       seriesLoading: seriesQuery.isLoading,
       seriesPlaceholder: noSeriesAvailable ? "No series" : "Select series",
       seriesSuggestions: disabled || noSeriesAvailable ? [] : seriesSuggestions,
-      onSeriesBlur: () => setSeriesFocused(false),
+      onSeriesBlur: () => {
+        if (toPositiveSeries(series) == null && seriesInput.trim()) {
+          setSeriesInput("");
+        }
+        setSeriesFocused(false);
+      },
       onSeriesChange: disabled ? () => {} : handleSeriesChange,
       onSeriesFocus: disabled ? () => {} : () => setSeriesFocused(true),
       onSelectSeries: disabled ? () => {} : selectSeries,

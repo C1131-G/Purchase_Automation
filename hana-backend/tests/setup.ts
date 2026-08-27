@@ -14,7 +14,7 @@ process.env.SERVICE_LAYER_URL = process.env.SERVICE_LAYER_URL || "http://localho
 process.env.ATTACHMENTS_BASE_PATH = process.env.ATTACHMENTS_BASE_PATH || "/tmp/attachments";
 process.env.COMMON_DB = process.env.COMMON_DB || "SBOCOMMON";
 process.env.ORGANIZATION_TABLE = process.env.ORGANIZATION_TABLE || "ORGC";
-process.env.DEFAULT_CURRENCY_CODE = process.env.DEFAULT_CURRENCY_CODE || "USD";
+process.env.DEFAULT_CURRENCY_CODE = process.env.DEFAULT_CURRENCY_CODE || "FJD";
 
 // Background HANA client pipe errors can surface when the Express app is
 // imported without a live HANA instance. Swallow only those known noise errors

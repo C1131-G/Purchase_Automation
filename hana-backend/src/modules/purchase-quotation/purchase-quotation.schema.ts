@@ -54,11 +54,12 @@ export const PurchaseQuotationQuerySchema = z
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
     DocTotal: strictDecimalQuerySchema.optional(),
+    RfqNumber: z.string().optional(),
 
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
     sortBy: z
-      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"])
+      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus", "RfqNumber"])
       .optional()
       .openapi({ description: "Column to sort by", example: "DocDate" }),
     sortOrder: z

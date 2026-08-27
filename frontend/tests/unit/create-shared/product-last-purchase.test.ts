@@ -43,7 +43,7 @@ describe("product last purchase mapping", () => {
     });
   });
 
-  it("keeps compatible vendor rows and removes products outside the new OSCN catalog", () => {
+  it("keeps every row and reprices only products with a positive last purchase price", () => {
     const result = repricePqRows(
       [
         {
@@ -96,15 +96,22 @@ describe("product last purchase mapping", () => {
     );
 
     expect(result.repricedCount).toBe(1);
-    expect(result.removedCount).toBe(1);
-    expect(result.rows).toHaveLength(1);
+    expect(result.removedCount).toBe(0);
+    expect(result.rows).toHaveLength(2);
     expect(result.rows[0]).toMatchObject({
       currency: "USD",
-      discountAmount: 0,
-      discountPercent: 0,
+      discountAmount: 9,
+      discountPercent: 10,
       price: 12,
       productCode: "SKU-1",
       requiredQuantity: 2,
+    });
+    expect(result.rows[1]).toMatchObject({
+      currency: "INR",
+      discountAmount: 4,
+      discountPercent: 5,
+      price: 8,
+      productCode: "SKU-2",
     });
   });
 

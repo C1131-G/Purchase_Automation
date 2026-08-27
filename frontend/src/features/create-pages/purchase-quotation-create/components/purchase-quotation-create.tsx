@@ -15,15 +15,20 @@ import { CopyToDropdown } from "@/features/create-pages/create-shared/components
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { resolveActiveHighlightDocRef } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import {
-  capIsoDateToMax,
   parseISODate,
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
 import { PurchaseQuotationModals } from "@/features/create-pages/purchase-quotation-create/components/purchase-quotation-modals";
+import { VendorChangeConfirmationDialog } from "@/features/create-pages/create-shared/components/modals/vendor-change-confirmation-dialog";
 import { PurchaseQuotationProductSection } from "@/features/create-pages/purchase-quotation-create/components/purchase-quotation-product-section";
 import { usePurchaseQuotationCreate } from "@/features/create-pages/purchase-quotation-create/hooks/use-purchase-quotation-create";
+import {
+  getPqRequiredDateMax,
+  getPqRequiredDateMin,
+  getPqValidUntilMin,
+} from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 
 const routeApi = getRouteApi("/_layout/purchase/create-quotation");
@@ -72,6 +77,16 @@ export function PurchaseQuotationCreate({
           mode,
           onCreateSuccess: () => {},
         },
+  );
+
+  const todayIso = toISODate(state.today);
+  const requiredDateMin = getPqRequiredDateMin(todayIso);
+  const requiredDateMax = state.header.docDueDate
+    ? getPqRequiredDateMax(state.header.docDueDate)
+    : "";
+  const validUntilMin = getPqValidUntilMin(
+    state.header.requiredDate,
+    state.productRows.map((row) => row.requiredDate ?? ""),
   );
 
   const pageTitle = state.isEditMode
@@ -160,8 +175,8 @@ export function PurchaseQuotationCreate({
                 onCodeChange={state.handleVendorCodeChange}
                 onNameFocus={() => state.setNameFocused(true)}
                 onCodeFocus={() => state.setCodeFocused(true)}
-                onNameBlur={() => setTimeout(() => state.setNameFocused(false), 120)}
-                onCodeBlur={() => setTimeout(() => state.setCodeFocused(false), 120)}
+                onNameBlur={state.finalizeVendorLookup}
+                onCodeBlur={state.finalizeVendorLookup}
                 onOpenNamePopup={() => state.openPopup("vendor-name")}
                 onOpenCodePopup={() => state.openPopup("vendor-code")}
                 onSelectVendor={state.selectVendor}
@@ -209,9 +224,7 @@ export function PurchaseQuotationCreate({
                 salesEmployeeSuggestions={state.salesEmployeeSuggestions}
                 onSalesEmployeeChange={state.handleSalesEmployeeChange}
                 onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-                onSalesEmployeeBlur={() =>
-                  setTimeout(() => state.setSalesEmployeeFocused(false), 120)
-                }
+                onSalesEmployeeBlur={state.finalizeSalesEmployeeLookup}
                 onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
                 onSelectSalesEmployee={state.selectSalesEmployee}
                 salesEmployeeDisabled={state.isClosed}
@@ -225,7 +238,7 @@ export function PurchaseQuotationCreate({
                 warehouseSuggestions={state.warehouseSuggestions}
                 onWarehouseChange={state.handleWarehouseChange}
                 onWarehouseFocus={() => state.setWarehouseFocused(true)}
-                onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+                onWarehouseBlur={state.finalizeWarehouseLookup}
                 onOpenWarehousePopup={() => state.openPopup("warehouse")}
                 onSelectWarehouse={state.selectWarehouse}
                 warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
@@ -238,7 +251,7 @@ export function PurchaseQuotationCreate({
                 branchSuggestions={state.branchSuggestions}
                 onBranchChange={state.handleBranchChange}
                 onBranchFocus={() => state.setBranchFocused(true)}
-                onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
+                onBranchBlur={state.finalizeBranchInput}
                 onOpenBranchPopup={() => state.openPopup("branch")}
                 onSelectBranch={state.selectBranch}
                 branchPlaceholder={state.branchPlaceholder ?? "No Branch"}
@@ -265,23 +278,16 @@ export function PurchaseQuotationCreate({
             docDueDateReadOnly={state.isClosed}
             uniformReadOnlyAppearance={state.isEditMode}
             onSetActiveDatePicker={state.setActiveDatePicker}
-            onDocDateChange={(value) => state.setHeader({ docDate: value })}
+            onDocDateChange={(value) =>
+              state.setHeader({ docDate: value, docDueDate: state.header.docDueDate })
+            }
             onDocDueDateChange={(value) => {
-              const nextRequired = capIsoDateToMax(state.header.requiredDate, value);
+              if (validUntilMin && value < validUntilMin) {
+                return;
+              }
               state.setHeader({
                 docDueDate: value,
-                ...(nextRequired !== state.header.requiredDate
-                  ? { requiredDate: nextRequired }
-                  : {}),
               });
-              state.setProductRows((prev) =>
-                prev.map((row) => {
-                  const nextLineRequired = capIsoDateToMax(row.requiredDate, value);
-                  return nextLineRequired === (row.requiredDate ?? "")
-                    ? row
-                    : { ...row, requiredDate: nextLineRequired };
-                }),
-              );
               state.setProductSearchFieldErrors((prev) => ({
                 ...prev,
                 docDueDate: undefined,
@@ -289,15 +295,23 @@ export function PurchaseQuotationCreate({
             }}
             docDueDateLabel="VALID UNTIL"
             docDueDatePlaceholder="Select validity date"
+            docDueDateMin={validUntilMin}
             showRequiredDate
             requiredDate={state.header.requiredDate}
             requiredDateReadOnly={state.isClosed}
-            requiredDateFutureOnly
-            requiredDateMax={state.header.docDueDate}
+            requiredDateFutureOnly={false}
+            requiredDateMin={requiredDateMin}
+            requiredDateMax={requiredDateMax}
             onRequiredDateChange={(value) => {
-              state.setHeader({
-                requiredDate: capIsoDateToMax(value, state.header.docDueDate),
-              });
+              if (
+                !value ||
+                value < requiredDateMin ||
+                (requiredDateMax && value > requiredDateMax)
+              ) {
+                return;
+              }
+              state.setHeader({ requiredDate: value });
+              state.setProductRows((prev) => prev.map((row) => ({ ...row, requiredDate: value })));
             }}
           />
         </div>
@@ -400,6 +414,8 @@ export function PurchaseQuotationCreate({
           vendorName={state.nameInput}
           defaultWarehouseCode={state.effectiveWarehouseCode}
           validUntilDate={state.header.docDueDate}
+          requiredDateMin={requiredDateMin}
+          requiredDateMax={requiredDateMax}
           warehouses={state.warehouses}
           warehousesLoading={state.warehousesQuery.isLoading}
           uoms={state.uoms}
@@ -448,6 +464,13 @@ export function PurchaseQuotationCreate({
           submitDisabled={state.submitDisabled}
         />
         <PurchaseQuotationModals state={state} />
+        <VendorChangeConfirmationDialog
+          open={state.pendingVendorPriceRefresh}
+          onCancel={state.cancelVendorPriceRefresh}
+          onConfirm={state.confirmVendorPriceRefresh}
+          confirmDisabled={state.isRefreshingVendorPrices}
+          description="Vendor changed. Update selected product prices to SAP last purchase price?"
+        />
       </CreatePageWrapper>
     </div>
   );

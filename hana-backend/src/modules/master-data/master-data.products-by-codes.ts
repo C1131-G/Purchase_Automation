@@ -13,6 +13,7 @@ import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.sche
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
+import { getLatestCurrencyRates } from "./master-data.currency-rates";
 
 import { toTrimmed } from "./master-data.lookup-cache";
 import { loadOscnMatchedItemCodes } from "./master-data.oscn";
@@ -30,6 +31,7 @@ export const getProductsByCodes = async (
   priceList?: number,
   warehouseCode?: string,
   cardCode?: string,
+  catalog?: "purchase-quotation",
 ) => {
   const itemCodes = [...new Set(codes.map((code) => toTrimmed(code)).filter(Boolean))].slice(
     0,
@@ -44,8 +46,9 @@ export const getProductsByCodes = async (
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
+  const catalogToken = catalog || "shared";
   const codesKey = [...itemCodes].sort().join("|");
-  const cacheKey = `master:${dbName}:ProductsByCodes:v6:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
+  const cacheKey = `master:${dbName}:ProductsByCodes:v7:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:catalog${catalogToken}:${codesKey}`;
 
   return getCachedData(
     cacheKey,
@@ -57,6 +60,7 @@ export const getProductsByCodes = async (
         priceList,
         normalizedWarehouseCode,
         normalizedCardCode,
+        catalog,
       ),
     PRODUCTS_BY_CODES_TTL_MS,
   );
@@ -69,8 +73,9 @@ async function loadProductsByCodesForTenant(
   priceList: number | undefined,
   normalizedWarehouseCode: string,
   normalizedCardCode: string,
+  catalog?: "purchase-quotation",
 ) {
-  const [adminSettings, taxGroups, uoms, displayCurrency, catalog] = await Promise.all([
+  const [adminSettings, taxGroups, uoms, displayCurrency, catalogData] = await Promise.all([
     getCachedData(
       `master:${dbName}:AdminSettings`,
       async () => {
@@ -108,7 +113,7 @@ async function loadProductsByCodesForTenant(
     loadOscnMatchedItemCodes(dbName, normalizedCardCode, type, { itemCodes }),
   ]);
 
-  const { oscnByItemCode, itemCodes: matchedCodes } = catalog;
+  const { oscnByItemCode, itemCodes: matchedCodes } = catalogData;
 
   if (matchedCodes.length === 0) {
     return [];
@@ -196,6 +201,18 @@ async function loadProductsByCodesForTenant(
   ]);
 
   const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
+  const lastPurchaseCurrencies =
+    catalog === "purchase-quotation"
+      ? itemsWithCatalog
+          .map((item) => toTrimmed(item.LastPurCur))
+          .filter(
+            (currency) =>
+              Boolean(currency) &&
+              currency !== "$" &&
+              currency.toUpperCase() !== defaultCurrency.toUpperCase(),
+          )
+      : [];
+  const lastPurchaseRates = await getLatestCurrencyRates(dbName, lastPurchaseCurrencies);
 
   return mapProductResults({
     items: itemsWithCatalog,
@@ -204,6 +221,8 @@ async function loadProductsByCodesForTenant(
     priceList,
     type,
     defaultCurrency,
+    lastPurchaseRates,
+    normalizeLastPurchaseCurrency: catalog === "purchase-quotation",
     taxGroups,
     uoms,
     normalizedWarehouseCode,

@@ -58,6 +58,7 @@ import {
 } from "@/features/create-pages/purchase-quotation-create/api/purchase-quotation-create.mutations";
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+  getPqRequiredDateMax,
   MANDATORY_ERROR_TEXT,
   REQUIRED_FIELD_LABEL_TEXT,
 } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
@@ -155,7 +156,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       String(row.requiredDate || fallbackRequiredDate || "")
         .trim()
         .slice(0, 10),
-      validUntilDate,
+      validUntilDate ? getPqRequiredDateMax(validUntilDate) : undefined,
     );
     // Do not copy required date into quoted date.
     const lineQuotedDate = String(row.quotedDate || "")
@@ -209,9 +210,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       validUntilDate,
     );
     // Quoted date = ShipDate only (never invent from required date).
-    const quotedDate = String(line.ShipDate ?? lineData.ShipDate ?? "")
-      .trim()
-      .slice(0, 10);
+    const quotedDate =
+      String(line.ShipDate ?? lineData.ShipDate ?? "")
+        .trim()
+        .slice(0, 10) || requiredDate;
     return { quantity, requiredQuantity, requiredDate, quotedDate };
   };
 
@@ -268,6 +270,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     ) => void
   >(() => undefined);
   const vendorChangeRef = useRef(0);
+  const [pendingVendorPriceRefresh, setPendingVendorPriceRefresh] = useState(false);
+  const [isRefreshingVendorPrices, setIsRefreshingVendorPrices] = useState(false);
 
   const lookups = usePqLookups({
     clearFieldError,
@@ -338,88 +342,49 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   });
 
   useEffect(() => {
-    vendorSelectionRef.current = (vendor, previousVendor) => {
+    vendorSelectionRef.current = () => {
       const changeId = vendorChangeRef.current + 1;
       vendorChangeRef.current = changeId;
       const previousRows = productsHook.productRows;
       if (previousRows.length === 0) {
         return;
       }
-      const restorePreviousVendor = () => {
-        if (vendorChangeRef.current !== changeId) {
-          return false;
-        }
-        productsHook.setProductRows(previousRows);
-        setHeader({ vendorCode: previousVendor.code, vendorName: previousVendor.name });
-        lookups.setCodeInput(previousVendor.code);
-        lookups.setNameInput(previousVendor.name);
-        lookups.setSalesEmployeeInput(previousVendor.salesEmployeeName);
-        lookups.setBillToAddress(previousVendor.billToAddress);
-        lookups.setShipToAddress(previousVendor.shipToAddress);
-        return true;
-      };
-
-      void productsHook
-        .repriceRowsForVendor(vendor.code)
-        .then((result) => {
-          if (result.stale || vendorChangeRef.current !== changeId) {
-            return;
-          }
-          toast.info(
-            `Vendor updated: ${result.repricedCount} repriced, ${result.removedCount} removed`,
-            {
-              action: {
-                label: "Undo",
-                onClick: () => {
-                  restorePreviousVendor();
-                },
-              },
-              duration: 6000,
-              id: "pq-vendor-reprice",
-            },
-          );
-        })
-        .catch(() => {
-          restorePreviousVendor();
-          toast.error("Unable to reprice products for the selected vendor", {
-            id: "pq-vendor-reprice-error",
-          });
-        });
+      setPendingVendorPriceRefresh(true);
     };
   }, [lookups, productsHook, setHeader]);
 
-  // Keep line Required Date in sync with header Required Date when the line is
-  // empty or still matching the previous header value. User can override per row;
-  // changing the header again re-syncs only non-overridden rows.
-  const prevHeaderRequiredDateRef = useRef<string | null>(null);
-  useEffect(() => {
-    const nextHeaderRequired = (header.requiredDate || "").trim().slice(0, 10);
-    const prevHeaderRequired = prevHeaderRequiredDateRef.current;
-    prevHeaderRequiredDateRef.current = nextHeaderRequired;
+  const cancelVendorPriceRefresh = useCallback(() => {
+    setPendingVendorPriceRefresh(false);
+  }, []);
 
-    if (!nextHeaderRequired) {
+  const confirmVendorPriceRefresh = useCallback(async () => {
+    if (isRefreshingVendorPrices) {
       return;
     }
-    // Skip first paint after hydrate so we don't stomp loaded SAP line dates.
-    if (prevHeaderRequired === null) {
-      return;
+    const changeId = vendorChangeRef.current;
+    const vendorCode = header.vendorCode.trim();
+    setPendingVendorPriceRefresh(false);
+    setIsRefreshingVendorPrices(true);
+    try {
+      const result = await productsHook.repriceRowsForVendor(vendorCode);
+      if (!result.stale && vendorChangeRef.current === changeId) {
+        toast.info(
+          result.repricedCount > 0
+            ? `Updated ${result.repricedCount} product price${result.repricedCount === 1 ? "" : "s"}`
+            : "No product last purchase prices were available",
+          { id: "pq-vendor-reprice" },
+        );
+      }
+    } catch {
+      if (vendorChangeRef.current === changeId) {
+        toast.error("Unable to refresh product prices for the selected vendor", {
+          id: "pq-vendor-reprice-error",
+        });
+      }
+    } finally {
+      setIsRefreshingVendorPrices(false);
     }
-    if (prevHeaderRequired === nextHeaderRequired) {
-      return;
-    }
-
-    productsHook.setProductRows((prev) =>
-      prev.map((row) => {
-        const lineReq = (row.requiredDate || "").trim().slice(0, 10);
-        const stillMatchesPrevious =
-          !lineReq || (prevHeaderRequired !== null && lineReq === prevHeaderRequired);
-        if (!stillMatchesPrevious) {
-          return row;
-        }
-        return { ...row, requiredDate: nextHeaderRequired };
-      }),
-    );
-  }, [header.requiredDate, productsHook.setProductRows]);
+  }, [header.vendorCode, isRefreshingVendorPrices, productsHook]);
 
   useEffect(() => {
     if (!isEditMode && !draftDocNum) {
@@ -805,14 +770,19 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   ]);
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) => {
-    syncLookupSearchByMode(mode, value, {
-      onBranch: branchField.handleBranchChange,
-      onSalesEmployee: lookups.handleSalesEmployeeChange,
-      onSeries: seriesField.handleSeriesChange,
-      onVendorCode: lookups.handleVendorCodeChange,
-      onVendorName: lookups.handleVendorNameChange,
-      onWarehouse: lookups.handleWarehouseChange,
-    });
+    syncLookupSearchByMode(
+      mode,
+      value,
+      {
+        onBranch: branchField.handleBranchChange,
+        onSalesEmployee: lookups.handleSalesEmployeeChange,
+        onSeries: seriesField.handleSeriesChange,
+        onVendorCode: lookups.handleVendorCodeChange,
+        onVendorName: lookups.handleVendorNameChange,
+        onWarehouse: lookups.handleWarehouseChange,
+      },
+      false,
+    );
   };
 
   useEffect(() => {
@@ -1554,6 +1524,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
     missingSearchMandatoryFields,
+    pendingVendorPriceRefresh,
+    isRefreshingVendorPrices,
+    cancelVendorPriceRefresh,
+    confirmVendorPriceRefresh,
     openPopup: openPopupWithContext,
     openProductPopup: handleOpenProductPopup,
     popupResults,

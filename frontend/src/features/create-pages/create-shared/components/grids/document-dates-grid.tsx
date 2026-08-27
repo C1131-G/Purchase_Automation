@@ -28,6 +28,8 @@ interface DocumentDatesGridProps {
   ) => void;
   onDocDateChange: (value: string) => void;
   onDocDueDateChange: (value: string) => void;
+  /** ISO date: Valid Until cannot be before this date. */
+  docDueDateMin?: string;
   docDueDateInvalid?: boolean;
   docDueDateErrorText?: string | undefined;
   error?: string | null;
@@ -51,6 +53,8 @@ interface DocumentDatesGridProps {
   requiredDateFutureOnly?: boolean;
   /** ISO date: Required Date cannot be after this (PQ Valid Until). */
   requiredDateMax?: string;
+  /** ISO date: Required/Quoted Date cannot be before this date. */
+  requiredDateMin?: string;
 }
 
 export function DocumentDatesGrid({
@@ -67,12 +71,13 @@ export function DocumentDatesGrid({
   onSetActiveDatePicker,
   onDocDateChange,
   onDocDueDateChange,
+  docDueDateMin = "",
   docDueDateInvalid,
   docDueDateErrorText,
   error,
   docDateReadOnly = false,
   docDueDateReadOnly = false,
-  uniformReadOnlyAppearance = false,
+  uniformReadOnlyAppearance: _uniformReadOnlyAppearance = false,
   docDueDateLabel = "DELIVERY DATE",
   docDueDatePlaceholder = "Select delivery date",
   showRequiredDate = false,
@@ -86,10 +91,17 @@ export function DocumentDatesGrid({
   requiredDatePlaceholder = "Select required date",
   requiredDateFutureOnly = true,
   requiredDateMax = "",
+  requiredDateMin = "",
 }: DocumentDatesGridProps) {
+  const dueMinDate = docDueDateMin.trim() ? parseISODate(docDueDateMin) : today;
+  const requiredBaseMinDate = requiredDateMin.trim() ? parseISODate(requiredDateMin) : today;
   const requiredMaxDate = requiredDateMax.trim() ? parseISODate(requiredDateMax) : undefined;
   const requiredMinDate = (() => {
-    const min = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const min = new Date(
+      requiredBaseMinDate.getFullYear(),
+      requiredBaseMinDate.getMonth(),
+      requiredBaseMinDate.getDate(),
+    );
     if (requiredDateFutureOnly) {
       min.setDate(min.getDate() + 1);
     }
@@ -129,9 +141,7 @@ export function DocumentDatesGrid({
               onClick={() => onSetActiveDatePicker((prev) => (prev === "doc" ? null : "doc"))}
               className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDateReadOnly
-                  ? uniformReadOnlyAppearance
-                    ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
-                    : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
+                  ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
                   : "cursor-pointer border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               }`}
             >
@@ -189,9 +199,7 @@ export function DocumentDatesGrid({
                 docDueDateInvalid
                   ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                   : docDueDateReadOnly
-                    ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
-                      : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
+                    ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
                     : "border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               }`}
             >
@@ -211,13 +219,17 @@ export function DocumentDatesGrid({
             <div className="absolute left-0 top-full z-40 mt-2">
               <CalendarWithBounds
                 mode="single"
-                minDate={today}
+                minDate={dueMinDate}
                 {...(docDueDate ? { selected: parseISODate(docDueDate) } : {})}
                 onSelect={(value) => {
                   if (!(value instanceof Date)) {
                     return;
                   }
-                  onDocDueDateChange(toISODate(value));
+                  const next = toISODate(value);
+                  if (docDueDateMin.trim() && next < docDueDateMin.trim().slice(0, 10)) {
+                    return;
+                  }
+                  onDocDueDateChange(next);
                   onSetActiveDatePicker(null);
                 }}
               />
@@ -255,9 +267,7 @@ export function DocumentDatesGrid({
                   requiredDateInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : requiredDateReadOnly
-                      ? uniformReadOnlyAppearance
-                        ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
-                        : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
+                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
                       : "cursor-pointer border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               >

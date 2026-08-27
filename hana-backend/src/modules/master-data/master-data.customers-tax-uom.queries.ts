@@ -11,7 +11,12 @@ import {
   fetchBusinessPartnerAddresses,
   fetchSalesEmployeeNames,
 } from "./master-data.partner-lookup";
-export const getCustomers = async (dbName: string) => {
+import { getIcPartnerLookupContext } from "@/modules/intercompany/api/ic-partner-scope";
+export const getCustomers = async (dbName: string, scope?: "intercompany") => {
+  const icContext =
+    scope === "intercompany" ? await getIcPartnerLookupContext(dbName, "sales") : [];
+  const allowedCustomerCodes = new Set(icContext.map((item) => item.code));
+  const icByCode = new Map(icContext.map((item) => [item.code, item]));
   const [settingsRows, displayCurrency, results] = await Promise.all([
     (async () => {
       const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
@@ -32,20 +37,24 @@ export const getCustomers = async (dbName: string) => {
       where: { CardType: "C", frozenFor: "N" } as Record<string, unknown>,
     }),
   ]);
+  const filteredResults =
+    scope === "intercompany"
+      ? results.filter((item) => allowedCustomerCodes.has(toTrimmed(item.CardCode)))
+      : results;
   const adminSettings = settingsRows[0] ?? null;
   // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
   const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
-  const customerCodes = results.map((item) => item.CardCode).filter(Boolean);
+  const customerCodes = filteredResults.map((item) => item.CardCode).filter(Boolean);
   const salesEmployeeCodes = [
     ...new Set(
-      results
+      filteredResults
         .map((item) => toNullableInt(item.SlpCode))
         .filter((code): code is number => code !== undefined),
     ),
   ];
 
   const defaultsMap = new Map<string, { billToDef?: string; shipToDef?: string }>();
-  for (const item of results) {
+  for (const item of filteredResults) {
     if (item.CardCode) {
       defaultsMap.set(toTrimmed(item.CardCode), {
         billToDef: item.BillToDef,
@@ -62,9 +71,10 @@ export const getCustomers = async (dbName: string) => {
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
-  return results.map((item) => {
+  return filteredResults.map((item) => {
     const normalizedCardCode = toTrimmed(item.CardCode);
     const slpCode = toNullableInt(item.SlpCode);
+    const icPartner = icByCode.get(normalizedCardCode);
     return {
       Address: item.Address,
       CardCode: normalizedCardCode,
@@ -83,6 +93,14 @@ export const getCustomers = async (dbName: string) => {
         customerAddressMap.get(normalizedCardCode)?.billToAddress ??
         item.Address ??
         "",
+      ...(icPartner
+        ? {
+            icCompanyCode: icPartner.companyCode,
+            icCompanyName: icPartner.companyName,
+            defaultWarehouseCode: icPartner.defaultWarehouseCode,
+            defaultBranchId: icPartner.defaultBranchId,
+          }
+        : {}),
     };
   });
 };

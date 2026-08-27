@@ -8,6 +8,7 @@ export const purchaseQuotationListItemSchema = z.object({
   DocNum: z.number(),
   DocStatus: z.enum(["Open", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
+  RfqNumber: z.string().nullable(),
   id: z.number(),
 });
 
@@ -29,9 +30,12 @@ export const purchaseQuotationListParamsSchema = z.object({
   DocStatus: z.enum(["Open", "Closed", "Draft"]).optional(),
   DocTotal: z.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  RfqNumber: z.string().optional(),
   limit: z.number().optional(),
   page: z.number().optional(),
-  sortBy: z.enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"]).optional(),
+  sortBy: z
+    .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus", "RfqNumber"])
+    .optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   rfqSubmittedOnly: z.boolean().optional(),
 });

@@ -112,6 +112,8 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): Flow2ArInvoic
         sellerCompanyName: input.sellerCompanyName,
         cardName: input.remarksCardName,
         existingComments: input.comments,
+        poDocEntry: input.poDocEntry,
+        poDocNum: input.poDocNum,
         pqDocEntry: input.pqDocEntry,
         pqDocNum: input.pqDocNum,
         rfqId: input.rfqId,

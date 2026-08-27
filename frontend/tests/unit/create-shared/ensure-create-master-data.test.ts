@@ -19,7 +19,7 @@ describe("ensureCreateMasterData", () => {
     const keys = ensureQueryData.mock.calls.map(
       (call) => (call[0] as { queryKey: unknown[] }).queryKey,
     );
-    expect(keys.some((key) => key.includes("vendors-v4"))).toBe(true);
+    expect(keys.some((key) => key.includes("vendors-ic-v1"))).toBe(true);
     expect(keys.some((key) => key.includes("warehouses"))).toBe(true);
     expect(keys.some((key) => key.includes("sales-employees"))).toBe(true);
     expect(keys.some((key) => key.includes("tax-codes"))).toBe(true);
@@ -36,8 +36,8 @@ describe("ensureCreateMasterData", () => {
     const keys = ensureQueryData.mock.calls.map(
       (call) => (call[0] as { queryKey: unknown[] }).queryKey,
     );
-    expect(keys.some((key) => key.includes("customers-v4"))).toBe(true);
-    expect(keys.some((key) => key.includes("vendors-v4"))).toBe(false);
+    expect(keys.some((key) => key.includes("customers-ic-v1"))).toBe(true);
+    expect(keys.some((key) => key.includes("vendors-ic-v1"))).toBe(false);
   });
 });
 

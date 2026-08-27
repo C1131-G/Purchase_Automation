@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { InvoiceQuery } from "./ap-invoice.types";
 import type { AuthenticatedRequest } from "@/types/express.types";
 import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 import { apInvoiceService } from "./ap-invoice.service";
 import { CreateInvoiceInputSchema, UpdateInvoiceInputSchema } from "./ap-invoice.schema";
 import type { InvoiceDocNumLookupQuery } from "./ap-invoice.schema";
@@ -67,6 +68,8 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
       return res.status(404).json({ message: "A/P Invoice not found", success: false });
     }
 
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
+
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -116,6 +119,7 @@ export const updateInvoice = async (req: Request, res: Response, next: NextFunct
       targetDocEntry = String(validatedPayload.draftDocEntry || id);
     } else {
       const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+      await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
       targetDocEntry = String(detail.id);
     }
 
@@ -141,6 +145,7 @@ export const cancelInvoice = async (req: Request, res: Response, next: NextFunct
     const { id } = authReq.params;
 
     const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
     const result = await apInvoiceService.cancelInvoice(sessionId, String(detail.id));
     res.status(200).json({ message: result.message, success: true });
   } catch (error) {

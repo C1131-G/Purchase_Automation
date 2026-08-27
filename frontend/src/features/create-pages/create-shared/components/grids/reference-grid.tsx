@@ -101,7 +101,7 @@ export function ReferenceGrid({
   commentsInvalid,
   referenceNoErrorText,
   commentsErrorText,
-  uniformReadOnlyAppearance = false,
+  uniformReadOnlyAppearance: _uniformReadOnlyAppearance = false,
   referenceLabel,
 }: ReferenceGridProps) {
   const fieldHeight = "74px";
@@ -133,11 +133,7 @@ export function ReferenceGrid({
             {...(onReferenceNoDisabledClick ? { onFocus: onReferenceNoDisabledClick } : {})}
             {...(referenceNoInvalid !== undefined ? { invalid: referenceNoInvalid } : {})}
             invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
-            disabledStyles={
-              uniformReadOnlyAppearance
-                ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
-                : "border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
-            }
+            disabledStyles="cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
           />
         )}
         {referenceNoInvalid && referenceNoErrorText ? (
@@ -171,11 +167,7 @@ export function ReferenceGrid({
             {...(onCommentsDisabledClick ? { onFocus: onCommentsDisabledClick } : {})}
             {...(commentsInvalid !== undefined ? { invalid: commentsInvalid } : {})}
             invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
-            disabledStyles={
-              uniformReadOnlyAppearance
-                ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
-                : "cursor-not-allowed opacity-70"
-            }
+            disabledStyles="cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
           />
         )}
         {commentsInvalid && commentsErrorText ? (

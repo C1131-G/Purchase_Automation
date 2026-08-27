@@ -23,8 +23,9 @@ const buildProductsCacheKey = (
   type: string,
   priceListToken: string,
   cardCodeToken: string,
+  catalogToken: string,
 ) =>
-  `master:${dbName}:Products:v19:${warehouseCode || "default"}:${searchKey}:${limitToken}:${type}:pl${priceListToken}:bp${cardCodeToken || "none"}`;
+  `master:${dbName}:Products:v20:${warehouseCode || "default"}:${searchKey}:${limitToken}:${type}:pl${priceListToken}:bp${cardCodeToken || "none"}:catalog${catalogToken}`;
 
 export const getProducts = async (
   dbName: string,
@@ -34,6 +35,7 @@ export const getProducts = async (
   type?: "sales" | "purchase",
   priceList?: number,
   cardCode?: string,
+  catalog?: "purchase-quotation",
 ) => {
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
   const normalizedSearch = toTrimmed(search);
@@ -46,6 +48,7 @@ export const getProducts = async (
   const cacheSearchKey = normalizedSearch ? normalizedSearch.toLowerCase() : "all";
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
+  const catalogToken = catalog || "shared";
 
   const resolvedLimit =
     typeof limit === "number" && Number.isFinite(limit)
@@ -63,6 +66,7 @@ export const getProducts = async (
       typeToken,
       priceListToken,
       normalizedCardCode,
+      catalogToken,
     );
     return getCachedData(
       cacheKey,
@@ -76,6 +80,7 @@ export const getProducts = async (
           type,
           priceList,
           normalizedCardCode,
+          catalog,
         ),
       PRODUCTS_TTL_MS,
     );
@@ -93,6 +98,7 @@ export const getProducts = async (
       typeToken,
       priceListToken,
       normalizedCardCode,
+      catalogToken,
     );
 
   const candidateLimits = [
@@ -125,6 +131,7 @@ export const getProducts = async (
         type,
         priceList,
         normalizedCardCode,
+        catalog,
       ),
     PRODUCTS_TTL_MS,
   );

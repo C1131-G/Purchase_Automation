@@ -147,4 +147,16 @@ export const createPurchaseQuotationColumns = (options?: CreatePurchaseQuotation
     minSize: 12,
     size: 14,
   }),
+  columnHelper.accessor("RfqNumber", {
+    cell: (info) => info.getValue() || "—",
+    enableSorting: true,
+    filterFn: "includesString",
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="RFQ No." />
+    ),
+    id: "RfqNumber",
+    meta: { filterType: "text" },
+    minSize: 12,
+    size: 14,
+  }),
 ];

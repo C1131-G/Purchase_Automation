@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import type { AuthenticatedRequest } from "@/types/express.types";
 import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 import type { GRPOQuery } from "./grpo.types";
 import { grpoService } from "./grpo.service";
 import { CreateGRPOInputSchema, UpdateGRPOInputSchema } from "./grpo.schema";
@@ -68,6 +69,8 @@ export const getGRPO = async (req: Request, res: Response, next: NextFunction) =
       });
     }
 
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
+
     res.status(200).json({
       data,
       success: true,
@@ -93,6 +96,11 @@ export const getPODetail = async (req: Request, res: Response, next: NextFunctio
       dbName,
       id as string,
     );
+
+    if (!data) {
+      return res.status(404).json({ message: "Purchase Order not found", success: false });
+    }
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
 
     res.status(200).json({
       data,
@@ -121,6 +129,8 @@ export const getAvailablePOs = async (req: Request, res: Response, next: NextFun
         success: false,
       });
     }
+
+    await assertIcPartnerAllowed(authReq.user.dbName, "purchase", String(vendorCode));
 
     const data = await grpoService.getAvailablePOs(sessionId, vendorCode as string);
 
@@ -180,6 +190,7 @@ export const updateGRPO = async (req: Request, res: Response, next: NextFunction
       targetDocEntry = String(validatedPayload.draftDocEntry || id);
     } else {
       const detail = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
+      await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
       targetDocEntry = String(detail.id);
     }
 
@@ -203,6 +214,7 @@ export const cancelGRPO = async (req: Request, res: Response, next: NextFunction
     const { id } = authReq.params;
 
     const detail = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
+    await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
     const result = await grpoService.cancelGRPO(sessionId, String(detail.id));
 
     res.status(200).json({

@@ -23,7 +23,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           "flex h-12 w-full rounded-xl border border-linen-200 bg-field-silver px-4 text-sm text-ink-900 transition-all font-outfit",
           "placeholder:text-neutral-300",
           "focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent focus:bg-surface",
-          "disabled:cursor-not-allowed disabled:opacity-50",
+          "disabled:cursor-not-allowed",
           "ring-offset-1",
           className,
         )}

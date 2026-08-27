@@ -329,11 +329,23 @@ export type IcSlDocuments = {
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   /** PATCH buyer PurchaseQuotations with RFQ commercial lines. */
   applyPricesToPq: (input: ApplyPricesToDraftInput) => Promise<void>;
+  /** PATCH only Comments on a buyer Purchase Quotation (no line collection resend). */
+  patchPurchaseQuotationComments?: (input: {
+    companyId: number;
+    docEntry: number;
+    comments: string;
+  }) => Promise<void>;
   /** PATCH seller SalesQuotations with RFQ commercial lines (post-convert re-apply). */
   applyPricesToSq: (input: {
     companyId: number;
     docEntry: number;
     documentLines: Record<string, unknown>[];
+  }) => Promise<void>;
+  /** PATCH only Comments on a seller Sales Quotation (no line collection resend). */
+  patchSalesQuotationComments?: (input: {
+    companyId: number;
+    docEntry: number;
+    comments: string;
   }) => Promise<void>;
   /**
    * One GET for convert: parent Comments + NumAtCard from real PQ.
@@ -565,6 +577,23 @@ export const createIcSlDocuments = (deps?: {
     }
   };
 
+  const patchDocumentComments = async (input: {
+    companyId: number;
+    docEntry: number;
+    endpoint: string;
+    comments: string;
+  }): Promise<void> => {
+    const { connection, session: slSession } = await withCompanySession(input.companyId);
+    logSlRequest({ companyId: input.companyId, endpoint: input.endpoint, method: "PATCH" });
+    await client.request({
+      body: { Comments: clampSapDocumentComments(input.comments) },
+      connection,
+      endpoint: input.endpoint,
+      method: "PATCH",
+      session: slSession,
+    });
+  };
+
   return {
     getArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
@@ -653,6 +682,15 @@ export const createIcSlDocuments = (deps?: {
       });
     },
 
+    patchPurchaseQuotationComments: async (input) => {
+      await patchDocumentComments({
+        companyId: input.companyId,
+        comments: input.comments,
+        docEntry: input.docEntry,
+        endpoint: `/PurchaseQuotations(${input.docEntry})`,
+      });
+    },
+
     applyPricesToSq: async (input) => {
       await patchCommercialDocument({
         companyId: input.companyId,
@@ -660,6 +698,15 @@ export const createIcSlDocuments = (deps?: {
         docEntry: input.docEntry,
         endpoint: `/Quotations(${input.docEntry})`,
         logCheck: "sl_apply_prices_sq_lines",
+      });
+    },
+
+    patchSalesQuotationComments: async (input) => {
+      await patchDocumentComments({
+        companyId: input.companyId,
+        comments: input.comments,
+        docEntry: input.docEntry,
+        endpoint: `/Quotations(${input.docEntry})`,
       });
     },
 

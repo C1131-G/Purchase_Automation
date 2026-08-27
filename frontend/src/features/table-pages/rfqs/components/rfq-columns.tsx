@@ -211,9 +211,9 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
 
 export const RFQ_DEFAULT_COLUMN_ORDER = [
   "DocNum",
+  "pqDraftDocNum",
   "CardCode",
   "DocStatus",
-  "pqDraftDocNum",
   "sourceCompanyId",
   "targetCompanyId",
 ] as const;

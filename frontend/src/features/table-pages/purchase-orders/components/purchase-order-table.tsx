@@ -45,7 +45,15 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 
 const routeApi = getRouteApi("/_layout/purchase/orders");
 const TABLE_ID = "purchase-orders";
-const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"];
+const DEFAULT_COLUMN_ORDER = [
+  "DocNum",
+  "SqDocNum",
+  "DocDate",
+  "CardCode",
+  "CardName",
+  "DocTotal",
+  "DocStatus",
+];
 
 const toPurchaseOrderColumnFilters = (filters: ColumnFiltersState): PurchaseOrderColumnFilter[] => {
   const typedFilters: PurchaseOrderColumnFilter[] = [];
@@ -165,6 +173,7 @@ export function PurchaseOrderTable() {
     if (searchParams.CardName) built.push({ id: "CardName", value: searchParams.CardName });
     if (searchParams.DocNum) built.push({ id: "DocNum", value: searchParams.DocNum });
     if (searchParams.DocStatus) built.push({ id: "DocStatus", value: searchParams.DocStatus });
+    if (searchParams.SqDocNum) built.push({ id: "SqDocNum", value: searchParams.SqDocNum });
     if (searchParams.DocDateStart || searchParams.DocDateEnd) {
       built.push({
         id: "DocDate",
@@ -243,6 +252,7 @@ export function PurchaseOrderTable() {
       const cardCodeVal = nextFilters.find((f) => f.id === "CardCode")?.value;
       const cardNameVal = nextFilters.find((f) => f.id === "CardName")?.value;
       const docStatusVal = nextFilters.find((f) => f.id === "DocStatus")?.value;
+      const sqDocNumVal = nextFilters.find((f) => f.id === "SqDocNum")?.value;
       const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
       const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
 
@@ -256,6 +266,7 @@ export function PurchaseOrderTable() {
           CardCode: cardCodeVal ? String(cardCodeVal) : undefined,
           CardName: cardNameVal ? String(cardNameVal) : undefined,
           DocStatus: docStatusVal ? String(docStatusVal) : undefined,
+          SqDocNum: sqDocNumVal ? String(sqDocNumVal) : undefined,
           DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
           DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
           DocTotalOperator: docTotalVal?.operator ?? undefined,
@@ -386,6 +397,7 @@ export function PurchaseOrderTable() {
         ...prev,
         DocTotal: undefined,
         DocTotalOperator: undefined,
+        SqDocNum: undefined,
         columnFilters: [],
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnVisibility: {},

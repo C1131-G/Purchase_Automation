@@ -391,7 +391,7 @@ export function CreatePageRouteSkeleton() {
               </>
             ) : (
               <>
-                <Pulse className="h-11 w-56 rounded-xl" />
+                <Pulse className="h-11 w-36 rounded-xl" />
                 <div className="flex items-center gap-2">
                   <Pulse className={`h-11 rounded-xl ${isEdit ? "w-[180px]" : "w-52"}`} />
                 </div>

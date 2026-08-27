@@ -148,4 +148,16 @@ export const createSalesQuotationColumns = (options?: CreateSalesQuotationColumn
     minSize: 12,
     size: 14,
   }),
+  columnHelper.accessor("PoDocNum", {
+    cell: (info) => info.getValue() || "—",
+    enableSorting: true,
+    filterFn: "includesString",
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="PO No." />
+    ),
+    id: "PoDocNum",
+    meta: { filterType: "text" },
+    minSize: 12,
+    size: 14,
+  }),
 ];

@@ -240,7 +240,7 @@ export function LookupPopup({
 
       <div className="p-4">
         <input
-          className="mb-3 h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+          className="mb-3 h-10 w-full rounded-xl border border-linen-200 bg-field-silver px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
           placeholder={placeholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
@@ -321,7 +321,7 @@ export function LookupPopup({
                         )}
                         {showCodeOnly ? null : (
                           <td className={`px-3 py-2 text-ink-900 ${cellWidthClass} truncate block`}>
-                            {item.name}
+                            <span className="block truncate">{item.name}</span>
                           </td>
                         )}
                       </tr>

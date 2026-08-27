@@ -53,6 +53,14 @@ export function PurchaseQuotationLookupLayer({
   const vendorsQuery = useQuery(createSharedQueries.vendors());
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const tableRows = table.getRowModel().rows;
+  const relatedDocSuggestions = useMemo<LookupItem[]>(() => {
+    const values = new Set<string>();
+    for (const row of table.getCoreRowModel().rows) {
+      const value = String(row.getValue("RfqNumber") ?? "").trim();
+      if (value) values.add(value);
+    }
+    return [...values].map((code) => ({ code, name: code }));
+  }, [table]);
   const {
     lookupPopupOpen,
     lookupColumnId,
@@ -66,6 +74,7 @@ export function PurchaseQuotationLookupLayer({
     onLookupSelect: handleLookupSelect,
   } = useTableLookupPopupSync({
     table,
+    allowedColumnIds: ["CardCode", "CardName", "DocNum", "RfqNumber"],
     tableId,
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
   });
@@ -189,7 +198,13 @@ export function PurchaseQuotationLookupLayer({
               : "vendor-name"
         }
         search={lookupSearch}
-        results={lookupColumnId === "DocNum" ? docNumLookupResults : vendors}
+        results={
+          lookupColumnId === "DocNum"
+            ? docNumLookupResults
+            : lookupColumnId === "RfqNumber"
+              ? relatedDocSuggestions
+              : vendors
+        }
         loading={
           lookupColumnId === "DocNum"
             ? docNumSuggestionsQuery.isFetching ||

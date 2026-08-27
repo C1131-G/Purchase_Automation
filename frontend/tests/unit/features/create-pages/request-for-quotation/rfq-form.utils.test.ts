@@ -14,11 +14,18 @@ import {
   isRfqSubmitted,
   mapRfqLinesToEditable,
   mapRfqLinesToProductRows,
+  normalizeRfqQuotedDate,
 } from "@/features/create-pages/request-for-quotation/utils/rfq-form.utils";
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 import type { IcRfqLine } from "@/features/intercompany/schemas/intercompany-api.schema";
 
 describe("rfq-form.utils", () => {
+  it("normalizes quoted dates to today through Valid Until", () => {
+    expect(normalizeRfqQuotedDate("2026-08-01", "2026-08-27", "2026-09-29")).toBe("2026-08-27");
+    expect(normalizeRfqQuotedDate("2026-10-01", "2026-08-27", "2026-09-29")).toBe("2026-09-29");
+    expect(normalizeRfqQuotedDate("2026-09-15", "2026-08-27", "2026-09-29")).toBe("2026-09-15");
+  });
+
   it("maps API lines to editable drafts", () => {
     const lines: IcRfqLine[] = [
       {
@@ -134,7 +141,7 @@ describe("rfq-form.utils", () => {
     expect(totals.grandTotal).toBe(236);
   });
 
-  it("keeps quoted qty/date empty and does not copy required fields", () => {
+  it("defaults quoted date to required date when empty and keeps quoted qty empty", () => {
     const lines: IcRfqLine[] = [
       {
         deliveryDate: null,
@@ -155,47 +162,50 @@ describe("rfq-form.utils", () => {
       },
     ];
 
-    const rows = mapRfqLinesToProductRows(lines);
+    const rows = mapRfqLinesToProductRows(lines, "2026-08-27");
     expect(rows).toHaveLength(1);
     expect(rows[0]?.quantity).toBe(0);
-    expect(rows[0]?.quotedDate).toBeUndefined();
+    expect(rows[0]?.quotedDate).toBe("2026-09-15");
     expect(rows[0]?.requiredQuantity).toBe(25);
     expect(rows[0]?.requiredDate).toBe("2026-09-15");
   });
 
   it("allows partial save and requires all prices on submit", () => {
-    const lines = mapRfqLinesToEditable([
-      {
-        deliveryDate: "2026-08-10",
-        description: null,
-        discount: null,
-        itemCode: "A",
-        lineNum: 0,
-        quantity: 1,
-        remarks: null,
-        rfqId: 1,
-        rfqLineId: 1,
-        taxCode: null,
-        unitPrice: 12.5,
-        uomCode: null,
-        warehouse: null,
-      },
-      {
-        deliveryDate: null,
-        description: null,
-        discount: null,
-        itemCode: "B",
-        lineNum: 1,
-        quantity: 2,
-        remarks: null,
-        rfqId: 1,
-        rfqLineId: 2,
-        taxCode: null,
-        unitPrice: null,
-        uomCode: null,
-        warehouse: null,
-      },
-    ]);
+    const lines = mapRfqLinesToEditable(
+      [
+        {
+          deliveryDate: "2026-08-10",
+          description: null,
+          discount: null,
+          itemCode: "A",
+          lineNum: 0,
+          quantity: 1,
+          remarks: null,
+          rfqId: 1,
+          rfqLineId: 1,
+          taxCode: null,
+          unitPrice: 12.5,
+          uomCode: null,
+          warehouse: null,
+        },
+        {
+          deliveryDate: null,
+          description: null,
+          discount: null,
+          itemCode: "B",
+          lineNum: 1,
+          quantity: 2,
+          remarks: null,
+          rfqId: 1,
+          rfqLineId: 2,
+          taxCode: null,
+          unitPrice: null,
+          uomCode: null,
+          warehouse: null,
+        },
+      ],
+      "2026-08-27",
+    );
 
     const partial = buildUpdateRfqLinesPayload(lines, { requireAllPrices: false });
     expect(partial.errors).toHaveLength(0);
@@ -207,25 +217,28 @@ describe("rfq-form.utils", () => {
   });
 
   it("blocks submit when quoted qty, date, or price are unchanged/empty", () => {
-    const emptyRows = mapRfqLinesToProductRows([
-      {
-        deliveryDate: null,
-        description: "Widget",
-        discount: null,
-        itemCode: "A-1",
-        lineNum: 0,
-        quantity: 0,
-        remarks: null,
-        requiredDate: "2026-09-15",
-        requiredQuantity: 25,
-        rfqId: 1,
-        rfqLineId: 11,
-        taxCode: null,
-        unitPrice: null,
-        uomCode: "EA",
-        warehouse: "01",
-      },
-    ]);
+    const emptyRows = mapRfqLinesToProductRows(
+      [
+        {
+          deliveryDate: null,
+          description: "Widget",
+          discount: null,
+          itemCode: "A-1",
+          lineNum: 0,
+          quantity: 0,
+          remarks: null,
+          requiredDate: "2026-09-15",
+          requiredQuantity: 25,
+          rfqId: 1,
+          rfqLineId: 11,
+          taxCode: null,
+          unitPrice: null,
+          uomCode: "EA",
+          warehouse: "01",
+        },
+      ],
+      "2026-08-20",
+    );
 
     expect(isRfqReadyToSubmit(emptyRows)).toBe(false);
     const emptySubmit = buildUpdateRfqLinesPayloadFromProductRows(emptyRows, {
@@ -234,16 +247,16 @@ describe("rfq-form.utils", () => {
     expect(emptySubmit.errors.some((e) => e.includes("unit price"))).toBe(true);
     expect(emptySubmit.lines).toHaveLength(0);
 
-    const partialQuote: ProductRow[] = [
+    const missingDateQuote: ProductRow[] = [
       {
         ...emptyRows[0]!,
         price: 10,
         quantity: 5,
-        // quotedDate still missing
+        quotedDate: "",
       },
     ];
-    expect(isRfqReadyToSubmit(partialQuote)).toBe(false);
-    const missingDate = buildUpdateRfqLinesPayloadFromProductRows(partialQuote, {
+    expect(isRfqReadyToSubmit(missingDateQuote)).toBe(false);
+    const missingDate = buildUpdateRfqLinesPayloadFromProductRows(missingDateQuote, {
       requireAllPrices: true,
     });
     expect(missingDate.errors.some((e) => e.includes("quoted date"))).toBe(true);
@@ -281,10 +294,8 @@ describe("rfq-form.utils", () => {
       applyRfqQuotedQtyCap([{ ...complete[0]!, quantity: 99, requiredQuantity: 25 }])[0]?.quantity,
     ).toBe(25);
 
-    const fieldErrors = getRfqLineFieldErrors(emptyRows);
-    expect(fieldErrors[emptyRows[0]!.id]).toEqual({
-      price: true,
-      quantity: true,
+    const fieldErrorsWithEmptyDate = getRfqLineFieldErrors(missingDateQuote);
+    expect(fieldErrorsWithEmptyDate[missingDateQuote[0]!.id]).toEqual({
       quotedDate: true,
     });
     expect(getRfqLineFieldErrors(complete)).toEqual({});

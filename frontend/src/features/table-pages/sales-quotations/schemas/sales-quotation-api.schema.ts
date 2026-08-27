@@ -8,6 +8,7 @@ export const salesQuotationListItemSchema = z.object({
   DocNum: z.number(),
   DocStatus: z.enum(["Open", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
+  PoDocNum: z.string().nullable(),
   id: z.number(),
 });
 
@@ -29,8 +30,11 @@ export const salesQuotationListParamsSchema = z.object({
   DocStatus: z.enum(["Open", "Closed", "Draft"]).optional(),
   DocTotal: z.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  PoDocNum: z.string().optional(),
   limit: z.number().optional(),
   page: z.number().optional(),
-  sortBy: z.enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"]).optional(),
+  sortBy: z
+    .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus", "PoDocNum"])
+    .optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });

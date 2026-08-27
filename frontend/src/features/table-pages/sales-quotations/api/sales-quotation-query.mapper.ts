@@ -74,6 +74,7 @@ const SORTABLE_FIELDS = new Set([
   "CardName",
   "DocTotal",
   "DocStatus",
+  "PoDocNum",
 ]);
 
 export const mapSearchToSalesQuotationListParams = (
@@ -108,6 +109,7 @@ export const mapSearchToSalesQuotationListParams = (
     DocStatus: docStatus ?? (search.DocStatus as any),
     DocTotal: docTotal?.value ?? search.DocTotal,
     DocTotalOperator: docTotal?.operator ?? search.DocTotalOperator,
+    PoDocNum: getStringFilter(filters, "PoDocNum") ?? search.PoDocNum,
     limit: Math.max(search.limit ?? 10, 1),
     page: Math.max(search.page ?? 1, 1),
     sortBy,

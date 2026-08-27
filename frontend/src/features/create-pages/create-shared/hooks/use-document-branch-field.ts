@@ -15,10 +15,7 @@ import {
   type WarehouseWithBranch,
 } from "@/features/create-pages/create-shared/utils/document-branch";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
-import {
-  filterLocationLookupOptions,
-  findBranchSelection,
-} from "@/features/create-pages/create-shared/utils/location-lookup";
+import { filterLocationLookupOptions } from "@/features/create-pages/create-shared/utils/location-lookup";
 
 type UseDocumentBranchFieldArgs = {
   warehouses: WarehouseWithBranch[];
@@ -91,13 +88,6 @@ export function useDocumentBranchField({
     [setBranchId],
   );
 
-  const findBranch = useCallback(
-    (value: string) => {
-      return findBranchSelection(branches, value);
-    },
-    [branches],
-  );
-
   const handleBranchChange = useCallback(
     (value: string) => {
       setBranchInput(value);
@@ -107,18 +97,19 @@ export function useDocumentBranchField({
         setBranchFocused(true);
         return;
       }
-      const matched = findBranch(value);
-      if (matched) {
-        selectBranch(matched);
-        return;
-      }
-      // Keep the edited text visible, but detach the stale selected branch
-      // until the user chooses a matching suggestion.
+      // Typing is search-only; branch selection requires an explicit suggestion
+      // or lookup-popup choice.
       setBranchId(null);
       setBranchFocused(true);
     },
-    [findBranch, selectBranch, setBranchId],
+    [setBranchId],
   );
+
+  useEffect(() => {
+    if (!branchFocused && toPositiveBranchId(branchId) == null && branchInput.trim()) {
+      setBranchInput("");
+    }
+  }, [branchFocused, branchId, branchInput]);
 
   // When warehouse changes, fill branch from WH BPLid (or clear if WH has none).
   // User can freely change branch afterward until the next warehouse change.
@@ -196,6 +187,12 @@ export function useDocumentBranchField({
   /** No OBPL rows (or still empty after load) — user cannot set a branch. */
   const noBranchAvailable = branchesLoaded && branches.length === 0;
   const branchPlaceholder = "No Branch";
+  const finalizeBranchInput = useCallback(() => {
+    if (toPositiveBranchId(branchId) == null) {
+      setBranchInput("");
+    }
+    setBranchFocused(false);
+  }, [branchId]);
 
   return {
     showBranch,
@@ -212,5 +209,6 @@ export function useDocumentBranchField({
     /** Disabled when form locked or company has no branches to pick. */
     branchDisabled: disabled || noBranchAvailable,
     effectiveBranchId: toPositiveBranchId(branchId),
+    finalizeBranchInput,
   };
 }

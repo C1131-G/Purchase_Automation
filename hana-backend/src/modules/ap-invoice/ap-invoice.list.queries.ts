@@ -3,14 +3,22 @@ import type { InvoiceFilters } from "./ap-invoice.types";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
+import {
+  buildIcCardCodePredicate,
+  getIcPartnerCodes,
+} from "@/modules/intercompany/api/ic-partner-scope";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
 
 export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
   try {
+    const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
     const buildSubQuery = (table: string, isDraft: boolean) => {
       const whereClauses = ["1=1"];
       const params: unknown[] = [];
+      const partnerPredicate = buildIcCardCodePredicate('"CardCode"', allowedCardCodes);
+      whereClauses.push(partnerPredicate.sql);
+      params.push(...partnerPredicate.params);
 
       if (isDraft) {
         whereClauses.push(`"ObjType" = '18'`);
@@ -145,6 +153,7 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
 };
 
 export const getInvoiceDocNums = async (dbName: string, search?: string, limit?: number) => {
+  const allowedCardCodes = await getIcPartnerCodes(dbName, "purchase");
   const repo = await getTenantRepository(dbName, APInvoiceSchema);
   const queryBuilder = repo.createQueryBuilder("invoice");
   const safeLimit = getSafeDocNumLimit(limit);
@@ -154,9 +163,11 @@ export const getInvoiceDocNums = async (dbName: string, search?: string, limit?:
     .addSelect("invoice.cardCode", "CardCode")
     .addSelect("invoice.cardName", "CardName")
     .distinct(true);
+  if (allowedCardCodes.length === 0) queryBuilder.where("1=0");
+  else queryBuilder.where("invoice.cardCode IN (:...allowedCardCodes)", { allowedCardCodes });
 
   if (search && search.trim().length > 0) {
-    queryBuilder.where("CAST(invoice.docNum AS NVARCHAR) LIKE :search", {
+    queryBuilder.andWhere("CAST(invoice.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
     });
   }

@@ -62,8 +62,9 @@ export const PurchaseOrderQuerySchema = z
       .optional()
       .openapi({ description: "DocTotal comparison operator", example: "eq" }),
     DocTotal: strictDecimalQuerySchema.optional(),
+    SqDocNum: z.string().optional(),
     sortBy: z
-      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"])
+      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus", "SqDocNum"])
       .optional()
       .openapi({ description: "Sort field", example: "DocDate" }),
     sortOrder: z

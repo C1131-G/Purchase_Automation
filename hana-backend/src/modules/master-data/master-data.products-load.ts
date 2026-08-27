@@ -9,6 +9,7 @@ import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.sche
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
+import { getLatestCurrencyRates } from "./master-data.currency-rates";
 
 import { toTrimmed } from "./master-data.lookup-cache";
 import { loadOscnMatchedItemCodes } from "./master-data.oscn";
@@ -23,6 +24,7 @@ export async function loadProductsForTenant(
   type: "sales" | "purchase" | undefined,
   priceList: number | undefined,
   cardCode?: string,
+  catalog?: "purchase-quotation",
 ) {
   // Strict catalog: no CardCode → no full OITM browse (empty list).
   const normalizedCardCode = toTrimmed(cardCode);
@@ -37,7 +39,7 @@ export async function loadProductsForTenant(
 
   // Product catalog, currency, and setup lookups are independent. Start them together
   // so an uncached product request pays for one parallel batch instead of a waterfall.
-  const [adminSettings, taxGroups, uoms, displayCurrency, catalog] = await Promise.all([
+  const [adminSettings, taxGroups, uoms, displayCurrency, catalogData] = await Promise.all([
     getCachedData(
       `master:${dbName}:AdminSettings`,
       async () => {
@@ -80,7 +82,7 @@ export async function loadProductsForTenant(
   ]);
 
   // OSCN for BP → ItemCodes, then OITM for those codes only (no full item master).
-  const { oscnByItemCode, itemCodes: matchedCodes } = catalog;
+  const { oscnByItemCode, itemCodes: matchedCodes } = catalogData;
 
   if (matchedCodes.length === 0) {
     return [];
@@ -173,6 +175,18 @@ export async function loadProductsForTenant(
   ]);
 
   const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
+  const lastPurchaseCurrencies =
+    catalog === "purchase-quotation"
+      ? itemsWithCatalog
+          .map((item) => toTrimmed(item.LastPurCur))
+          .filter(
+            (currency) =>
+              Boolean(currency) &&
+              currency !== "$" &&
+              currency.toUpperCase() !== defaultCurrency.toUpperCase(),
+          )
+      : [];
+  const lastPurchaseRates = await getLatestCurrencyRates(dbName, lastPurchaseCurrencies);
 
   return mapProductResults({
     items: itemsWithCatalog,
@@ -181,6 +195,8 @@ export async function loadProductsForTenant(
     priceList,
     type,
     defaultCurrency,
+    lastPurchaseRates,
+    normalizeLastPurchaseCurrency: catalog === "purchase-quotation",
     taxGroups,
     uoms,
     normalizedWarehouseCode,

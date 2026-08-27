@@ -4,6 +4,7 @@ import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-docume
 import {
   clampSapDocumentComments,
   hasIcRemarkChain,
+  icLinkPo,
   IC_REMARK_PROFILE,
   normalizeIcRemarks,
 } from "../ic-remarks-chain";
@@ -11,6 +12,7 @@ import {
 type BuyerRemarksSyncInput = {
   createdComments: unknown;
   docEntry: number;
+  docNum?: number | null;
   endpoint: string;
   originalComments: unknown;
   sessionId: string;
@@ -33,6 +35,7 @@ const readComments = (value: unknown): string | undefined => {
 export const syncBuyerRemarksAfterCreate = async ({
   createdComments,
   docEntry,
+  docNum,
   endpoint,
   originalComments,
   sessionId,
@@ -56,7 +59,13 @@ export const syncBuyerRemarksAfterCreate = async ({
   }
 
   const canonical = toSapCreateCommentsField(
-    clampSapDocumentComments(normalizeIcRemarks(persisted, IC_REMARK_PROFILE.BUYER)),
+    clampSapDocumentComments(
+      normalizeIcRemarks(
+        persisted,
+        IC_REMARK_PROFILE.BUYER,
+        docNum != null && Number.isFinite(docNum) && docNum > 0 ? [icLinkPo(docNum, docEntry)] : [],
+      ),
+    ),
   );
   if (canonical === persisted) {
     return;

@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 // Core
 import type { AuthenticatedRequest } from "@/types/express.types";
 import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
+import { assertIcPartnerAllowed } from "@/modules/intercompany";
 import type { PaymentQuery } from "./outgoing-payment.types";
 import type { AccountQuery } from "./outgoing-payment-account.types";
 // Services
@@ -56,12 +57,14 @@ export const getPayment = async (req: Request, res: Response, next: NextFunction
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
     const data = await outgoingPaymentService.getPayment(sessionId, id as string);
     if (!data) {
       return res.status(404).json({ message: "Outgoing Payment not found", success: false });
     }
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -84,6 +87,7 @@ export const getPaymentByDocNum = async (req: Request, res: Response, next: Next
     if (!data) {
       return res.status(404).json({ message: "Outgoing Payment not found", success: false });
     }
+    await assertIcPartnerAllowed(dbName, "purchase", String(data.CardCode ?? ""));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -117,11 +121,18 @@ export const updatePayment = async (req: Request, res: Response, next: NextFunct
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
     const payload = req.body;
 
     // Validate the update payload to prevent sending non-patchable fields to SAP.
     const validatedPayload = UpdatePaymentInputSchema.parse(payload);
+
+    const detail = await outgoingPaymentService.getPayment(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Outgoing Payment not found", success: false });
+    }
+    await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
 
     const result = await outgoingPaymentService.updatePayment(
       sessionId,
@@ -141,6 +152,13 @@ export const cancelPayment = async (req: Request, res: Response, next: NextFunct
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
+
+    const dbName = authReq.user.dbName;
+    const detail = await outgoingPaymentService.getPayment(sessionId, id as string);
+    if (!detail) {
+      return res.status(404).json({ message: "Outgoing Payment not found", success: false });
+    }
+    await assertIcPartnerAllowed(dbName, "purchase", String(detail.CardCode ?? ""));
 
     const result = await outgoingPaymentService.cancelPayment(sessionId, id as string);
     res.status(200).json({ message: result.message, success: true });

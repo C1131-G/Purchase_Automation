@@ -19,6 +19,8 @@ export function mapProductResults(args: {
   taxGroups: Array<{ Code?: string; Rate?: unknown }>;
   uoms: Array<{ UomCode?: string; UomName?: string; UomEntry?: unknown; AbsEntry?: unknown }>;
   normalizedWarehouseCode: string;
+  lastPurchaseRates?: ReadonlyMap<string, number>;
+  normalizeLastPurchaseCurrency?: boolean;
 }) {
   const {
     items,
@@ -31,6 +33,32 @@ export function mapProductResults(args: {
     normalizedWarehouseCode,
   } = args;
   let { defaultCurrency } = args;
+  const lastPurchaseRates = args.lastPurchaseRates ?? new Map<string, number>();
+  const itemsWithResolvedLastPurchase = args.normalizeLastPurchaseCurrency
+    ? items.map((item) => {
+        const lastPurchasePrice = toNumberOrZero(item.LastPurPrc);
+        const lastPurchaseCurrency = toTrimmed(item.LastPurCur).toUpperCase();
+        const normalizedDefaultCurrency = defaultCurrency.toUpperCase();
+        if (
+          !lastPurchaseCurrency ||
+          lastPurchaseCurrency === "$" ||
+          lastPurchaseCurrency === normalizedDefaultCurrency
+        ) {
+          return { ...item, LastPurCur: defaultCurrency };
+        }
+
+        const rate = lastPurchaseRates.get(lastPurchaseCurrency);
+        if (lastPurchasePrice <= 0 || rate === undefined) {
+          return { ...item, LastPurPrc: 0, LastPurCur: defaultCurrency };
+        }
+
+        return {
+          ...item,
+          LastPurPrc: Math.round(lastPurchasePrice * rate * 100) / 100,
+          LastPurCur: defaultCurrency,
+        };
+      })
+    : items;
 
   const stockMap = new Map<string, number>();
   for (const stockRow of itemStocks) {
@@ -40,7 +68,7 @@ export function mapProductResults(args: {
 
   const priceMap = new Map<string, number>();
   if (priceList === -1) {
-    for (const item of items) {
+    for (const item of itemsWithResolvedLastPurchase) {
       const itemCode = toTrimmed(item.ItemCode);
       if (itemCode) {
         const lastPurPrc = toNumberOrZero(item.LastPurPrc);
@@ -48,7 +76,7 @@ export function mapProductResults(args: {
       }
     }
   } else if (priceList === -2) {
-    for (const item of items) {
+    for (const item of itemsWithResolvedLastPurchase) {
       const itemCode = toTrimmed(item.ItemCode);
       if (itemCode) {
         const evalPrice = toNumberOrZero(item.LstEvlPric);
@@ -107,7 +135,7 @@ export function mapProductResults(args: {
     list.push(next);
   };
 
-  return items.map((item) => {
+  return itemsWithResolvedLastPurchase.map((item) => {
     const normalizedItemCode = toTrimmed(item.ItemCode);
     const resolvedStock = stockMap.get(normalizedItemCode) ?? 0;
     const resolvedPrice = priceMap.get(normalizedItemCode) ?? toNumberOrZero(item.AvgPrice);

@@ -7,10 +7,7 @@ import type { ProductLookupItem } from "@/features/create-pages/create-shared/ap
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import {
-  filterLocationLookupOptions,
-  findWarehouseSelection,
-} from "@/features/create-pages/create-shared/utils/location-lookup";
+import { filterLocationLookupOptions } from "@/features/create-pages/create-shared/utils/location-lookup";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 import type { ProductSearchFieldError } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
 import type { PQHeaderState } from "@/store/create/pq-create.store";
@@ -78,6 +75,9 @@ export function usePqLookups({
   const [warehouseFocused, setWarehouseFocused] = useState(false);
   const warehouseDirtyRef = useRef(false);
   const [salesEmployeeFocused, setSalesEmployeeFocused] = useState(false);
+  const vendorSelectedRef = useRef(false);
+  const warehouseSelectedRef = useRef(false);
+  const salesEmployeeSelectedRef = useRef(false);
 
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
@@ -93,22 +93,9 @@ export function usePqLookups({
     (vendors as ProductLookupItem[]).find(
       (vendor) => vendor.name.toLowerCase() === value.trim().toLowerCase(),
     );
-  const findSalesEmployeeByCode = (value: string) =>
-    (salesEmployees as ProductLookupItem[]).find(
-      (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(value),
-    );
-  const findSalesEmployeeByName = (value: string) =>
-    (salesEmployees as ProductLookupItem[]).find(
-      (item) => item.name.toLowerCase() === value.trim().toLowerCase(),
-    );
-
   const effectiveWarehouseCode = useMemo(() => {
-    const matched = findWarehouseSelection(warehouses as ProductLookupItem[], warehouseInput);
-    if (matched?.code) {
-      return matched.code;
-    }
     return (headerWarehouseCode ?? "").trim();
-  }, [warehouseInput, warehouses, headerWarehouseCode]);
+  }, [headerWarehouseCode]);
 
   const resolveVendorSalesEmployeeName = (vendor: LookupOption) => {
     const targetCode = normalizeCodeForCompare(vendor.salesEmployeeCode);
@@ -127,6 +114,7 @@ export function usePqLookups({
 
   // Selections
   const selectVendor = (vendor: LookupOption) => {
+    vendorSelectedRef.current = true;
     const previousVendor = {
       billToAddress,
       code: codeInput.trim(),
@@ -140,6 +128,7 @@ export function usePqLookups({
     const nextBillToAddress = vendor.billToAddress ?? "";
     const nextShipToAddress = vendor.shipToAddress ?? "";
     const associatedSalesEmployeeName = resolveVendorSalesEmployeeName(vendor);
+    salesEmployeeSelectedRef.current = Boolean(associatedSalesEmployeeName);
     setHeader({ vendorCode: vendor.code, vendorName: vendor.name });
     setNameInput(vendor.name);
     setCodeInput(vendor.code);
@@ -168,6 +157,7 @@ export function usePqLookups({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
+    warehouseSelectedRef.current = true;
     warehouseDirtyRef.current = false;
     setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
@@ -179,6 +169,7 @@ export function usePqLookups({
   };
 
   const selectSalesEmployee = (item: { code: string; name: string }) => {
+    salesEmployeeSelectedRef.current = true;
     setSalesEmployeeInput(item.name);
     clearFieldError("salesEmployee");
     setSalesEmployeeFocused(false);
@@ -187,6 +178,7 @@ export function usePqLookups({
 
   // Handlers
   const handleVendorNameChange = (value: string) => {
+    vendorSelectedRef.current = false;
     setNameInput(value);
     clearFieldError("vendorName");
     if (value.trim() === "") {
@@ -197,19 +189,16 @@ export function usePqLookups({
       setShipToAddress("");
       return;
     }
-    const matched = findVendorByName(value);
-    if (matched) {
-      selectVendor(matched);
-      return;
-    }
     setSalesEmployeeInput("");
     setBillToAddress("");
     setShipToAddress("");
     setNameFocused(true);
-    setHeader({ vendorCode: "", vendorName: value });
+    setCodeInput("");
+    setHeader({ vendorCode: "", vendorName: "" });
   };
 
   const handleVendorCodeChange = (value: string) => {
+    vendorSelectedRef.current = false;
     setCodeInput(value);
     clearFieldError("vendorCode");
     if (value.trim() === "") {
@@ -220,19 +209,16 @@ export function usePqLookups({
       setShipToAddress("");
       return;
     }
-    const matched = findVendorByCode(value);
-    if (matched) {
-      selectVendor(matched);
-      return;
-    }
     setSalesEmployeeInput("");
     setBillToAddress("");
     setShipToAddress("");
     setCodeFocused(true);
-    setHeader({ vendorCode: value, vendorName: "" });
+    setNameInput("");
+    setHeader({ vendorCode: "", vendorName: "" });
   };
 
   const handleWarehouseChange = (value: string) => {
+    warehouseSelectedRef.current = false;
     warehouseDirtyRef.current = true;
     setWarehouseInput(value);
     clearFieldError("warehouseCode");
@@ -241,29 +227,44 @@ export function usePqLookups({
       setHeader({ warehouseCode: "" });
       return;
     }
-    const matched = findWarehouseSelection(warehouses as ProductLookupItem[], value);
-    if (matched) {
-      selectWarehouse(matched);
-      return;
-    }
     setHeader({ warehouseCode: "" });
     setWarehouseFocused(true);
   };
 
   const handleSalesEmployeeChange = (value: string) => {
+    salesEmployeeSelectedRef.current = false;
     setSalesEmployeeInput(value);
     clearFieldError("salesEmployee");
     if (!value.trim()) {
       setSalesEmployeeFocused(true);
       return;
     }
-    const matched = findSalesEmployeeByName(value) ?? findSalesEmployeeByCode(value);
-    if (matched) {
-      selectSalesEmployee(matched);
-      return;
-    }
     setSalesEmployeeFocused(true);
   };
+
+  useEffect(() => {
+    if (!nameFocused && !codeFocused && !vendorSelectedRef.current) {
+      setNameInput("");
+      setCodeInput("");
+    }
+  }, [codeFocused, nameFocused]);
+
+  useEffect(() => {
+    if (
+      !warehouseFocused &&
+      !warehouseSelectedRef.current &&
+      !headerWarehouseCode.trim() &&
+      warehouseInput.trim()
+    ) {
+      setWarehouseInput("");
+    }
+  }, [headerWarehouseCode, warehouseFocused, warehouseInput]);
+
+  useEffect(() => {
+    if (!salesEmployeeFocused && !salesEmployeeSelectedRef.current && salesEmployeeInput.trim()) {
+      setSalesEmployeeInput("");
+    }
+  }, [salesEmployeeFocused, salesEmployeeInput]);
 
   const nameSuggestions = useMemo(
     () => rankAndLimitLookupOptions(vendors as ProductLookupItem[], nameInput),
@@ -317,6 +318,29 @@ export function usePqLookups({
     clearFieldError("warehouseCode");
   }, [setHeader, clearFieldError]);
 
+  const finalizeVendorLookup = () => {
+    if (!vendorSelectedRef.current) {
+      setNameInput("");
+      setCodeInput("");
+    }
+    setNameFocused(false);
+    setCodeFocused(false);
+  };
+
+  const finalizeWarehouseLookup = () => {
+    if (!warehouseSelectedRef.current && !headerWarehouseCode.trim()) {
+      setWarehouseInput("");
+    }
+    setWarehouseFocused(false);
+  };
+
+  const finalizeSalesEmployeeLookup = () => {
+    if (!salesEmployeeSelectedRef.current) {
+      setSalesEmployeeInput("");
+    }
+    setSalesEmployeeFocused(false);
+  };
+
   return {
     billToAddress,
     codeFocused,
@@ -329,6 +353,9 @@ export function usePqLookups({
     handleVendorCodeChange,
     handleVendorNameChange,
     handleWarehouseChange,
+    finalizeVendorLookup,
+    finalizeWarehouseLookup,
+    finalizeSalesEmployeeLookup,
     nameFocused,
     nameInput,
     nameSuggestions,

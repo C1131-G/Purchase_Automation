@@ -7,7 +7,7 @@ import { assignDocumentSeries, SAP_SERIES_OBJECT } from "@/modules/master-data/d
 import { getDisplayCurrency, isUnresolvedCurrency } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { afterPqSaved } from "@/modules/intercompany";
+import { afterPqSaved, assertIcPartnerForCreate } from "@/modules/intercompany";
 import { toSapCreateCommentsField } from "@/validation/schemas/inputs/sap-document-fields";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
@@ -44,6 +44,7 @@ export const createPurchaseQuotation = async (
 
     const session = serviceLayerClient.getSession(sessionId);
     const resolvedDbName = session?.companyDB || dbName || "";
+    await assertIcPartnerForCreate?.(resolvedDbName, "purchase", String(payload.CardCode ?? ""));
 
     let absoluteEntry: number | null = null;
     if (attachments && attachments.length > 0 && resolvedDbName) {

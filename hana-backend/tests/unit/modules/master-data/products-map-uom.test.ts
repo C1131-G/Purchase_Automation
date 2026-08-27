@@ -19,6 +19,51 @@ const baseArgs = {
 };
 
 describe("mapProductResults item-master UoM", () => {
+  it("converts foreign last purchase prices to the local currency for PQ", () => {
+    const [row] = mapProductResults({
+      ...baseArgs,
+      defaultCurrency: "FJD",
+      items: [
+        {
+          AvgPrice: 42,
+          ItemCode: "SKU-1",
+          ItemName: "Item",
+          LastPurCur: "USD",
+          LastPurPrc: 100,
+        },
+      ],
+      lastPurchaseRates: new Map([["USD", 2.25]]),
+      normalizeLastPurchaseCurrency: true,
+      type: "purchase",
+    });
+
+    expect(row?.LastPurchasePrice).toBe(225);
+    expect(row?.LastPurchaseCurrency).toBe("FJD");
+    expect(row?.Price).toBe(42);
+  });
+
+  it("clears an unconvertible foreign last purchase price for PQ fallback", () => {
+    const [row] = mapProductResults({
+      ...baseArgs,
+      defaultCurrency: "FJD",
+      items: [
+        {
+          AvgPrice: 42,
+          ItemCode: "SKU-1",
+          ItemName: "Item",
+          LastPurCur: "USD",
+          LastPurPrc: 100,
+        },
+      ],
+      normalizeLastPurchaseCurrency: true,
+      type: "purchase",
+    });
+
+    expect(row?.LastPurchasePrice).toBe(0);
+    expect(row?.LastPurchaseCurrency).toBe("FJD");
+    expect(row?.Price).toBe(42);
+  });
+
   it("exposes item-master last purchase price and currency separately from the fallback price", () => {
     const [row] = mapProductResults({
       ...baseArgs,

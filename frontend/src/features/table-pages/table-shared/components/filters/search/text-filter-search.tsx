@@ -40,6 +40,9 @@ const WAREHOUSE_COLUMNS = new Set(["Filler", "ToWhsCode"]);
 /** Text filters that suggest unique values from the loaded table (RFQ PQ / company fields). */
 const TABLE_VALUE_LOOKUP_COLUMNS = new Set([
   "pqDraftDocNum",
+  "RfqNumber",
+  "SqDocNum",
+  "PoDocNum",
   "sourceCompanyId",
   "targetCompanyId",
   "createdBy",

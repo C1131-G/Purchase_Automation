@@ -23,12 +23,22 @@ const mapRowWithCompanies = (row: Record<string, unknown>): IcBpMappingWithCompa
   const base = mapRow(row);
   const buyerNameRaw = row.BUYER_COMPANY_NAME ?? row.buyerCompanyName;
   const vendorNameRaw = row.VENDOR_COMPANY_NAME ?? row.vendorCompanyName;
+  const buyerCodeRaw = row.BUYER_COMPANY_CODE ?? row.buyerCompanyCode;
+  const vendorCodeRaw = row.VENDOR_COMPANY_CODE ?? row.vendorCompanyCode;
   return {
     ...base,
+    buyerCompanyCode:
+      buyerCodeRaw === null || buyerCodeRaw === undefined || buyerCodeRaw === ""
+        ? null
+        : toString(buyerCodeRaw),
     buyerCompanyName:
       buyerNameRaw === null || buyerNameRaw === undefined || buyerNameRaw === ""
         ? null
         : toString(buyerNameRaw),
+    vendorCompanyCode:
+      vendorCodeRaw === null || vendorCodeRaw === undefined || vendorCodeRaw === ""
+        ? null
+        : toString(vendorCodeRaw),
     vendorCompanyName:
       vendorNameRaw === null || vendorNameRaw === undefined || vendorNameRaw === ""
         ? null
@@ -63,7 +73,9 @@ export const createBpMappingQueries = (sql: IcSqlClient = getIcSqlClient()): BpM
     const rows = await sql.query(
       `SELECT m."MAPPING_ID", m."BUYER_COMPANY_ID", m."VENDOR_COMPANY_ID",
               m."VENDOR_CODE", m."BUYER_CUSTOMER_CODE", m."IS_ACTIVE", m."REMARKS",
+              bc."COMPANY_CODE" AS "BUYER_COMPANY_CODE",
               bc."COMPANY_NAME" AS "BUYER_COMPANY_NAME",
+              vc."COMPANY_CODE" AS "VENDOR_COMPANY_CODE",
               vc."COMPANY_NAME" AS "VENDOR_COMPANY_NAME"
          FROM "IC_BP_MAPPING" m
          LEFT JOIN "IC_COMPANY" bc ON bc."COMPANY_ID" = m."BUYER_COMPANY_ID"
