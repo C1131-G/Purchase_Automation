@@ -29,6 +29,8 @@ export const outgoingPaymentSearchSchema = z.object({
   CardName: z.string().optional(),
   DocDateEnd: z.string().optional(),
   DocDateStart: z.string().optional(),
+  DueDateEnd: z.string().optional(),
+  DueDateStart: z.string().optional(),
   DocNum: z.string().optional(),
   DocTotal: z.coerce.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),

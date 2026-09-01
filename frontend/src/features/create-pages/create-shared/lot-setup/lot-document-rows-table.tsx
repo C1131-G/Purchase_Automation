@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { LotQtyInput } from "@/features/create-pages/create-shared/lot-setup/lot-qty-input";
 import type { LotSetupKind } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
 import {
@@ -25,6 +27,9 @@ export function LotDocumentRowsTable({
   rows,
   warehouseNames = {},
 }: LotDocumentRowsTableProps) {
+  // One radio group per table instance so row choice is reachable by keyboard.
+  const rowGroupName = useId();
+
   return (
     <div className="max-h-48 w-full overflow-auto rounded-lg border border-linen-200">
       <table className="w-full table-fixed text-left text-sm text-ink-900">
@@ -87,7 +92,20 @@ export function LotDocumentRowsTable({
                 }`}
                 onClick={() => onSelectRow(row.id)}
               >
-                <td className="px-4 py-2.5 text-xs text-neutral-500">{index + 1}</td>
+                <td className="px-4 py-2.5 text-xs text-neutral-500">
+                  <span className="flex items-center gap-2">
+                    <input
+                      aria-label={`Select ${row.productCode} line`}
+                      checked={selected}
+                      className="size-3.5 accent-teal-500"
+                      name={rowGroupName}
+                      onChange={() => onSelectRow(row.id)}
+                      type="radio"
+                      value={row.id}
+                    />
+                    {index + 1}
+                  </span>
+                </td>
                 {kind === "serials" ? (
                   <td className="truncate px-4 py-2.5 text-xs text-neutral-600" title={docLabel}>
                     {docLabel}

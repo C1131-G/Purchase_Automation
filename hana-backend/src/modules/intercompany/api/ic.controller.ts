@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import AppError from "@/core/errors/app-error";
+import { logger } from "@/core/logger/pino-logger";
 import { requirePortalCreatedBy } from "@/modules/auth/portal-created-by";
 import { createProcessRetryQueueJob } from "@/modules/intercompany/background/jobs/02-process-retry-queue/process-retry-queue.job";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
@@ -126,6 +127,15 @@ export const getRfq = async (req: Request, res: Response, next: NextFunction): P
     }
     // Merge source buyer PQ (vendor name, buyer, dates, addresses, line descriptions).
     const enriched = await attachIcRfqEditFlags(await enrichRfqFromPqDraft(header));
+    logger.info({
+      trace: "RFQ-BUYER-TRACE",
+      phase: "get_response",
+      rfqId,
+      pqDraftDocEntry: enriched.pqDraftDocEntry,
+      sourceCompanyId: enriched.sourceCompanyId,
+      buyerCode: enriched.buyerCode ?? null,
+      buyerName: enriched.buyerName ?? null,
+    });
     res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);
@@ -168,9 +178,20 @@ export const submitRfq = async (req: Request, res: Response, next: NextFunction)
       removedLineNums: body.removedLineNums,
       warehouse: body.warehouse,
     });
-    // Fast path: no enrich / no wait for notify or convert (those run in background).
-    // Seller UI already has line data; status flip is enough for the response.
-    res.status(200).json({ data: submitted, success: true });
+    // Same enrichment as GET/PUT so buyer, names and dates survive the status flip.
+    // Read-only merge — it never waits on the background notify/convert.
+    const enriched = await attachIcRfqEditFlags(await enrichRfqFromPqDraft(submitted));
+    logger.info({
+      trace: "RFQ-BUYER-TRACE",
+      phase: "submit_response",
+      rfqId,
+      pqDraftDocEntry: enriched.pqDraftDocEntry,
+      sourceCompanyId: enriched.sourceCompanyId,
+      buyerCode: enriched.buyerCode ?? null,
+      buyerName: enriched.buyerName ?? null,
+      status: enriched.status,
+    });
+    res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);
   }

@@ -9,6 +9,7 @@ export interface OutgoingPayment {
   docEntry: number;
   docNum: number;
   docDate: Date;
+  dueDate?: Date;
   cardCode: string;
   cardName: string;
   docTotal: number;
@@ -30,6 +31,8 @@ export const OutgoingPaymentSchema = new EntitySchema<OutgoingPayment>({
     },
     docCurr: { length: 3, name: "DocCurr", type: "nvarchar" as HANAColumnType },
     docDate: { name: "DocDate", type: "date" as HANAColumnType },
+    // OVPM header due date is DocDueDate; DueDate only exists on VPM1 check lines.
+    dueDate: { name: "DocDueDate", nullable: true, type: "date" as HANAColumnType },
     docEntry: {
       name: "DocEntry",
       primary: true,

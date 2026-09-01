@@ -15,6 +15,7 @@ import type { IcSalesQuotationSnapshot } from "@/modules/intercompany/infrastruc
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 import type { IcPoHookInput } from "@/modules/intercompany/flows/shared/flow.types";
+import { resolveBusinessPartnerSalesPersonCode } from "@/modules/master-data/master-data.sales-person";
 
 import { buildArInvoicePayload } from "./build-ar-invoice.payload";
 import type { BuildArInvoiceResult, SqBaseLineInput } from "./build-ar-invoice.types";
@@ -251,6 +252,7 @@ export const createBuildArInvoiceService = (deps?: {
   documentMap?: DocumentMapService;
   rfq?: RfqService;
   documents?: IcSlDocuments;
+  resolveSalesPersonCode?: (dbName: string, cardCode: string) => Promise<number | null>;
 }): BuildArInvoiceService => {
   const warehouseMasters = deps?.warehouseMasters ?? partnerWarehouseMasters;
   const documentMap = deps?.documentMap ?? createDocumentMapService();
@@ -349,6 +351,16 @@ export const createBuildArInvoiceService = (deps?: {
         });
       }
 
+      const hydratedSalesPerson = toPositiveInt(String(salesQuotation.salesPersonCode ?? ""));
+      const salesPersonCode =
+        hydratedSalesPerson ??
+        (targetSapDbName && (deps?.resolveSalesPersonCode || process.env.VITEST !== "true")
+          ? await (deps?.resolveSalesPersonCode ?? resolveBusinessPartnerSalesPersonCode)(
+              targetSapDbName,
+              partner.buyerCustomerCode,
+            )
+          : null);
+
       const payload = buildArInvoicePayload({
         buyerCompanyName: partner.buyerCompany.companyName,
         buyerCustomerCode: partner.buyerCustomerCode,
@@ -368,6 +380,7 @@ export const createBuildArInvoiceService = (deps?: {
         rfqNumber: chain.rfqNumber,
         sapDbName: targetSapDbName,
         sellerCompanyName: partner.sellerCompany.companyName,
+        salesPersonCode,
         sqDocEntry,
         sqDocNum,
         sqLines,

@@ -133,6 +133,10 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): Flow2ArInvoic
     DocumentLines: documentLines,
     U_CreatedBy: input.portalCreatedBy,
   };
+  const salesperson = Number(input.salesPersonCode);
+  if (Number.isFinite(salesperson) && salesperson > 0) {
+    payload.SalesPersonCode = Math.trunc(salesperson);
+  }
 
   if (docDate) {
     payload.DocDate = docDate;

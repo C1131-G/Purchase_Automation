@@ -1,4 +1,5 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/input/input";
 import { LotBinCell } from "@/features/create-pages/create-shared/lot-setup/lot-bin-cell";
@@ -36,9 +37,72 @@ export function CreatedSerialsTable({
   const needed = row ? lineNeededQty(row) : 0;
   const remaining = Math.max(0, needed - allocatedSerialCount(serials));
   const canAdd = Boolean(row) && serials.length < needed;
+  const fullscreenRef = useRef<HTMLDivElement>(null);
+  const fullscreenToggleRef = useRef<HTMLButtonElement>(null);
+  const wasFullscreenRef = useRef(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(async () => {
+    const element = fullscreenRef.current;
+    if (!element || typeof document === "undefined") {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === element) {
+        await document.exitFullscreen();
+      } else {
+        await element.requestFullscreen();
+      }
+    } catch {
+      // Keep the inline serial table usable if fullscreen permission is denied.
+    }
+  }, []);
+
+  useEffect(function syncSerialTableFullscreenState() {
+    function handleFullscreenChange() {
+      const active = document.fullscreenElement === fullscreenRef.current;
+      setIsFullscreen(active);
+      if (wasFullscreenRef.current && !active) {
+        fullscreenToggleRef.current?.focus();
+      }
+      wasFullscreenRef.current = active;
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return function removeSerialTableFullscreenListener() {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-linen-200">
+    <div
+      ref={fullscreenRef}
+      className={
+        isFullscreen
+          ? "flex h-[100dvh] min-h-0 w-full flex-col overflow-visible bg-surface p-3"
+          : "flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-linen-200"
+      }
+    >
+      <div className="flex shrink-0 justify-end border-b border-linen-100 bg-surface px-2 py-1">
+        <button
+          ref={fullscreenToggleRef}
+          aria-label={isFullscreen ? "Minimize serial table" : "Maximize serial table"}
+          aria-pressed={isFullscreen}
+          className="inline-flex min-h-7 min-w-7 cursor-pointer items-center justify-center rounded-md border border-linen-200 bg-white px-2 text-ink-700 shadow-sm transition-colors hover:bg-linen-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+          onClick={toggleFullscreen}
+          type="button"
+        >
+          {isFullscreen ? (
+            <Minimize2 aria-hidden="true" className="size-4" />
+          ) : (
+            <Maximize2 aria-hidden="true" className="size-4" />
+          )}
+          <span className="sr-only">
+            {isFullscreen ? "Minimize serial table" : "Maximize serial table"}
+          </span>
+        </button>
+      </div>
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[40rem] table-fixed text-left text-sm text-ink-900">
           <caption className="sr-only">Created serial numbers</caption>
@@ -103,6 +167,7 @@ export function CreatedSerialsTable({
                     binAbsEntry={serial.binAbsEntry}
                     binCode={serial.binCode}
                     onChange={(bin) => onChange(index, bin)}
+                    portalContainer={isFullscreen ? fullscreenRef.current : undefined}
                     warehouseCode={row?.warehouseCode ?? ""}
                   />
                 </td>
@@ -110,13 +175,14 @@ export function CreatedSerialsTable({
                   <LotExpiryDateCell
                     ariaLabel={`Serial expiry date ${index + 1}`}
                     onChange={(expiryDate) => onChange(index, { expiryDate })}
+                    portalContainer={isFullscreen ? fullscreenRef.current : undefined}
                     value={serial.expiryDate}
                   />
                 </td>
                 <td className="px-2 py-1 text-right">
                   <button
                     aria-label={`Remove serial ${index + 1}`}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition hover:bg-rose-50 hover:text-danger"
+                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition hover:bg-rose-50 hover:text-danger"
                     onClick={() => onRemove(index)}
                     type="button"
                   >
@@ -147,7 +213,7 @@ export function CreatedSerialsTable({
           />
           <button
             aria-label="Add serial"
-            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-3 text-xs font-semibold text-teal-800 shadow-sm transition hover:border-teal-400 hover:bg-teal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:border-linen-200 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none"
+            className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-2.5 text-xs font-semibold text-teal-800 shadow-sm transition hover:border-teal-400 hover:bg-teal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:border-linen-200 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none"
             disabled={!canAdd}
             onClick={onAddSplit}
             type="button"

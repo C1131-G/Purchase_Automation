@@ -168,6 +168,16 @@ export function usePqLookups({
     closeModal();
   };
 
+  /**
+   * Set the Buyer label from a loaded document. Marks the value as selected so the
+   * blur-cleanup effect below does not wipe a hydrated name the user never typed.
+   */
+  const hydrateSalesEmployee = useCallback((name: string) => {
+    const trimmed = name.trim();
+    salesEmployeeSelectedRef.current = Boolean(trimmed);
+    setSalesEmployeeInput(trimmed);
+  }, []);
+
   const selectSalesEmployee = (item: { code: string; name: string }) => {
     salesEmployeeSelectedRef.current = true;
     setSalesEmployeeInput(item.name);
@@ -350,6 +360,7 @@ export function usePqLookups({
     findVendorByCode,
     findVendorByName,
     handleSalesEmployeeChange,
+    hydrateSalesEmployee,
     handleVendorCodeChange,
     handleVendorNameChange,
     handleWarehouseChange,

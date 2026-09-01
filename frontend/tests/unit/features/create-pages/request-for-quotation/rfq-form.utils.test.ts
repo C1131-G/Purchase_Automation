@@ -6,6 +6,7 @@ import {
   buildUpdateRfqLinesPayload,
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
+  getRfqBatchQuotedDate,
   getRfqLineFieldErrors,
   canEditRfqLines,
   isRfqCompleted,
@@ -141,7 +142,7 @@ describe("rfq-form.utils", () => {
     expect(totals.grandTotal).toBe(236);
   });
 
-  it("defaults quoted date to required date when empty and keeps quoted qty empty", () => {
+  it("preselects the required date when seller has not entered a quote", () => {
     const lines: IcRfqLine[] = [
       {
         deliveryDate: null,
@@ -168,6 +169,18 @@ describe("rfq-form.utils", () => {
     expect(rows[0]?.quotedDate).toBe("2026-09-15");
     expect(rows[0]?.requiredQuantity).toBe(25);
     expect(rows[0]?.requiredDate).toBe("2026-09-15");
+  });
+
+  it("only preselects the RFQ batch date when every row shares a quoted date", () => {
+    const rows = [
+      { id: "1", quotedDate: "2026-09-15" },
+      { id: "2", quotedDate: "2026-09-15" },
+    ] as ProductRow[];
+    expect(getRfqBatchQuotedDate(rows)).toBe("2026-09-15");
+
+    expect(
+      getRfqBatchQuotedDate([rows[0]!, { id: "2", quotedDate: undefined }] as ProductRow[]),
+    ).toBe("");
   });
 
   it("allows partial save and requires all prices on submit", () => {

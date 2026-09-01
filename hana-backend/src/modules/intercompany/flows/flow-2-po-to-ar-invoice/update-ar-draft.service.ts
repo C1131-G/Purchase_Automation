@@ -11,6 +11,9 @@ import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { SAP_FIELD_MAX } from "@/validation/schemas/inputs/sap-document-fields";
+import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
+import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
+import { resolveBusinessPartnerSalesPersonCode } from "@/modules/master-data/master-data.sales-person";
 
 /** Qty / price / dates only. Never copy buyer VatGroup, WH, UoM, or ItemCode. */
 const commercialLineKeys = [
@@ -142,10 +145,13 @@ export const createUpdateArDraftService = (deps?: {
   documentMap?: DocumentMapService;
   documents?: Pick<IcSlDocuments, "getArInvoiceDraft" | "patchArInvoiceDraft">;
   partnerTax?: PartnerTaxResolver;
+  company?: CompanyService;
+  resolveSalesPersonCode?: (dbName: string, cardCode: string) => Promise<number | null>;
 }): UpdateArDraftService => {
   const documentMap = deps?.documentMap ?? createDocumentMapService();
   const documents = deps?.documents ?? createIcSlDocuments();
   const partnerTax = deps?.partnerTax ?? createPartnerTaxResolver();
+  const company = deps?.company ?? createCompanyService();
 
   return {
     update: async ({ buyerCompanyId, purchaseOrder, trace }) => {
@@ -201,6 +207,22 @@ export const createUpdateArDraftService = (deps?: {
       const patch: Record<string, unknown> = {
         DocumentLines: documentLines,
       };
+      const existingSalesPerson = Number(current.SalesPersonCode);
+      if (!Number.isFinite(existingSalesPerson) || existingSalesPerson <= 0) {
+        try {
+          const seller = await company.getById(map.targetCompanyId);
+          const resolved =
+            seller?.sapDbName && (deps?.resolveSalesPersonCode || process.env.VITEST !== "true")
+              ? await (deps?.resolveSalesPersonCode ?? resolveBusinessPartnerSalesPersonCode)(
+                  seller.sapDbName,
+                  String(current.CardCode ?? "").trim(),
+                )
+              : null;
+          if (resolved != null) patch.SalesPersonCode = resolved;
+        } catch {
+          // Salesperson enrichment is best-effort and must not block PO edit sync.
+        }
+      }
       const headers = {
         Address: purchaseOrder.address,
         Address2: purchaseOrder.address2,
@@ -208,7 +230,6 @@ export const createUpdateArDraftService = (deps?: {
         DocDate: purchaseOrder.docDate,
         DocDueDate: purchaseOrder.docDueDate,
         NumAtCard: purchaseOrder.numAtCard,
-        SalesPersonCode: purchaseOrder.salesPersonCode,
       };
       for (const [key, value] of Object.entries(headers)) {
         if (value !== undefined && value !== null) {

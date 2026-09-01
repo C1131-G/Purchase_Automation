@@ -72,6 +72,7 @@ export const applyPricesToPq = async (params: {
   lines: IcRfqLine[];
   /** Merged Comments (existing user text + IC chain lines). */
   comments?: string | null;
+  salesPersonCode?: number | null;
   /** Conversion retains only the RFQ line set on the buyer PQ. */
   replaceDocumentLines?: boolean;
 }): Promise<void> => {
@@ -83,5 +84,6 @@ export const applyPricesToPq = async (params: {
     documentLines,
     draftEntry: params.draftEntry,
     replaceDocumentLines: params.replaceDocumentLines,
+    salesPersonCode: params.salesPersonCode,
   });
 };

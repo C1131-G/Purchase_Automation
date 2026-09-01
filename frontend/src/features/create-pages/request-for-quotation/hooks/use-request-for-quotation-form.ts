@@ -41,6 +41,7 @@ import {
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
   getRfqLineFieldErrors,
+  getRfqBatchQuotedDate,
   canEditRfqLines,
   isRfqCompleted,
   isRfqDraft,
@@ -168,11 +169,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     setWarehouseCode(serverWarehouse);
     warehouseDirtyRef.current = false;
     setWarehouseFocused(false);
-    const requiredDates = rows
-      .map((row) => normalizeRfqQuotedDate(row.requiredDate, todayIso, docDueDate))
-      .filter(Boolean)
-      .toSorted();
-    const initialBatchDate = requiredDates.at(-1) || defaultQuotedDate;
+    const initialBatchDate = getRfqBatchQuotedDate(rows);
     lastBatchQuotedDateRef.current = initialBatchDate;
     setBatchQuotedDate(initialBatchDate);
     setHydratedKey(fingerprint);

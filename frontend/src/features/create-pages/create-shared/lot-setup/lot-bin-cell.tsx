@@ -15,6 +15,7 @@ interface LotBinCellProps {
   binCode?: string | undefined;
   disabled?: boolean;
   onChange: (bin: { binAbsEntry?: number | undefined; binCode?: string | undefined }) => void;
+  portalContainer?: HTMLElement | null | undefined;
   warehouseCode: string;
 }
 
@@ -23,6 +24,7 @@ export function LotBinCell({
   binCode,
   disabled = false,
   onChange,
+  portalContainer,
   warehouseCode,
 }: LotBinCellProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,11 @@ export function LotBinCell({
     updateMenuPosition();
   }, [options.length, selectedValue]);
 
+  const dropdownPortalTarget =
+    (typeof document !== "undefined" ? document.fullscreenElement : null) ??
+    portalContainer ??
+    (typeof document !== "undefined" ? document.body : null);
+
   return (
     <div ref={wrapRef} onClick={updateMenuPosition}>
       <Select
@@ -94,7 +101,7 @@ export function LotBinCell({
             <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
           </Select.Icon>
         </Select.Trigger>
-        {typeof document !== "undefined"
+        {dropdownPortalTarget
           ? createPortal(
               <div style={menuStyle}>
                 <Select.Positioner className="relative top-auto mt-0 w-full">
@@ -112,7 +119,7 @@ export function LotBinCell({
                   </Select.Popup>
                 </Select.Positioner>
               </div>,
-              document.body,
+              dropdownPortalTarget,
             )
           : null}
       </Select>

@@ -397,6 +397,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     let sqNumAtCard: string | null | undefined;
     let sqCommentsOnPatch: string | null | undefined;
     let sqPortalCreatedBy: string | undefined;
+    let appliedSalesPersonCode: number | null | undefined;
 
     const { orchestrator, fill, convert, db } = createFlow1TestStack({
       documents: {
@@ -404,6 +405,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
           applied = true;
           appliedDocEntry = input.draftEntry;
           appliedLines = input.documentLines;
+          appliedSalesPersonCode = input.salesPersonCode;
           // Parent remarks path: PATCH receives merged comments (keep this one).
           sqCommentsOnPatch = input.comments ?? null;
         },
@@ -422,6 +424,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
         getDraftHeaderFields: async () => ({
           comments: "Parent typed on PQ",
           numAtCard: "VENDOR-REF-99",
+          salesPersonCode: 17,
         }),
       },
     });
@@ -466,6 +469,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     // Existing PQ DocEntry is updated — no draft convert.
     expect(converted).toBe(false);
     expect(appliedDocEntry).toBe(70);
+    expect(appliedSalesPersonCode).toBe(17);
     expect(sqCreated).toBe(true);
     // Seller-filled qty/price/disc% only — ItemCode/description/tax stay on buyer PQ via merge.
     expect(appliedLines[0]).toMatchObject({

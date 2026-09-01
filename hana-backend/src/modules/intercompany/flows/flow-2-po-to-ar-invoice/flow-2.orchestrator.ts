@@ -576,6 +576,10 @@ export const createFlow2Orchestrator = (deps?: {
           remarksTag: captured.remarksTag,
         });
         const { draftPayload, salesQuotation } = buildResult;
+        const parkedSalesQuotation =
+          isParkedRoute && draftPayload.SalesPersonCode != null
+            ? { ...salesQuotation, salesPersonCode: draftPayload.SalesPersonCode }
+            : salesQuotation;
 
         const arInvoiceSummary = summarizeArInvoicePayload(draftPayload as Record<string, unknown>);
         logFlowStep(LOG_SCOPE, {
@@ -603,10 +607,10 @@ export const createFlow2Orchestrator = (deps?: {
               poDocEntry: input.docEntry,
               poDocNum: input.docNum,
               portalCreatedBy: input.portalCreatedBy,
-              salesPersonCode: input.salesPersonCode,
+              salesPersonCode: undefined,
               sellerDbName: captured.partner.sellerCompany.sapDbName,
               sellerCompanyId: captured.partner.sellerCompany.companyId,
-              snapshot: salesQuotation,
+              snapshot: parkedSalesQuotation,
               sourceDocEntry: captured.sourceDocEntry,
               transactionId,
             };
@@ -797,10 +801,10 @@ export const createFlow2Orchestrator = (deps?: {
                 poDocEntry: input.docEntry,
                 poDocNum: input.docNum,
                 portalCreatedBy: input.portalCreatedBy,
-                salesPersonCode: input.salesPersonCode,
+                salesPersonCode: undefined,
                 sellerDbName: captured.partner.sellerCompany.sapDbName,
                 sellerCompanyId: captured.partner.sellerCompany.companyId,
-                snapshot: salesQuotation,
+                snapshot: parkedSalesQuotation,
                 sourceDocEntry: captured.sourceDocEntry,
                 transactionId,
               },

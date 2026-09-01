@@ -67,7 +67,7 @@ export const buildPosParkedInvoiceData = (input: {
   if (salesItems.length === 0)
     throw new Error("IC park seller SQ has no open POS-compatible lines");
 
-  const headerSalesPerson = finite(input.snapshot.salesPersonCode ?? input.salesPersonCode, -1);
+  const headerSalesPerson = finite(input.snapshot.salesPersonCode, -1);
   const totalAmount = salesItems.reduce((sum, line) => sum + line.TotalPriceWithTax, 0);
   const poLabel = input.poDocNum ?? input.poDocEntry;
   return {

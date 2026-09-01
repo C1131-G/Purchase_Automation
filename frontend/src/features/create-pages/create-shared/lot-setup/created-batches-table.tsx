@@ -123,7 +123,7 @@ export function CreatedBatchesTable({
                 <td className="px-2 py-1 text-right">
                   <button
                     aria-label={`Remove batch ${index + 1}`}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition hover:bg-rose-50 hover:text-danger"
+                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition hover:bg-rose-50 hover:text-danger"
                     onClick={() => onRemove(index)}
                     type="button"
                   >
@@ -155,7 +155,7 @@ export function CreatedBatchesTable({
           />
           <button
             aria-label={splitLabel}
-            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-3 text-xs font-semibold text-teal-800 shadow-sm transition hover:border-teal-400 hover:bg-teal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:border-linen-200 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none"
+            className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-2.5 text-xs font-semibold text-teal-800 shadow-sm transition hover:border-teal-400 hover:bg-teal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:border-linen-200 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none"
             disabled={!canSplit}
             onClick={onAddSplit}
             type="button"

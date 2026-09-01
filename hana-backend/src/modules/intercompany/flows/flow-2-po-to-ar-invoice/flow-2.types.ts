@@ -32,6 +32,7 @@ export type Flow2ArInvoicePayload = {
   DocDueDate?: string;
   Comments: string;
   U_CreatedBy?: string;
+  SalesPersonCode?: number;
   NumAtCard?: string;
   BPL_IDAssignedToInvoice?: number;
   DocumentLines: Record<string, unknown>[];

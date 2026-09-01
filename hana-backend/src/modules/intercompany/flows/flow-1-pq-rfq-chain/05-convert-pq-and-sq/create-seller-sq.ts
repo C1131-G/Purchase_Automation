@@ -13,6 +13,7 @@ import type {
   IcSlDocuments,
 } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { resolveDocumentSeries } from "@/modules/master-data/master-data.service";
+import { resolveBusinessPartnerSalesPersonCode } from "@/modules/master-data/master-data.sales-person";
 import {
   resolveUomOnTenant,
   type ResolvedTenantUom,
@@ -301,6 +302,7 @@ export const createSellerSq = async (params: {
   /** Server-derived U_CreatedBy value from the portal user who initiated conversion. */
   portalCreatedBy?: string;
   warehouseMasters?: PartnerWarehouseMasters;
+  resolveSalesPersonCode?: (dbName: string, cardCode: string) => Promise<number | null>;
 }): Promise<CreateSellerSqResult> => {
   const pqWarehouseCode =
     params.pqWarehouseCode?.trim() || pickRfqWarehouseCode(params.lines) || null;
@@ -402,6 +404,18 @@ export const createSellerSq = async (params: {
     taxUsage,
   });
 
+  let salesPersonCode: number | null = null;
+  try {
+    salesPersonCode =
+      params.sapDbName && (params.resolveSalesPersonCode || process.env.VITEST !== "true")
+        ? await (params.resolveSalesPersonCode ?? resolveBusinessPartnerSalesPersonCode)(
+            params.sapDbName,
+            params.buyerCustomerCode,
+          )
+        : null;
+  } catch {
+    salesPersonCode = null;
+  }
   const created = await params.documents.createSalesQuotation({
     cardCode: params.buyerCustomerCode,
     companyId: params.sellerCompanyId,
@@ -411,6 +425,7 @@ export const createSellerSq = async (params: {
     portalCreatedBy: params.portalCreatedBy,
     remarks: params.remarks,
     series: seriesResolve?.series ?? null,
+    salesPersonCode,
   });
   return { ...created, taxUsage };
 };

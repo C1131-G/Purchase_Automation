@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { logger } from "@/core/logger/pino-logger";
 
 import AppError from "@/core/errors/app-error";
 import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
@@ -306,6 +307,19 @@ export const createSellerFillRfqService = (
       assertSellerCanAct(header, actorCompanyId);
       assertRfqSubmittable(header);
 
+      logger.info({
+        trace: "RFQ-BUYER-TRACE",
+        phase: "submit_loaded",
+        rfqId,
+        rfqNumber: header.rfqNumber,
+        pqDraftDocEntry: header.pqDraftDocEntry,
+        sourceCompanyId: header.sourceCompanyId,
+        targetCompanyId: header.targetCompanyId,
+        buyerCode: header.buyerCode ?? null,
+        buyerName: header.buyerName ?? null,
+        status: header.status,
+      });
+
       // Optional one-shot fill: save lines then submit (avoids PUT + POST round-trip).
       if (
         (fillLines && fillLines.length > 0) ||
@@ -335,6 +349,14 @@ export const createSellerFillRfqService = (
           throw new AppError("RFQ not found after line update", 404, "IC_RFQ_NOT_FOUND");
         }
         header = updated;
+        logger.info({
+          trace: "RFQ-BUYER-TRACE",
+          phase: "submit_after_line_update",
+          rfqId,
+          pqDraftDocEntry: header.pqDraftDocEntry,
+          buyerCode: header.buyerCode ?? null,
+          buyerName: header.buyerName ?? null,
+        });
       }
 
       logFlowStep(FLOW1_SCOPE, {
@@ -389,6 +411,19 @@ export const createSellerFillRfqService = (
 
       // Main path: mark SUBMITTED only. Notify + convert are IC side-effects.
       const submitted = await submitRfqHeader(rfq, rfqId);
+
+      logger.info({
+        trace: "RFQ-BUYER-TRACE",
+        phase: "submit_persisted",
+        rfqId,
+        rfqNumber: submitted.rfqNumber,
+        pqDraftDocEntry: submitted.pqDraftDocEntry,
+        sourceCompanyId: submitted.sourceCompanyId,
+        targetCompanyId: submitted.targetCompanyId,
+        buyerCode: submitted.buyerCode ?? null,
+        buyerName: submitted.buyerName ?? null,
+        status: submitted.status,
+      });
 
       logFlowStep(FLOW1_SCOPE, {
         ...FLOW1_FILL_STEPS.SUBMIT_OK,

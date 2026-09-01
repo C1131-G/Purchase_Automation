@@ -78,6 +78,7 @@ const getPaymentModeFilter = (
 const SORTABLE_FIELDS = new Set([
   "DocNum",
   "DocDate",
+  "DueDate",
   "CardCode",
   "CardName",
   "DocTotal",
@@ -92,6 +93,9 @@ export const mapSearchToOutgoingPaymentListParams = (
   const docDate = getDateRangeFilter(filters, "DocDate");
   const start = docDate?.from ?? docDate?.to;
   const end = docDate?.to ?? docDate?.from;
+  const dueDate = getDateRangeFilter(filters, "DueDate");
+  const dueDateStart = dueDate?.from ?? dueDate?.to;
+  const dueDateEnd = dueDate?.to ?? dueDate?.from;
   const docTotal = getDocTotalFilter(filters);
 
   const firstSort = Array.isArray(search.sorting) ? search.sorting[0] : undefined;
@@ -106,6 +110,8 @@ export const mapSearchToOutgoingPaymentListParams = (
     CardName: getStringFilter(filters, "CardName") ?? search.CardName,
     DocDateEnd: end ?? search.DocDateEnd,
     DocDateStart: start ?? search.DocDateStart,
+    DueDateEnd: dueDateEnd ?? search.DueDateEnd,
+    DueDateStart: dueDateStart ?? search.DueDateStart,
     DocNum: getStringFilter(filters, "DocNum") ?? search.DocNum,
     DocTotal: docTotal?.value ?? search.DocTotal,
     DocTotalOperator: docTotal?.operator ?? search.DocTotalOperator,

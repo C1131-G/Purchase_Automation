@@ -51,6 +51,18 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       });
     }
 
+    if (filters.DueDateStart) {
+      queryBuilder.andWhere("p.dueDate >= :dueDateStart", {
+        dueDateStart: filters.DueDateStart,
+      });
+    }
+
+    if (filters.DueDateEnd) {
+      queryBuilder.andWhere("p.dueDate <= :dueDateEnd", {
+        dueDateEnd: filters.DueDateEnd,
+      });
+    }
+
     if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
       if (filters.DocTotalOperator === "eq") {
         queryBuilder.andWhere("p.docTotal = :docTotal", {
@@ -79,6 +91,7 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       CardCode: "p.cardCode",
       CardName: "p.cardName",
       DocDate: "p.docDate",
+      DueDate: "p.dueDate",
       DocNum: "p.docNum",
       DocTotal: "p.docTotal",
       PaymentMode: "p.paymentMode",
@@ -107,6 +120,7 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
         CardName: data.cardName,
         DocCurr: resolveCurrencyCode(data.docCurr, displayCurrency),
         DocDate: data.docDate,
+        DueDate: data.dueDate,
         DocNum: data.docNum,
         DocTotal: data.docTotal,
         PaymentMode: data.paymentMode || undefined,

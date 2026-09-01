@@ -45,7 +45,7 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 
 const routeApi = getRouteApi("/_layout/purchase/outgoing-payment");
 const TABLE_ID = "outgoing-payments";
-const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal"];
+const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "DueDate", "CardCode", "CardName", "DocTotal"];
 
 const toOutgoingPaymentColumnFilters = (
   filters: ColumnFiltersState,
@@ -163,6 +163,12 @@ export function OutgoingPaymentTable() {
         value: { from: searchParams.DocDateStart, to: searchParams.DocDateEnd },
       });
     }
+    if (searchParams.DueDateStart || searchParams.DueDateEnd) {
+      built.push({
+        id: "DueDate",
+        value: { from: searchParams.DueDateStart, to: searchParams.DueDateEnd },
+      });
+    }
     if (searchParams.DocTotal !== undefined && searchParams.DocTotalOperator) {
       built.push({
         id: "DocTotal",
@@ -236,6 +242,7 @@ export function OutgoingPaymentTable() {
       const cardNameVal = nextFilters.find((f) => f.id === "CardName")?.value;
       const paymentModeVal = nextFilters.find((f) => f.id === "PaymentMode")?.value;
       const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
+      const dueDateVal = nextFilters.find((f) => f.id === "DueDate")?.value as any;
       const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
 
       navigate({
@@ -251,6 +258,8 @@ export function OutgoingPaymentTable() {
             PaymentMode: paymentModeVal ? String(paymentModeVal) : undefined,
             DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
             DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
+            DueDateStart: dueDateVal?.from ?? dueDateVal?.to ?? undefined,
+            DueDateEnd: dueDateVal?.to ?? dueDateVal?.from ?? undefined,
             DocTotalOperator: docTotalVal?.operator ?? undefined,
             DocTotal: docTotalVal?.value ?? undefined,
           }) as any,

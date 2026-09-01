@@ -24,6 +24,11 @@ const finiteNumberOrNull = (value: unknown): number | null => {
   return value == null || value === "" || !Number.isFinite(numberValue) ? null : numberValue;
 };
 
+const positiveSalesPersonCodeOrNull = (value: unknown): number | null => {
+  const numberValue = finiteNumberOrNull(value);
+  return numberValue != null && numberValue > 0 ? Math.trunc(numberValue) : null;
+};
+
 export type CreateArInvoiceDraftInput = {
   companyId: number;
   /**
@@ -54,6 +59,7 @@ export type CreateSalesQuotationInput = {
   series?: number | null;
   /** Server-derived U_CreatedBy value from the portal flow initiator. */
   portalCreatedBy?: string;
+  salesPersonCode?: number | null;
 };
 
 export type ApplyPricesToDraftInput = {
@@ -63,6 +69,7 @@ export type ApplyPricesToDraftInput = {
   documentLines: Record<string, unknown>[];
   /** Optional Comments patch (appended IC chain — does not wipe lines if caller merged). */
   comments?: string | null;
+  salesPersonCode?: number | null;
   /** When true, omit SAP lines not represented by the retained RFQ line set. */
   replaceDocumentLines?: boolean;
 };
@@ -216,6 +223,7 @@ export type DraftHeaderFields = {
   numAtCard: string | null;
   /** Buyer vendor CardName from PQ (for IC remarks — never CardCode). */
   cardName?: string | null;
+  salesPersonCode?: number | null;
 };
 
 /** Seller SQ line snapshot for Flow 2 base conversion (POST /Drafts from OQUT). */
@@ -427,7 +435,7 @@ export const createIcSlDocuments = (deps?: {
   const getDraftHeaderFields = async (input: GetDraftCommentsInput): Promise<DraftHeaderFields> => {
     const { connection, session: slSession } = await withCompanySession(input.companyId);
     // Real PQ (Flow 1 source) — not Drafts.
-    const endpoint = `/PurchaseQuotations(${input.draftEntry})?$select=Comments,NumAtCard,CardName`;
+    const endpoint = `/PurchaseQuotations(${input.draftEntry})?$select=Comments,NumAtCard,CardName,SalesPersonCode`;
     logSlRequest({
       companyId: input.companyId,
       endpoint,
@@ -443,6 +451,7 @@ export const createIcSlDocuments = (deps?: {
       const commentsRaw = response.data?.Comments;
       const numAtCardRaw = response.data?.NumAtCard;
       const cardNameRaw = response.data?.CardName;
+      const salesPersonCodeRaw = response.data?.SalesPersonCode;
       const comments =
         commentsRaw === null || commentsRaw === undefined
           ? null
@@ -455,7 +464,13 @@ export const createIcSlDocuments = (deps?: {
         cardNameRaw === null || cardNameRaw === undefined
           ? null
           : String(cardNameRaw).trim() || null;
-      return { cardName, comments, numAtCard };
+      const salesPersonCode = positiveSalesPersonCodeOrNull(salesPersonCodeRaw);
+      return {
+        cardName,
+        comments,
+        numAtCard,
+        salesPersonCode: Number.isFinite(salesPersonCode) ? salesPersonCode : null,
+      };
     } catch (err: unknown) {
       logSlFailure({
         companyId: input.companyId,
@@ -464,13 +479,14 @@ export const createIcSlDocuments = (deps?: {
         method: "GET",
       });
       // Best-effort: convert can still proceed with RFQ remarks only.
-      return { cardName: null, comments: null, numAtCard: null };
+      return { cardName: null, comments: null, numAtCard: null, salesPersonCode: null };
     }
   };
 
   const patchCommercialDocument = async (input: {
     companyId: number;
     comments?: string | null;
+    salesPersonCode?: number | null;
     documentLines: Record<string, unknown>[];
     docEntry: number;
     endpoint: string;
@@ -509,6 +525,20 @@ export const createIcSlDocuments = (deps?: {
       const body: Record<string, unknown> = {
         DocumentLines: mergedLines,
       };
+      // The GET snapshot is the fresher truth: when it explicitly carries no sales
+      // employee (-1) the captured code must not resurrect a buyer the PQ dropped.
+      const hasSnapshotSalesPersonCode = Object.prototype.hasOwnProperty.call(
+        draft,
+        "SalesPersonCode",
+      );
+      const snapshotSalesPersonCode = positiveSalesPersonCodeOrNull(draft.SalesPersonCode);
+      const inputSalesPersonCode = positiveSalesPersonCodeOrNull(input.salesPersonCode);
+      const salesPersonCode = hasSnapshotSalesPersonCode
+        ? snapshotSalesPersonCode
+        : inputSalesPersonCode;
+      if (salesPersonCode != null) {
+        body.SalesPersonCode = salesPersonCode;
+      }
       if (input.comments != null && String(input.comments).trim()) {
         const existingComments =
           draft.Comments === null || draft.Comments === undefined ? null : String(draft.Comments);
@@ -530,6 +560,9 @@ export const createIcSlDocuments = (deps?: {
           vatGroup: line.VatGroup ?? null,
         })),
         outcome: "pass",
+        appliedSalesPersonCode: salesPersonCode,
+        inputSalesPersonCode,
+        snapshotSalesPersonCode,
       });
 
       const response = await client.request({
@@ -679,6 +712,7 @@ export const createIcSlDocuments = (deps?: {
         endpoint: `/PurchaseQuotations(${input.draftEntry})`,
         logCheck: "sl_apply_prices_lines",
         replaceDocumentLines: input.replaceDocumentLines,
+        salesPersonCode: input.salesPersonCode,
       });
     },
 
@@ -1262,6 +1296,10 @@ export const createIcSlDocuments = (deps?: {
       if (numAtCard) {
         body.NumAtCard = numAtCard;
       }
+      const salesperson = Number(input.salesPersonCode);
+      if (Number.isFinite(salesperson) && salesperson > 0) {
+        body.SalesPersonCode = Math.trunc(salesperson);
+      }
       // Multi-branch seller DBs: SAP requires active BPLId on OQUT (same field as AR/Invoice).
       const branchId = input.defaultBranchId;
       if (branchId != null && Number.isFinite(branchId) && branchId > 0) {
@@ -1304,6 +1342,7 @@ export const createIcSlDocuments = (deps?: {
         cardCode: input.cardCode,
         lines: lineSnap,
         numAtCard: body.NumAtCard ?? null,
+        salesPersonCode: body.SalesPersonCode ?? null,
         outcome: "pass",
         remarks: input.remarks,
         series: body.Series ?? null,

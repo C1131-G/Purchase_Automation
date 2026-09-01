@@ -4,6 +4,8 @@ import type { GrpoLotPendingAction } from "@/features/create-pages/create-shared
 import {
   GRPO_CREATE_LOT_ACTIONS,
   resolveGrpoLotIntercept,
+  lotSetupPrimaryActionLabel,
+  lotSetupProgress,
   resolveLotSetupAfterOk,
   seedBatchAllocations,
   seedSerialAllocations,
@@ -248,5 +250,71 @@ describe("GRPO create lot action set", () => {
   it("lists only Save New, View, Close, and Draft", () => {
     const actions: GrpoLotPendingAction[] = ["save-new", "view", "close", "draft"];
     expect([...GRPO_CREATE_LOT_ACTIONS]).toEqual(actions);
+  });
+});
+
+describe("GRPO lot setup presentation helpers", () => {
+  it("calculates created, needed, remaining, and completion percentage", () => {
+    const rows = [
+      row({
+        batchNumbers: [{ batchNumber: "B-1", quantity: 6 }],
+        id: "batch-1",
+        manBtchNum: "Y",
+        quantity: 10,
+      }),
+      row({
+        batchNumbers: [{ batchNumber: "B-2", quantity: 2 }],
+        id: "batch-2",
+        manBtchNum: "Y",
+        quantity: 4,
+      }),
+    ];
+
+    expect(lotSetupProgress(rows, "batches")).toEqual({
+      created: 8,
+      needed: 14,
+      percent: 57,
+      remaining: 6,
+    });
+  });
+
+  it("uses Continue to batches for the serial-first flow", () => {
+    expect(
+      lotSetupPrimaryActionLabel({
+        confirmed: noneConfirmed,
+        hasPendingCreateAction: true,
+        kind: "serials",
+        pendingAction: "save-new",
+        rows: mixedCreateLines(),
+      }),
+    ).toBe("Continue to batches");
+  });
+
+  it.each([
+    ["save-new", "Save"],
+    ["view", "Save & view"],
+    ["close", "Save & close"],
+    ["draft", "Save draft"],
+  ] as const)("labels the pending %s action", (pendingAction, label) => {
+    expect(
+      lotSetupPrimaryActionLabel({
+        confirmed: { batchesConfirmed: false, serialsConfirmed: true },
+        hasPendingCreateAction: true,
+        kind: "batches",
+        pendingAction,
+        rows: [row({ batchNumbers: [{ batchNumber: "B-1", quantity: 10 }], manBtchNum: "Y" })],
+      }),
+    ).toBe(label);
+  });
+
+  it("uses Done for a direct row visit without a pending save", () => {
+    expect(
+      lotSetupPrimaryActionLabel({
+        confirmed: noneConfirmed,
+        hasPendingCreateAction: false,
+        kind: "batches",
+        rows: [row({ manBtchNum: "Y" })],
+      }),
+    ).toBe("Done");
   });
 });

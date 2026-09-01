@@ -5,6 +5,7 @@ export const outgoingPaymentListItemSchema = z.object({
   CardName: z.string(),
   DocCurr: z.string(),
   DocDate: z.string(),
+  DueDate: z.string().nullable().optional(),
   DocNum: z.number(),
   DocTotal: z.union([z.number(), z.string()]),
   PaymentMode: z.string().optional(),
@@ -25,6 +26,8 @@ export const outgoingPaymentListParamsSchema = z.object({
   CardName: z.string().optional(),
   DocDateEnd: z.string().optional(),
   DocDateStart: z.string().optional(),
+  DueDateEnd: z.string().optional(),
+  DueDateStart: z.string().optional(),
   DocNum: z.string().optional(),
   DocTotal: z.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
@@ -32,7 +35,7 @@ export const outgoingPaymentListParamsSchema = z.object({
   limit: z.number().optional(),
   page: z.number().optional(),
   sortBy: z
-    .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "PaymentMode"])
+    .enum(["DocNum", "DocDate", "DueDate", "CardCode", "CardName", "DocTotal", "PaymentMode"])
     .optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });

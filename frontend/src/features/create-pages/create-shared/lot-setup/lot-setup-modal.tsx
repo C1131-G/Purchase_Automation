@@ -6,7 +6,11 @@ import { CreatedBatchesTable } from "@/features/create-pages/create-shared/lot-s
 import { CreatedSerialsTable } from "@/features/create-pages/create-shared/lot-setup/created-serials-table";
 import { LotDocumentRowsTable } from "@/features/create-pages/create-shared/lot-setup/lot-document-rows-table";
 import type { LotSetupKind } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
-import { resolveLotSetupAfterOk } from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
+import {
+  lotSetupPrimaryActionLabel,
+  lotSetupProgress,
+  resolveLotSetupAfterOk,
+} from "@/features/create-pages/create-shared/lot-setup/lot-setup.utils";
 import { useLotSetup } from "@/features/create-pages/create-shared/lot-setup/use-lot-setup";
 import { useGRPOLines } from "@/store/create/grpo-create.store";
 import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
@@ -67,10 +71,7 @@ function LotSetupInner({
       session.confirmBatches();
     }
     const result = resolveLotSetupAfterOk({
-      confirmed: {
-        batchesConfirmed: session.batchesConfirmed,
-        serialsConfirmed: session.serialsConfirmed,
-      },
+      confirmed,
       hasPendingCreateAction: Boolean(session.pendingAction),
       kind,
       rows: lines,
@@ -83,6 +84,18 @@ function LotSetupInner({
   };
 
   const title = kind === "serials" ? "Serial Numbers — Setup" : "Batches — Setup";
+  const confirmed = {
+    batchesConfirmed: session.batchesConfirmed,
+    serialsConfirmed: session.serialsConfirmed,
+  };
+  const progress = lotSetupProgress(lines, kind);
+  const primaryActionLabel = lotSetupPrimaryActionLabel({
+    confirmed,
+    hasPendingCreateAction: Boolean(session.pendingAction),
+    kind,
+    pendingAction: session.pendingAction,
+    rows: lines,
+  });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -159,13 +172,20 @@ function LotSetupInner({
               Total Created <strong className="text-ink-900">{setup.footerCreatedCount}</strong>
             </span>
           )}
+          <span>
+            Progress{" "}
+            <strong className="text-ink-900">
+              {progress.created} of {progress.needed}
+            </strong>{" "}
+            ({progress.percent}%)
+          </span>
         </div>
         <div className="flex gap-2">
-          <Button onClick={onCancel} type="button" variant="outline">
+          <Button onClick={onCancel} size="sm" type="button" variant="outline">
             Cancel
           </Button>
-          <Button onClick={handleOk} type="button">
-            OK
+          <Button onClick={handleOk} size="sm" type="button">
+            {primaryActionLabel}
           </Button>
         </div>
       </div>
@@ -227,7 +247,7 @@ export function LotSetupModal({
           ? "pl-[calc(var(--sidebar-width)+1rem)]"
           : "pl-4 md:pl-[calc(var(--sidebar-width-icon)+1rem)]"
       }
-      panelClassName="flex h-[min(34rem,calc(100dvh-2rem))] w-full max-w-none max-h-[calc(100dvh-2rem)] flex-col overflow-hidden transition-[opacity,transform]"
+      panelClassName="flex h-[min(30rem,calc(100dvh-2rem))] w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden transition-[opacity,transform]"
     >
       <LotSetupInner
         key={currentKind}

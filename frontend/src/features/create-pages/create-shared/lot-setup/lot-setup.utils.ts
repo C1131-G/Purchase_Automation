@@ -14,6 +14,7 @@ import {
 } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import type {
   GrpoCreateSearch,
+  GrpoLotPendingAction,
   ItemDefaultBin,
   LotSetupKind,
   LotSetupReturnTo,
@@ -638,6 +639,53 @@ export const resolveLotSetupAfterOk = (input: {
     return { type: "continue-submit" };
   }
   return { type: "return" };
+};
+
+/** Footer/progress readout for the lot-managed lines of one kind. */
+export const lotSetupProgress = (
+  rows: ProductRow[],
+  kind: LotSetupKind,
+): { created: number; needed: number; percent: number; remaining: number } => {
+  const managed = lotManagedRows(rows, kind);
+  const needed = managed.reduce((total, row) => total + lineNeededQty(row), 0);
+  const created = managed.reduce((total, row) => total + createdQtyForKind(row, kind), 0);
+  const remaining = Math.max(0, needed - created);
+  // Nothing needed means nothing outstanding — report complete rather than 0%.
+  const percent = needed > 0 ? Math.min(100, Math.round((created / needed) * 100)) : 100;
+  return { created, needed, percent, remaining };
+};
+
+const PENDING_ACTION_LABEL: Record<GrpoLotPendingAction, string> = {
+  close: "Save & close",
+  draft: "Save draft",
+  "save-new": "Save",
+  view: "Save & view",
+};
+
+/**
+ * Label for the lot setup primary button — it names what confirming actually does:
+ * move to the next lot kind, finish the intercepted save, or just close the modal.
+ */
+export const lotSetupPrimaryActionLabel = (input: {
+  confirmed: { batchesConfirmed: boolean; serialsConfirmed: boolean };
+  hasPendingCreateAction: boolean;
+  kind: LotSetupKind;
+  pendingAction?: GrpoLotPendingAction | null;
+  rows: ProductRow[];
+}): string => {
+  const next = resolveLotSetupAfterOk({
+    confirmed: input.confirmed,
+    hasPendingCreateAction: input.hasPendingCreateAction,
+    kind: input.kind,
+    rows: input.rows,
+  });
+  if (next.type === "next") {
+    return next.kind === "serials" ? "Continue to serials" : "Continue to batches";
+  }
+  if (next.type === "continue-submit") {
+    return input.pendingAction ? PENDING_ACTION_LABEL[input.pendingAction] : "Save";
+  }
+  return "Done";
 };
 
 export const lotSetupRowError = (

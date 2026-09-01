@@ -18,6 +18,7 @@ const VIEW_MARGIN = 8;
 interface LotExpiryDateCellProps {
   ariaLabel: string;
   onChange: (next: string | undefined) => void;
+  portalContainer?: HTMLElement | null | undefined;
   value?: string | undefined;
 }
 
@@ -43,11 +44,16 @@ function calendarPanelStyle(rect: DOMRect): CSSProperties {
     top,
     visibility: "visible",
     width: CALENDAR_WIDTH,
-    zIndex: 200,
+    zIndex: 1000,
   };
 }
 
-export function LotExpiryDateCell({ ariaLabel, onChange, value }: LotExpiryDateCellProps) {
+export function LotExpiryDateCell({
+  ariaLabel,
+  onChange,
+  portalContainer,
+  value,
+}: LotExpiryDateCellProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -58,7 +64,7 @@ export function LotExpiryDateCell({ ariaLabel, onChange, value }: LotExpiryDateC
     top: 0,
     visibility: "hidden",
     width: CALENDAR_WIDTH,
-    zIndex: 200,
+    zIndex: 1000,
   });
 
   const updatePosition = useCallback(() => {
@@ -76,34 +82,44 @@ export function LotExpiryDateCell({ ariaLabel, onChange, value }: LotExpiryDateC
     updatePosition();
   }, [open, updatePosition]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const handlePointer = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
+  useEffect(
+    function manageExpiryCalendarInteractions() {
+      if (!open) {
         return;
       }
-      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
-        return;
-      }
-      setOpen(false);
-    };
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      const handlePointer = (event: MouseEvent) => {
+        const target = event.target;
+        if (!(target instanceof Node)) {
+          return;
+        }
+        if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
+          return;
+        }
         setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handlePointer);
-    document.addEventListener("keydown", handleKey);
-    window.addEventListener("resize", updatePosition);
-    return () => {
-      document.removeEventListener("mousedown", handlePointer);
-      document.removeEventListener("keydown", handleKey);
-      window.removeEventListener("resize", updatePosition);
-    };
-  }, [open, updatePosition]);
+      };
+      const handleKey = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setOpen(false);
+        }
+      };
+      document.addEventListener("mousedown", handlePointer);
+      document.addEventListener("keydown", handleKey);
+      document.addEventListener("fullscreenchange", updatePosition);
+      window.addEventListener("resize", updatePosition);
+      return () => {
+        document.removeEventListener("mousedown", handlePointer);
+        document.removeEventListener("keydown", handleKey);
+        document.removeEventListener("fullscreenchange", updatePosition);
+        window.removeEventListener("resize", updatePosition);
+      };
+    },
+    [open, updatePosition],
+  );
+
+  const calendarPortalTarget =
+    (typeof document !== "undefined" ? document.fullscreenElement : null) ??
+    portalContainer ??
+    (typeof document !== "undefined" ? document.body : null);
 
   return (
     <div ref={triggerRef}>
@@ -122,12 +138,12 @@ export function LotExpiryDateCell({ ariaLabel, onChange, value }: LotExpiryDateC
           <CalendarIcon aria-hidden className="h-3 w-3" />
         </span>
       </button>
-      {open && typeof document !== "undefined"
+      {open && calendarPortalTarget
         ? createPortal(
             <div
               ref={panelRef}
               aria-label={ariaLabel}
-              className="overflow-hidden rounded-2xl border border-linen-200 bg-surface p-1 shadow-2xl ring-1 ring-ink-900/5"
+              className="overflow-visible"
               onMouseDown={(event) => event.stopPropagation()}
               role="dialog"
               style={panelStyle}
@@ -158,7 +174,7 @@ export function LotExpiryDateCell({ ariaLabel, onChange, value }: LotExpiryDateC
                 </div>
               ) : null}
             </div>,
-            document.body,
+            calendarPortalTarget,
           )
         : null}
     </div>

@@ -186,6 +186,10 @@ export const createPoEditSyncService = (deps?: {
           partner: resolved.partner,
           remarksTag: parkedMap.sourceRemarksTag ?? `IC-PO-${input.docEntry}`,
         });
+        const parkedSalesQuotation =
+          built.draftPayload.SalesPersonCode != null
+            ? { ...built.salesQuotation, salesPersonCode: built.draftPayload.SalesPersonCode }
+            : built.salesQuotation;
         const transactionId = `IC-PO-${icCompany.companyId}-${input.docEntry}`;
         logIcEditSync({
           check: "ic_edit_sync.parked_sq_loaded",
@@ -209,10 +213,10 @@ export const createPoEditSyncService = (deps?: {
           poDocEntry: input.docEntry,
           poDocNum: input.docNum,
           portalCreatedBy: input.portalCreatedBy,
-          salesPersonCode: input.salesPersonCode,
+          salesPersonCode: undefined,
           sellerCompanyId: resolved.partner.sellerCompany.companyId,
           sellerDbName: resolved.partner.sellerCompany.sapDbName,
-          snapshot: built.salesQuotation,
+          snapshot: parkedSalesQuotation,
           sourceDocEntry: String(input.docEntry),
           transactionId,
         });

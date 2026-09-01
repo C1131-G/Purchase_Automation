@@ -57,6 +57,23 @@ export const createOutgoingPaymentColumns = (options?: CreateOutgoingPaymentColu
     minSize: 12,
     size: 17.5,
   }),
+  columnHelper.accessor("DueDate", {
+    cell: (info) => {
+      const date = info.getValue();
+      if (!date) {
+        return "-";
+      }
+      return new Date(date).toLocaleDateString("en-GB");
+    },
+    filterFn: (row, columnId, filterValue) => matchesDateRange(row.getValue(columnId), filterValue),
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Due Date" />
+    ),
+    id: "DueDate",
+    meta: { filterType: "date" },
+    minSize: 12,
+    size: 17.5,
+  }),
   columnHelper.accessor("CardCode", {
     cell: (info) => info.getValue(),
     filterFn: "includesString",

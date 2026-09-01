@@ -49,6 +49,14 @@ export const PaymentQuerySchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional()
       .openapi({ description: "Filter by DocDate End", example: "2023-12-31" }),
+    DueDateStart: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DueDateEnd: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
 
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
     DocTotal: strictDecimalQuerySchema.optional(),
@@ -64,7 +72,7 @@ export const PaymentQuerySchema = z
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
     sortBy: z
-      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "PaymentMode"])
+      .enum(["DocNum", "DocDate", "DueDate", "CardCode", "CardName", "DocTotal", "PaymentMode"])
       .optional()
       .openapi({ description: "Column to sort by", example: "DocDate" }),
     sortOrder: z

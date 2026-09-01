@@ -60,6 +60,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       CheckSum: (result as unknown as Record<string, unknown>).CheckSum || 0,
       DocCurr: resolveCurrencyCode(result.DocCurrency, displayCurrency),
       DocDate: result.DocDate,
+      DocDueDate: (result as unknown as Record<string, unknown>).DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
       Series: pickSapSeries(result),

@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Archive,
   Building2,
   FileCheck2,
   FileQuestion,
@@ -33,7 +34,8 @@ const INTERCOMPANY_JOURNEY = [
   },
   {
     animationClass: "login-flow-packet--third",
-    description: "Company A Purchase Order creates an A/R Invoice Draft for Company B.",
+    description:
+      "Company A Purchase Order creates either an A/R Invoice Draft or a POS Parked Transaction for Company B.",
     direction: "right",
     leftIcon: ShoppingCart,
     leftLabel: "Purchase Order",
@@ -127,12 +129,31 @@ export function LoginIntercompanyShowcase() {
                     </span>
                   </div>
 
-                  <div className="flex min-h-18 items-center gap-3 rounded-2xl border border-teal-200/20 bg-teal-900/55 p-3.5">
-                    <RightIcon className="size-5 shrink-0 text-teal-200" />
-                    <span className="text-sm font-semibold leading-5 text-surface">
-                      {stage.rightLabel}
-                    </span>
-                  </div>
+                  {stage.animationClass === "login-flow-packet--third" ? (
+                    <div className="login-flow2-destination min-h-18 rounded-2xl border border-teal-200/20 bg-teal-900/55 p-3.5">
+                      <div className="login-flow2-destination__inner">
+                        <div className="login-flow2-destination__face login-flow2-destination__face--front">
+                          <Archive className="size-5 shrink-0 text-teal-200" />
+                          <span className="text-sm font-semibold leading-5 text-surface">
+                            POS Parked Transaction
+                          </span>
+                        </div>
+                        <div className="login-flow2-destination__face login-flow2-destination__face--back">
+                          <RightIcon className="size-5 shrink-0 text-teal-200" />
+                          <span className="text-sm font-semibold leading-5 text-surface">
+                            {stage.rightLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex min-h-18 items-center gap-3 rounded-2xl border border-teal-200/20 bg-teal-900/55 p-3.5">
+                      <RightIcon className="size-5 shrink-0 text-teal-200" />
+                      <span className="text-sm font-semibold leading-5 text-surface">
+                        {stage.rightLabel}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </li>
             );

@@ -11,6 +11,7 @@ export type SqBaseLineInput = {
 };
 
 export type BuildArInvoiceInput = {
+  salesPersonCode?: number | null;
   portalCreatedBy?: string;
   buyerCustomerCode: string;
   remarksTag: string;

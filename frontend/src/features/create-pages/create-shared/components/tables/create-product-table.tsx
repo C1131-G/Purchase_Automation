@@ -1,5 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { ProductLotAllocationModal } from "@/features/create-pages/create-shared/components/modals/product-lot-allocation-modal";
 import { CreateProductTableRow } from "@/features/create-pages/create-shared/components/tables/create-product-table-row";
@@ -21,8 +22,11 @@ import type { TaxDocumentSide } from "@/features/create-pages/create-shared/util
 /** Estimated row height (h-9 inputs + py-2 padding). Dynamic measure refines after paint. */
 const PRODUCT_ROW_ESTIMATE_PX = 56;
 const PRODUCT_ROW_OVERSCAN = 4;
-/** Cap visible viewport so many lines don't push the page forever. */
-const PRODUCT_TABLE_MAX_HEIGHT_CLASS = "max-h-[min(60vh,520px)]";
+/** Keep the inline table viewport to ten standard product rows plus its header. */
+const PRODUCT_TABLE_VISIBLE_ROWS = 10;
+const PRODUCT_TABLE_HEADER_ESTIMATE_PX = 40;
+const PRODUCT_TABLE_MAX_HEIGHT_PX =
+  PRODUCT_ROW_ESTIMATE_PX * PRODUCT_TABLE_VISIBLE_ROWS + PRODUCT_TABLE_HEADER_ESTIMATE_PX;
 
 interface CreateProductTableProps {
   productRows: ProductRow[];
@@ -175,6 +179,45 @@ export function CreateProductTable({
     (showTaxCode ? 1 : 0);
 
   const scrollParentRef = useRef<HTMLDivElement>(null);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
+  const fullscreenToggleRef = useRef<HTMLButtonElement>(null);
+  const wasFullscreenRef = useRef(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(async () => {
+    const element = fullscreenRef.current;
+    if (!element || typeof document === "undefined") {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === element) {
+        await document.exitFullscreen();
+      } else {
+        await element.requestFullscreen();
+      }
+    } catch {
+      // Browsers can reject fullscreen requests (for example, when permissions are denied).
+      // Keep the inline table usable and let fullscreenchange remain the source of truth.
+    }
+  }, []);
+
+  useEffect(function syncProductTableFullscreenState() {
+    function handleFullscreenChange() {
+      const active = document.fullscreenElement === fullscreenRef.current;
+      setIsFullscreen(active);
+      if (wasFullscreenRef.current && !active) {
+        fullscreenToggleRef.current?.focus();
+      }
+      wasFullscreenRef.current = active;
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return function removeProductTableFullscreenListener() {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   const rowVirtualizer = useVirtualizer({
     count: productRows.length,
     getScrollElement: () => scrollParentRef.current,
@@ -210,9 +253,41 @@ export function CreateProductTable({
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
 
   return (
-    <>
-      <div className="px-2 py-2">
-        <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
+    <div
+      ref={fullscreenRef}
+      className={isFullscreen ? "flex h-[100dvh] min-h-0 w-full flex-col bg-surface p-3" : ""}
+    >
+      <div className={isFullscreen ? "flex min-h-0 flex-1 flex-col" : "px-2 py-2"}>
+        <div className="mb-1 flex justify-end">
+          <button
+            ref={fullscreenToggleRef}
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Minimize product table" : "Maximize product table"}
+            aria-pressed={isFullscreen}
+            className="inline-flex min-h-7 min-w-7 cursor-pointer items-center justify-center rounded-md border border-linen-200 bg-white px-2 text-ink-700 shadow-sm transition-colors hover:bg-linen-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2"
+          >
+            {isFullscreen ? (
+              <Minimize2 aria-hidden="true" className="size-4" />
+            ) : (
+              <Maximize2 aria-hidden="true" className="size-4" />
+            )}
+            <span className="sr-only">
+              {isFullscreen ? "Minimize product table" : "Maximize product table"}
+            </span>
+          </button>
+        </div>
+        <div
+          ref={scrollParentRef}
+          tabIndex={0}
+          aria-label="Product lines scroll area"
+          className={isFullscreen ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}
+          style={
+            isFullscreen
+              ? undefined
+              : { maxHeight: `min(${PRODUCT_TABLE_MAX_HEIGHT_PX}px, calc(100dvh - 14rem))` }
+          }
+        >
           <table
             className={`w-full table-fixed text-left text-sm text-ink-900 ${
               showPqLineDatesAndQtys ? "min-w-[2100px]" : "min-w-[1720px]"
@@ -356,6 +431,6 @@ export function CreateProductTable({
           }}
         />
       ) : null}
-    </>
+    </div>
   );
 }

@@ -101,7 +101,7 @@ export function usePqProducts({
   stockPreviewProductCode,
   vendorSelected,
   defaultLineRequiredDate = "",
-  defaultLineQuotedDate = "",
+  defaultLineQuotedDate: _defaultLineQuotedDate = "",
 }: usePqProductsProps) {
   const partnerCardCode = vendorCardCode?.trim() || undefined;
   const queryClient = useQueryClient();
@@ -329,8 +329,7 @@ export function usePqProducts({
           productName: product.name,
           // Quoted qty/date stay empty until the vendor fills them.
           quantity: 0,
-          quotedDate:
-            defaultLineQuotedDate || defaultLineRequiredDate || activeRow?.requiredDate || "",
+          quotedDate: activeRow?.quotedDate || "",
           requiredQuantity: 1,
           requiredDate: defaultLineRequiredDate || activeRow?.requiredDate || "",
           stock: resolvedStock,
@@ -368,7 +367,7 @@ export function usePqProducts({
           productName: product.name,
           // Quoted qty/date stay empty until the vendor fills them.
           quantity: 0,
-          quotedDate: defaultLineQuotedDate || defaultLineRequiredDate || "",
+          quotedDate: "",
           requiredQuantity: 1,
           requiredDate: defaultLineRequiredDate || "",
           selected: false,

@@ -240,6 +240,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const hydratedDocNumRef = useRef<string | null>(null);
+  // SalesPersonCode from the loaded document — sales-employee lookups can land after
+  // hydrate, so the Buyer label is re-resolved from this once they do.
+  const hydratedSalesPersonCodeRef = useRef<unknown>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const requiredDateContainerRef = useRef<HTMLDivElement>(null);
 
@@ -390,6 +393,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     if (!isEditMode && !draftDocNum) {
       resetPQCreate();
       hydratedDocNumRef.current = null;
+      hydratedSalesPersonCodeRef.current = null;
       setHydratedDocNum(null);
     }
     return () => {
@@ -596,7 +600,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         lookups.setWarehouseInput(
           formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
         );
-        lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
+        hydratedSalesPersonCodeRef.current = detail.SalesPersonCode ?? null;
+        lookups.hydrateSalesEmployee(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
         lookups.setShipToAddress(shipToAddress);
         productsHook.setProductRows(mappedRows);
@@ -682,6 +687,26 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     productsHook,
     setHeader,
   ]);
+
+  // Sales employees often arrive after the document detail, and hydrate runs once per
+  // doc — resolve the Buyer label from the stored SalesPersonCode when they land.
+  useEffect(() => {
+    const salesPersonCode = hydratedSalesPersonCodeRef.current;
+    if (
+      salesPersonCode === null ||
+      salesPersonCode === undefined ||
+      lookups.salesEmployees.length === 0 ||
+      lookups.salesEmployeeInput.trim()
+    ) {
+      return;
+    }
+    const matched = lookups.salesEmployees.find(
+      (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(salesPersonCode),
+    );
+    if (matched?.name?.trim()) {
+      lookups.hydrateSalesEmployee(matched.name);
+    }
+  }, [lookups]);
 
   const popupResults = useMemo(() => {
     const term = modals.modalSearch.trim().toLowerCase();
@@ -1373,6 +1398,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             docDueDate,
             requiredDate: capIsoDateToMax(headerRequiredDate || docDueDate, docDueDate),
           });
+          hydratedSalesPersonCodeRef.current = updatedDetail.SalesPersonCode ?? null;
+          lookups.hydrateSalesEmployee(associatedSalesEmployeeName);
           setFormSnapshot({
             comments: comments.trim(),
             referenceNo: referenceNo.trim(),

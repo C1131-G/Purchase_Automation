@@ -421,6 +421,15 @@ const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeade
     ]);
 
     if (!company?.sapDbName) {
+      logger.info({
+        trace: "RFQ-BUYER-TRACE",
+        phase: "company_missing",
+        rfqId: header.rfqId,
+        pqDraftDocEntry: header.pqDraftDocEntry,
+        sourceCompanyId: header.sourceCompanyId,
+        buyerCode: header.buyerCode ?? null,
+        buyerName: header.buyerName ?? null,
+      });
       return attachCustomerDisplay(withEnsuredRfqRemarks(header), customerDisplay);
     }
 
@@ -428,11 +437,15 @@ const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeade
     const source = await resolveSourceDoc(dbName, header);
     if (!source) {
       logger.info({
+        trace: "RFQ-BUYER-TRACE",
+        phase: "source_missing",
         msg: "RFQ enrich: no buyer PQ found; returning base RFQ",
         pqDraftDocEntry: header.pqDraftDocEntry,
         rfqId: header.rfqId,
         sourceCompanyId: header.sourceCompanyId,
         status: header.status,
+        buyerCode: header.buyerCode ?? null,
+        buyerName: header.buyerName ?? null,
       });
       return attachCustomerDisplay(withEnsuredRfqRemarks(header), customerDisplay);
     }
@@ -443,12 +456,33 @@ const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeade
     const headerVendorName = toStr(srcHeader.CardName ?? srcHeader.cardName);
     const slpCode = toNum(srcHeader.SlpCode ?? srcHeader.slpCode);
 
+    logger.info({
+      trace: "RFQ-BUYER-TRACE",
+      phase: "source_resolved",
+      rfqId: header.rfqId,
+      pqDraftDocEntry: header.pqDraftDocEntry,
+      sourceDocNum: source.docNum,
+      sourceSlpCode: slpCode,
+      sourceCardCode: cardCode,
+      headerBuyerCode: header.buyerCode ?? null,
+      headerBuyerName: header.buyerName ?? null,
+    });
+
     // Buyer name + optional vendor OCRD fallback in parallel (same tenant DB).
     const [vendorName, buyerName] = await Promise.all([
       headerVendorName ? Promise.resolve(headerVendorName) : loadVendorName(dbName, cardCode ?? ""),
       loadBuyerName(dbName, slpCode),
     ]);
 
+    logger.info({
+      trace: "RFQ-BUYER-TRACE",
+      phase: "buyer_resolved",
+      rfqId: header.rfqId,
+      pqDraftDocEntry: header.pqDraftDocEntry,
+      sourceSlpCode: slpCode,
+      buyerCode: slpCode != null ? String(slpCode) : null,
+      buyerName: buyerName ?? null,
+    });
     const sourceByLineNum = new Map<number, SourceLineRow>();
     for (const row of source.lines) {
       const lineNum = toNum(row.LineNum ?? row.lineNum);
@@ -525,6 +559,8 @@ const enrichRfqFromPqDraftCore = async (header: IcRfqHeader): Promise<IcRfqHeade
     return attachCustomerDisplay(merged, customerDisplay);
   } catch (err: unknown) {
     logger.warn({
+      trace: "RFQ-BUYER-TRACE",
+      phase: "enrich_error",
       err: err instanceof Error ? err : new Error(String(err)),
       msg: "RFQ enrich from buyer PQ failed; returning base RFQ",
       pqDraftDocEntry: header.pqDraftDocEntry,

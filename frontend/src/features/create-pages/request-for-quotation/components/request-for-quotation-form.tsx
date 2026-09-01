@@ -150,12 +150,7 @@ export function RequestForQuotationForm({
             <div className="h-full">
               <LogisticsGrid
                 salesEmployeeLabel="Buyer"
-                salesEmployeeInput={
-                  header.buyerName?.trim() ||
-                  header.createdBy?.trim() ||
-                  header.buyerCode?.trim() ||
-                  ""
-                }
+                salesEmployeeInput={header.buyerName?.trim() || header.buyerCode?.trim() || ""}
                 salesEmployeesLoading={false}
                 error={null}
                 salesEmployeeFocused={false}

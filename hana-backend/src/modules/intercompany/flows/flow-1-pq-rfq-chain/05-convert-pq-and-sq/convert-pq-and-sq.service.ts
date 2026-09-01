@@ -252,6 +252,7 @@ export const createConvertPqAndSqService = (deps?: {
       // re-merged on applyPrices PATCH (the single SAP write path for PQ update).
       let pqComments: string | null = null;
       let pqVendorRef: string | null = null;
+      let pqSalesPersonCode: number | null = null;
       try {
         const pqHeader = await documents.getDraftHeaderFields({
           companyId: header.sourceCompanyId,
@@ -259,9 +260,11 @@ export const createConvertPqAndSqService = (deps?: {
         });
         pqComments = pqHeader.comments;
         pqVendorRef = pqHeader.numAtCard;
+        pqSalesPersonCode = pqHeader.salesPersonCode ?? null;
       } catch {
         pqComments = null;
         pqVendorRef = null;
+        pqSalesPersonCode = null;
       }
       // Enriched RFQ may already expose vendorRefNo when PQ GET is unavailable later.
       const vendorRefNo =
@@ -345,6 +348,7 @@ export const createConvertPqAndSqService = (deps?: {
         draftEntry: pqEntry,
         lines,
         replaceDocumentLines: true,
+        salesPersonCode: pqSalesPersonCode,
       });
 
       const purchaseQuotation = {

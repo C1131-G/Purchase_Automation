@@ -131,9 +131,9 @@ export const mapRfqLinesToEditable = (
 /** Map IC RFQ lines into PQ-style product rows for the shared create table. */
 export const mapRfqLinesToProductRows = (
   lines: IcRfqLine[] | undefined,
-  defaultQuotedDate: string = toISODate(new Date()),
-  quotedDateMin = "",
-  quotedDateMax = "",
+  _defaultQuotedDate: string = toISODate(new Date()),
+  _quotedDateMin = "",
+  _quotedDateMax = "",
 ): ProductRow[] => {
   if (!lines?.length) {
     return [];
@@ -149,7 +149,7 @@ export const mapRfqLinesToProductRows = (
   return [...lines]
     .sort((a, b) => a.lineNum - b.lineNum)
     .map((line) => {
-      // Quoted qty/date stay empty until seller fills them — never copy from required.
+      // Seed an empty quoted date from the buyer's required date for RFQ editing.
       const quantity = qty(line.quantity);
       const requiredQty =
         line.requiredQuantity !== null &&
@@ -163,9 +163,8 @@ export const mapRfqLinesToProductRows = (
       const discountAmount =
         discountPercent > 0 ? Math.round(((gross * discountPercent) / 100) * 100) / 100 : 0;
       const requiredDate = toDateInputValue(line.requiredDate);
-      // Quoted date is seller-editable, but defaults to the buyer's required date when absent.
-      const quotedDate = toDateInputValue(line.deliveryDate);
-      const fallbackQuotedDate = requiredDate || defaultQuotedDate;
+      // Preserve a seller-entered quote; otherwise preselect the buyer required date.
+      const quotedDate = toDateInputValue(line.deliveryDate) || requiredDate;
       const itemCode = String(line.itemCode ?? "").trim();
       const description = String(line.description ?? "").trim();
       const salesUom = String(line.sqUomCode ?? line.uomCode ?? "").trim();
@@ -188,12 +187,7 @@ export const mapRfqLinesToProductRows = (
         requiredDate: requiredDate || undefined,
         // Buyer snapshot — stay locked; do not update when seller revises quoted qty.
         requiredQuantity: requiredQty,
-        quotedDate:
-          quotedDate ||
-          (quotedDateMin
-            ? normalizeRfqQuotedDate(fallbackQuotedDate, quotedDateMin, quotedDateMax)
-            : fallbackQuotedDate) ||
-          undefined,
+        quotedDate: quotedDate || undefined,
         stock: 0,
         taxRate: 0,
         // Seller sales UoM when enrich resolved it; else buyer PQ snapshot.
@@ -210,6 +204,16 @@ export const mapRfqLinesToProductRows = (
         warehouseCode: String(line.warehouse ?? "").trim(),
       } satisfies ProductRow;
     });
+};
+
+/** Return a batch date only when every RFQ line has the same real quoted date. */
+export const getRfqBatchQuotedDate = (rows: ProductRow[]): string => {
+  const quotedDates = rows.map((row) => row.quotedDate?.trim() ?? "");
+  if (quotedDates.length === 0 || quotedDates.some((date) => !date)) {
+    return "";
+  }
+  const firstDate = quotedDates[0] ?? "";
+  return quotedDates.every((date) => date === firstDate) ? firstDate : "";
 };
 
 /**
