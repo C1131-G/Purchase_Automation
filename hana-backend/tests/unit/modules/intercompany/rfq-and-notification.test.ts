@@ -8,7 +8,13 @@ import { createRfqQueries } from "@/modules/intercompany/domain/rfq/rfq.queries"
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createMemoryDb, createMemorySqlClient } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * rfq-and-notification.test.ts: RFQ create + notifications — idempotency, isolation.
+ * Covers: RFQ header/lines, draft idempotency, unread counts, company isolation.
+ */
+// Covers RFQ creation and notification services.
 describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
+  // Verifies RFQ create is idempotent per draft.
   it("T3.6 RFQ create header + lines; idempotent per draft", async () => {
     const db = createMemoryDb();
     db.tables.IC_COMPANY.push(
@@ -69,6 +75,7 @@ describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
     expect(db.tables.IC_RFQ_HEADER).toHaveLength(1);
   });
 
+  // Verifies notification counts and company isolation.
   it("T3.7 / T3.7b notification create, list, unread count, mark read", async () => {
     const db = createMemoryDb();
     const sql = createMemorySqlClient(db);

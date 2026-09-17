@@ -15,7 +15,13 @@ import {
   normalizeIcRemarks,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 
+/**
+ * ic-remarks-chain.test.ts: IC remark chains — Flow 1/2 labels, merge, clamp.
+ * Covers: RFQ/SQ/AR remarks, user-text merge, 254-char clamp, idempotency.
+ */
+// Verifies remark chain building, merging, and clamping.
 describe("ic-remarks-chain", () => {
+  // Verifies RFQ remarks keep user text plus chain.
   it("RFQ remarks retain user text and include the PQ/RFQ chain", () => {
     const merged = buildFlow1RfqRemarks({
       buyerCompanyName: "AJAX Industries",
@@ -38,6 +44,7 @@ describe("ic-remarks-chain", () => {
     expect(merged).not.toContain("V-B");
   });
 
+  // Verifies converted PQ references only its RFQ.
   it("after RFQ submit buyer PQ remarks reference only RFQ", () => {
     const remarks = buildFlow1ConvertRemarks({
       buyerCompanyName: "AJAX Industries",
@@ -56,6 +63,7 @@ describe("ic-remarks-chain", () => {
     expect(remarks).not.toContain("Sales Quotation");
   });
 
+  // Verifies parent text recovered from IC-only RFQ.
   it("mergeUserAndIcRemarks recovers parent typed text when RFQ only has IC lines", () => {
     const merged = mergeUserAndIcRemarks("IC | PQ: PQ No 1\nIC | RFQ: RFQ-1", "Parent typed on PQ");
     expect(merged).toContain("Parent typed on PQ");
@@ -64,6 +72,7 @@ describe("ic-remarks-chain", () => {
     expect(merged.indexOf("Parent typed on PQ")).toBeLessThan(merged.indexOf("PQ No. 1"));
   });
 
+  // Verifies merge unions both sides plus IC keys.
   it("mergeUserAndIcRemarks unions user text from both sides + IC keys", () => {
     const merged = mergeUserAndIcRemarks(
       "Buyer note A\nIC | PQ: PQ No 1",
@@ -78,6 +87,7 @@ describe("ic-remarks-chain", () => {
     expect(merged.indexOf("Buyer note A")).toBeLessThan(merged.indexOf("PQ No. 99"));
   });
 
+  // Verifies legacy Based-on lines normalize to canonical form.
   it("mergeUserAndIcRemarks normalizes legacy Based on lines to Based on TYPE form", () => {
     const chain =
       "Offline Sync\nAuto Generated Based on Purchase Quotation 8000590\nAuto Generated Based on Request For Quotation 8000590";
@@ -85,6 +95,7 @@ describe("ic-remarks-chain", () => {
     expect(merged).toBe("Offline Sync\nPQ No. 8000590\nRFQ No. 8000590");
   });
 
+  // Verifies AR remarks keep PO text plus RFQ/SQ lines.
   it("buildFlow2ArRemarks keeps PO user comments and seller RFQ + SQ lines", () => {
     const comments = buildFlow2ArRemarks({
       buyerCompanyName: "AJAX Industries",
@@ -106,6 +117,7 @@ describe("ic-remarks-chain", () => {
     expect(comments).not.toContain("AR Invoice");
   });
 
+  // Verifies clamped comments keep chain within SAP limit.
   it("clampSapDocumentComments keeps IC chain and fits SAP 254 limit", () => {
     const longUser = `User notes ${"x".repeat(220)}`;
     const full = buildFlow2ArRemarks({
@@ -127,6 +139,7 @@ describe("ic-remarks-chain", () => {
     expect(clamped).toMatch(/PQ No\.|RFQ No\.|SQ No\./);
   });
 
+  // Verifies appending existing keys stays idempotent.
   it("appendIcRemarkLines is idempotent for existing keys", () => {
     const first = appendIcRemarkLines("User text", [{ key: "PO", text: "1" }]);
     const second = appendIcRemarkLines(first, [{ key: "PO", text: "999" }]);
@@ -135,12 +148,14 @@ describe("ic-remarks-chain", () => {
     expect(first).toBe("User text\nPO No. 1");
   });
 
+  // Verifies labels prefer document numbers over entries.
   it("formatIcDocLabel prefers document numbers", () => {
     expect(formatIcDocLabel({ kind: "PO", docNum: 188, docEntry: 88 })).toBe("PO No 188");
     expect(formatIcDocLabel({ kind: "RFQ", rfqNumber: "9001" })).toBe("RFQ 9001");
     expect(formatIcDocLabel({ kind: "AR", docEntry: 9001 })).toBe("AR Invoice Draft Entry 9001");
   });
 
+  // Verifies vendor ref added once, preserving text.
   it("ensureVendorRefInRemarks adds vendor ref once without dropping parent text", () => {
     const first = ensureVendorRefInRemarks("Parent typed notes", "VR-7788");
     expect(first).toContain("Parent typed notes");
@@ -149,6 +164,7 @@ describe("ic-remarks-chain", () => {
     expect(second).toBe(first);
   });
 
+  // Verifies SQ remarks include full PQ/RFQ/SQ chain.
   it("buildFlow1SqRemarks includes the known PQ/RFQ/SQ chain", () => {
     const remarks = buildFlow1SqRemarks({
       buyerCompanyName: "AJAX Industries",
@@ -174,6 +190,7 @@ describe("ic-remarks-chain", () => {
     expect(remarks.indexOf("Vendor Ref No")).toBeLessThan(remarks.indexOf("RFQ No. 9001"));
   });
 
+  // Verifies buyer chains order PQ, RFQ, then PO.
   it("normalizes buyer chains to PQ, RFQ, then PO", () => {
     const remarks = normalizeIcRemarks(
       "User note\nBased on PO 300\nBased on PQ 100\nBased on RFQ 200\nBased on PQ 999",
@@ -183,6 +200,7 @@ describe("ic-remarks-chain", () => {
     expect(remarks).toBe("User note\nPQ No. 999\nRFQ No. 200\nPO No. 300");
   });
 
+  // Verifies seller chains order PQ, RFQ, PO, SQ.
   it("normalizes seller chains to PQ, RFQ, PO, then SQ", () => {
     const remarks = normalizeIcRemarks(
       "Seller note\nBased on PQ 100\nBased on SQ 300\nBased on PO 200\nBased on RFQ 250",
@@ -192,6 +210,7 @@ describe("ic-remarks-chain", () => {
     expect(remarks).toBe("Seller note\nPQ No. 100\nRFQ No. 250\nPO No. 200\nSQ No. 300");
   });
 
+  // Verifies multi-word company lines parse for idempotency.
   it("parses multi-word company name legacy Based on lines for merge/idempotency", () => {
     const first = appendIcRemarkLines("Note", [
       { cardName: "AJAX Industries", key: "PQ", text: "132424" },
@@ -203,6 +222,7 @@ describe("ic-remarks-chain", () => {
     expect(second).toBe(first);
   });
 
+  // Verifies legacy long line blocks duplicate short key.
   it("does not re-append short key when legacy long line already has that key", () => {
     const existing = "User\nAuto Generated Based on AJAX Industries Purchase Quotation 8000603";
     const next = appendIcRemarkLines(existing, [
@@ -211,6 +231,7 @@ describe("ic-remarks-chain", () => {
     expect(next).toBe(existing);
   });
 
+  // Verifies duplicate PQ lines collapse to one.
   it("drops a second Based on PQ (short + SAP long) in existing remarks", () => {
     const existing =
       "Created from portal\rBased on PQ 8000586\rBased On Purchase Quotations 8000586";
@@ -219,6 +240,7 @@ describe("ic-remarks-chain", () => {
     expect(next.match(/PQ|Purchase Quotation/gi)?.length).toBe(1);
   });
 
+  // Verifies SAP-based PQ lines strip from user comments.
   it("strips Based on PQ when lines are SAP-based on a purchase quotation", () => {
     const comments = "User note\nBased on PQ 8000586\nBased on RFQ 8000586";
     const stripped = commentsWithoutSapBaseAutoLines(comments, [{ BaseType: 540000006 }]);

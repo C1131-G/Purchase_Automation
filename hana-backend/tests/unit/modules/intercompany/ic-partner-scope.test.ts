@@ -15,11 +15,17 @@ import {
   getIcPartnerScope,
 } from "@/modules/intercompany/api/ic-partner-scope";
 
+/**
+ * ic-partner-scope.test.ts: IC partner scope — directional codes and predicates.
+ * Covers: vendor/customer resolution, dedupe, fail-closed, SQL predicates.
+ */
+// Verifies directional partner scope resolution and predicates.
 describe("IC partner scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  // Verifies directional codes resolve with mapping dedupe.
   it("resolves directional purchase and sales codes and deduplicates mappings", async () => {
     getBySapDbName.mockResolvedValue({ companyId: 1, isActive: true });
     listActiveForCompany.mockResolvedValue([
@@ -60,6 +66,7 @@ describe("IC partner scope", () => {
     });
   });
 
+  // Verifies missing companies and errors fail closed.
   it("fails closed for missing companies and lookup errors", async () => {
     getBySapDbName.mockResolvedValueOnce(null);
     await expect(getIcPartnerScope("DB_MISSING")).resolves.toEqual({
@@ -75,6 +82,7 @@ describe("IC partner scope", () => {
     });
   });
 
+  // Verifies parameterized and empty CardCode predicates.
   it("builds parameterized predicates and an empty predicate", () => {
     expect(buildIcCardCodePredicate('p."CardCode"', ["V-A", "V-B"])).toEqual({
       sql: 'p."CardCode" IN (?, ?)',

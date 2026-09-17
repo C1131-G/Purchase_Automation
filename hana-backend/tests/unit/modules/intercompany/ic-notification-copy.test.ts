@@ -14,7 +14,13 @@ import {
   formatIcVendorParty,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
 
+/**
+ * ic-notification-copy.test.ts: IC notification copy — party and message formats.
+ * Covers: party names, RFQ/SQ/AR messages, legacy helpers.
+ */
+// Verifies notification message and party formatting.
 describe("ic-notification-copy", () => {
+  // Verifies party names render without role labels.
   it("formats party as display name only — no Vendor/Customer labels", () => {
     expect(formatIcPartyName("AJAX Industries")).toBe("AJAX Industries");
     expect(formatIcVendorParty("AJAX Industries")).toBe("AJAX Industries");
@@ -25,6 +31,7 @@ describe("ic-notification-copy", () => {
     expect(formatIcCustomerParty(undefined)).toBe("");
   });
 
+  // Verifies ownership-aware messages use full company names.
   it("builds ownership-aware create/submit messages with full company names", () => {
     expect(
       formatIcRfqCreatedMessage({
@@ -69,6 +76,7 @@ describe("ic-notification-copy", () => {
     );
   });
 
+  // Verifies legacy short helpers omit role labels.
   it("keeps legacy short helpers without Vendor/Customer", () => {
     expect(formatIcCreatedMessage("AJAX Industries", "RFQ 9001")).toBe(
       "AJAX Industries created RFQ 9001",

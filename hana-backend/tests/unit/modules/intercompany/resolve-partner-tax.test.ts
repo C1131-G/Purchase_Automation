@@ -14,6 +14,11 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * resolve-partner-tax.test.ts: Partner tax resolve — OVTG rate + fallbacks.
+ * Covers: OVTG match, OUT preference, item/BP fallback, omit, cache.
+ */
+// Covers cross-company tax code resolution.
 describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
   const emptyOvtg = {
     getOvtgTax: async () => null,
@@ -40,6 +45,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     return { resolver };
   };
 
+  // Verifies purchase rate maps to sales code.
   it("maps buyer purchase OVTG rate to seller sales OVTG (PQ→SQ)", async () => {
     const { resolver } = setup({
       getBpTax: async () => null,
@@ -64,6 +70,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(result).toEqual({ docSide: "sales", source: "ovtg_rate", taxCode: "OUT-12.5" });
   });
 
+  // Verifies OUT-12.5 preferred over GSTO tie.
   it("prefers OUT-12.5 over GSTO on seller when both share rate (AJAX)", async () => {
     const { resolver } = setup({
       getBpTax: async () => null,
@@ -93,6 +100,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(result).toEqual({ docSide: "sales", source: "ovtg_rate", taxCode: "OUT-12.5" });
   });
 
+  // Verifies item sales tax fallback used.
   it("uses seller item sales tax when OVTG rate match misses", async () => {
     const { resolver } = setup({
       getBpTax: async () => "BP-TAX",
@@ -109,6 +117,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(result).toEqual({ docSide: "sales", source: "item", taxCode: "SA-18" });
   });
 
+  // Verifies BP tax fallback when item missing.
   it("falls back to BP tax when item has no sales tax", async () => {
     const { resolver } = setup({
       getBpTax: async (_db, card, side) =>
@@ -126,6 +135,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(result).toEqual({ docSide: "sales", source: "bp", taxCode: "CUST-TAX" });
   });
 
+  // Verifies total miss omits, never copies buyer.
   it("omits when OVTG/item/BP miss — never copies buyer tax code verbatim", async () => {
     const { resolver } = setup({
       getBpTax: async () => null,
@@ -145,6 +155,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(result.taxCode).not.toBe("BUYER-ONLY");
   });
 
+  // Verifies purchase side uses purchase column.
   it("uses purchase item column when docSide is purchase", async () => {
     const { resolver } = setup({
       getBpTax: async () => null,
@@ -174,6 +185,7 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(sales.taxCode).toBe("SA-18");
   });
 
+  // Verifies item lookups cached per instance.
   it("caches item master lookups within resolver instance", async () => {
     let itemCalls = 0;
     const { resolver } = setup({

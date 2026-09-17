@@ -7,7 +7,13 @@ import {
   OVTG_CATEGORY_SALES,
 } from "@/modules/intercompany/config/tax-mapping/map-ovtg-partner-tax";
 
+/**
+ * map-ovtg-partner-tax.test.ts: OVTG rate tax mapping — purchase/sales mirrors.
+ * Covers: PQ→SQ direction, reverse mapping, OUT mirror preference, fallbacks.
+ */
+// Verifies OVTG rate mapping across purchase/sales sides.
 describe("mapTaxCodeByOvtgRate", () => {
+  // Verifies buyer purchase rate maps to seller sales.
   it("maps buyer purchase tax rate to seller sales tax (PQ→SQ)", () => {
     const mapped = mapTaxCodeByOvtgRate({
       sourceTax: { category: OVTG_CATEGORY_PURCHASE, code: "IN-12.5", rate: 12.5 },
@@ -21,6 +27,7 @@ describe("mapTaxCodeByOvtgRate", () => {
     expect(mapped).toBe("OUT-12.5");
   });
 
+  // Verifies seller sales rate maps back to purchase.
   it("maps seller sales tax rate to buyer purchase tax (reverse)", () => {
     const mapped = mapTaxCodeByOvtgRate({
       sourceTax: { category: OVTG_CATEGORY_SALES, code: "OUT-18", rate: 18 },
@@ -34,6 +41,7 @@ describe("mapTaxCodeByOvtgRate", () => {
     expect(mapped).toBe("IN-18");
   });
 
+  // Verifies OUT mirror wins over GSTO/RCM ties.
   it("prefers OUT-12.5 mirror over GSTO/RCM at same rate (AJAX PO→AR)", () => {
     const mapped = mapTaxCodeByOvtgRate({
       sourceTax: { category: OVTG_CATEGORY_PURCHASE, code: "IN-12.5", rate: 12.5 },
@@ -50,6 +58,7 @@ describe("mapTaxCodeByOvtgRate", () => {
     expect(mapped).toBe("OUT-12.5");
   });
 
+  // Verifies RCM purchase source still prefers OUT mirror.
   it("prefers OUT-12.5 when source is RCM purchase code at 12.5", () => {
     const mapped = mapTaxCodeByOvtgRate({
       sourceTax: { category: OVTG_CATEGORY_PURCHASE, code: "RCM-IN-12.5", rate: 12.5 },
@@ -63,6 +72,7 @@ describe("mapTaxCodeByOvtgRate", () => {
     expect(mapped).toBe("OUT-12.5");
   });
 
+  // Verifies lone rate match is used without pair.
   it("falls back to only sales rate match when no OUT/IN pair exists", () => {
     const mapped = mapTaxCodeByOvtgRate({
       sourceTax: { category: OVTG_CATEGORY_PURCHASE, code: "IN-12.5", rate: 12.5 },
@@ -73,6 +83,7 @@ describe("mapTaxCodeByOvtgRate", () => {
     expect(mapped).toBe("GSTO");
   });
 
+  // Verifies null when no target rate matches.
   it("returns null when no matching target rate", () => {
     const mapped = mapTaxCodeByOvtgRate({
       sourceTax: { category: OVTG_CATEGORY_PURCHASE, code: "IN-12.5", rate: 12.5 },
@@ -84,7 +95,9 @@ describe("mapTaxCodeByOvtgRate", () => {
   });
 });
 
+// Verifies mirror candidate lists for IN/OUT codes.
 describe("buildMirrorTaxCodeCandidates", () => {
+  // Verifies OUT variants built from IN code.
   it("builds OUT variants from IN-12.5 for sales docs", () => {
     const mirrors = buildMirrorTaxCodeCandidates("IN-12.5", "sales");
     expect(mirrors.map((c) => c.toUpperCase())).toEqual(
@@ -92,6 +105,7 @@ describe("buildMirrorTaxCodeCandidates", () => {
     );
   });
 
+  // Verifies IN variants built from OUT code.
   it("builds IN variants from OUT-18 for purchase docs", () => {
     const mirrors = buildMirrorTaxCodeCandidates("OUT-18", "purchase");
     expect(mirrors.map((c) => c.toUpperCase())).toEqual(

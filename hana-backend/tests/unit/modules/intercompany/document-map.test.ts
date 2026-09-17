@@ -7,7 +7,13 @@ import { IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constan
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import { createMemoryDb, createMemorySqlClient } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * document-map.test.ts: IC document map service — dedupe, lookup, repair.
+ * Covers: double-create idempotency, findByTarget/Source, ERROR repair.
+ */
+// Verifies document map dedupe, lookup, and repair.
 describe("document-map (T3.5)", () => {
+  // Verifies double SUCCESS create keeps single path.
   it("T3.5 double create does not duplicate SUCCESS path", async () => {
     const db = createMemoryDb();
     const sql = createMemorySqlClient(db);
@@ -41,6 +47,7 @@ describe("document-map (T3.5)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
   });
 
+  // Verifies seller SQ resolves back to IC RFQ.
   it("findByTarget resolves seller SQ back to IC RFQ", async () => {
     const db = createMemoryDb();
     const sql = createMemorySqlClient(db);
@@ -72,6 +79,7 @@ describe("document-map (T3.5)", () => {
     expect(map?.sourceDocNum).toBe("9001");
   });
 
+  // Verifies SUCCESS row wins over earlier ERROR row.
   it("findBySource prefers SUCCESS with target over earlier ERROR empty row", async () => {
     const db = createMemoryDb();
     const sql = createMemorySqlClient(db);
@@ -109,6 +117,7 @@ describe("document-map (T3.5)", () => {
     expect(map?.targetDocEntry).toBe("910");
   });
 
+  // Verifies SUCCESS repairs ERROR row without duplication.
   it("create SUCCESS repairs existing ERROR row instead of inserting a second map", async () => {
     const db = createMemoryDb();
     const sql = createMemorySqlClient(db);

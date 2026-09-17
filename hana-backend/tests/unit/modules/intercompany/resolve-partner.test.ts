@@ -11,6 +11,11 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * resolve-partner.test.ts: Vendor→partner resolve — company + BP mapping.
+ * Covers: known vendor resolve, unknown null, outcome reason naming.
+ */
+// Covers vendor-to-IC-partner resolution.
 describe("resolve-partner (T3.1 / T3.2)", () => {
   const build = () => {
     const db = createMemoryDb();
@@ -21,6 +26,7 @@ describe("resolve-partner (T3.1 / T3.2)", () => {
     return createResolvePartnerService({ bpMapping, company });
   };
 
+  // Verifies known vendor resolves partner company.
   it("T3.1 known vendor → partner company + buyer customer", async () => {
     const service = build();
     const result = await service.resolve({ cardCode: "V-B", dbName: "DB_A" });
@@ -36,12 +42,14 @@ describe("resolve-partner (T3.1 / T3.2)", () => {
     }
   });
 
+  // Verifies unknown vendor fails partner resolve.
   it("T3.2 unknown vendor → null, no throw", async () => {
     const service = build();
     await expect(service.resolve({ cardCode: "UNKNOWN", dbName: "DB_A" })).resolves.toBeNull();
     await expect(service.resolve({ cardCode: "V-B", dbName: "NOPE" })).resolves.toBeNull();
   });
 
+  // Verifies outcome names mapping vs company miss.
   it("resolveOutcome names bp_mapping miss vs buyer company miss", async () => {
     const service = build();
 

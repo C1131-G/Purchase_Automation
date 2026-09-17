@@ -35,7 +35,13 @@ const header = (lines: IcRfqLine[]): IcRfqHeader => ({
   lines,
 });
 
+/**
+ * attach-rfq-sales-tax.test.ts: RFQ seller sales tax attach — buyer preserved.
+ * Covers: sales tax resolve, buyer/purchase snapshot, skip-if-set.
+ */
+// Covers seller sales tax resolution onto RFQ lines.
 describe("attachRfqSellerSalesTax", () => {
+  // Verifies seller tax attached, buyer tax kept.
   it("resolves seller sales tax and keeps buyer purchase tax on taxCode", async () => {
     const resolve = vi.fn(async () => "OUT-18");
     const result = await attachRfqSellerSalesTax(header([line()]), resolve);
@@ -52,6 +58,7 @@ describe("attachRfqSellerSalesTax", () => {
     expect(result.lines?.[0]?.sqTaxCode).toBe("OUT-18");
   });
 
+  // Verifies preset sqTaxCode skips re-resolve.
   it("does not re-resolve when sqTaxCode is already set", async () => {
     const resolve = vi.fn(async () => "SHOULD-NOT-USE");
     const result = await attachRfqSellerSalesTax(header([line({ sqTaxCode: "OUT-5" })]), resolve);

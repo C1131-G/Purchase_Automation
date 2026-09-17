@@ -17,6 +17,10 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * pq-edit-sync.test.ts: PQ update sync to DRAFT RFQ — tax/quantity sync.
+ * Covers: edit-scope logs, tax sync, no-RFQ skip, submitted skip, hook.
+ */
 const createStack = (flow1Enabled = true) => {
   const db = createMemoryDb();
   seedMemoryCompanyGraph(db);
@@ -61,7 +65,9 @@ const addDraftRfq = (db: ReturnType<typeof createMemoryDb>, pqDocEntry = 2137): 
   });
 };
 
+// Covers PQ update sync into DRAFT RFQ.
 describe("IC edit sync (PQ update)", () => {
+  // Verifies edit sync uses edit-scope logs only.
   it("does not use Flow 1 create logs", async () => {
     const spy = vi.spyOn(icLog, "info");
     const { db, sync } = createStack();
@@ -95,6 +101,7 @@ describe("IC edit sync (PQ update)", () => {
     spy.mockRestore();
   });
 
+  // Verifies tax syncs without duplicating RFQ.
   it("syncs tax onto an existing DRAFT RFQ without creating another RFQ", async () => {
     const { db, sync } = createStack();
     addDraftRfq(db);
@@ -123,6 +130,7 @@ describe("IC edit sync (PQ update)", () => {
     });
   });
 
+  // Verifies missing RFQ skips sync cleanly.
   it("skips when no RFQ exists instead of running Flow 1 create", async () => {
     const { db, sync } = createStack();
 
@@ -132,6 +140,7 @@ describe("IC edit sync (PQ update)", () => {
     expect(db.tables.IC_RFQ_HEADER).toHaveLength(0);
   });
 
+  // Verifies SUBMITTED RFQ is not edited.
   it("skips SUBMITTED RFQs", async () => {
     const { db, sync } = createStack();
     addDraftRfq(db);
@@ -142,6 +151,7 @@ describe("IC edit sync (PQ update)", () => {
     ).resolves.toMatchObject({ reason: "rfq_not_editable", status: "skipped" });
   });
 
+  // Verifies hook accepts with edit flow.
   it("afterPqUpdated accepts immediately with flow=edit", async () => {
     const hook = createAfterPqUpdated(createStack().sync);
     await expect(hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 2137 })).resolves.toMatchObject({

@@ -9,7 +9,13 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * tax-and-flags.test.ts: configuration flow flags — defaults off, enabled toggle.
+ * Covers: Flow1/Flow2 defaults, flag keys, config value toggle.
+ */
+// Covers Flow1/Flow2 enablement flag defaults.
 describe("configuration flags (T3.4)", () => {
+  // Verifies flow flags default off without config.
   it("T3.4 flow flags default off when config rows missing", async () => {
     const db = createMemoryDb();
     seedMemoryCompanyGraph(db);
@@ -21,6 +27,7 @@ describe("configuration flags (T3.4)", () => {
     await expect(config.getFlag(IC_CONFIG_KEY.ENABLE_FLOW1_RFQ_CHAIN)).resolves.toBe(false);
   });
 
+  // Verifies flag flips true when config set.
   it("T3.4 flags true when config set", async () => {
     const db = createMemoryDb();
     seedMemoryCompanyGraph(db);

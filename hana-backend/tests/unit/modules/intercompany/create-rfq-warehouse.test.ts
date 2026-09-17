@@ -26,7 +26,13 @@ const partner: ResolvePartnerResult = {
   vendorCode: "V-RCM",
 };
 
+/**
+ * create-rfq-warehouse.test.ts: RFQ warehouse from OSCN — seller hint wins.
+ * Covers: OSCN warehouse store, buyer warehouse ignored, empty-hint null.
+ */
+// Covers OSCN hint warehouse selection over PQ warehouse.
 describe("create RFQ warehouse from OSCN", () => {
+  // Verifies seller OSCN warehouse overrides buyer warehouse.
   it("stores seller OSCN warehouse, not buyer PQ warehouse", async () => {
     const createFromDraft = vi.fn(async (input: CreateRfqFromDraftInput) => ({
       createdBy: null,
@@ -101,6 +107,7 @@ describe("create RFQ warehouse from OSCN", () => {
     expect(stored?.lines[0]?.warehouse).not.toBe("PQ-WH");
   });
 
+  // Verifies empty OSCN hint stores null warehouse.
   it("does not copy PQ warehouse when OSCN warehouse is empty", async () => {
     const createFromDraft = vi.fn(async (input: CreateRfqFromDraftInput) => ({
       createdBy: null,

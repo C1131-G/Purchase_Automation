@@ -1,3 +1,7 @@
+/**
+ * ic-edit-flow.test.ts: IC edit locks + PO→AR propagation + invoice promotion.
+ * Covers: PQ/PO/SQ/RFQ locks, PQ→PO map, AR patch rules, promote checks.
+ */
 import { describe, expect, it, vi } from "vitest";
 
 import AppError from "@/core/errors/app-error";
@@ -109,13 +113,16 @@ const captureInput = {
   lines: [{ ItemCode: "BUYER-ITEM", LineNum: 0, Quantity: 2, UnitPrice: 10 }],
 };
 
+// Covers: PQ/PO/SQ/RFQ edit gates + capture/update paths.
 describe("IC edit lifecycle", () => {
+  // Verifies unmapped PQ stays editable.
   it("allows a PQ with no RFQ or PO mapping", async () => {
     const stack = createStack();
 
     await expect(stack.lifecycle.assertPqEditable("DB_A", 55)).resolves.toBeUndefined();
   });
 
+  // Verifies PQ stays editable while RFQ is DRAFT.
   it("allows a PQ while its RFQ is DRAFT", async () => {
     const stack = createStack();
     addRfq(stack.db, "DRAFT");
@@ -123,6 +130,7 @@ describe("IC edit lifecycle", () => {
     await expect(stack.lifecycle.assertPqEditable("DB_A", 55)).resolves.toBeUndefined();
   });
 
+  // Verifies submitted/completed RFQ locks its PQ.
   it.each(["SUBMITTED", "COMPLETED"] as const)("locks a PQ while its RFQ is %s", async (status) => {
     const stack = createStack();
     addRfq(stack.db, status);
@@ -133,6 +141,7 @@ describe("IC edit lifecycle", () => {
     } satisfies Partial<AppError>);
   });
 
+  // Verifies PQ→PO success map locks PQ.
   it("locks a PQ after successful PQ to PO mapping", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.PO);
@@ -143,6 +152,7 @@ describe("IC edit lifecycle", () => {
     } satisfies Partial<AppError>);
   });
 
+  // Verifies PO stays editable before invoice promotion.
   it.each([
     [undefined, undefined],
     [IC_OBJECT.AR_DRAFT, IC_DOC_MAP_STATUS.SUCCESS],
@@ -155,6 +165,7 @@ describe("IC edit lifecycle", () => {
     await expect(stack.lifecycle.assertPoEditable("DB_A", 55)).resolves.toBeUndefined();
   });
 
+  // Verifies posted-invoice map locks its PO.
   it("locks a PO after A/R Invoice promotion", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_INVOICE);
@@ -165,6 +176,7 @@ describe("IC edit lifecycle", () => {
     } satisfies Partial<AppError>);
   });
 
+  // Verifies IC-created SQ rejects portal edits.
   it("rejects portal edits for an IC-created SQ", async () => {
     const stack = createStack();
     await stack.documentMap.create({
@@ -184,6 +196,7 @@ describe("IC edit lifecycle", () => {
     await expect(stack.lifecycle.assertSqEditable("DB_B", 89)).resolves.toBeUndefined();
   });
 
+  // Verifies COMPLETED RFQ editable until PQ→PO copy.
   it("allows COMPLETED RFQ edit until PQ copies to PO", async () => {
     const stack = createStack();
     addRfq(stack.db, "COMPLETED");
@@ -205,6 +218,7 @@ describe("IC edit lifecycle", () => {
     expect(flaggedAfterPo.pqCopiedToPo).toBe(true);
   });
 
+  // Verifies SUBMITTED RFQ locks during convert flight.
   it("locks SUBMITTED RFQ lines while convert is in flight", async () => {
     const stack = createStack();
     addRfq(stack.db, "SUBMITTED");
@@ -217,6 +231,7 @@ describe("IC edit lifecycle", () => {
     });
   });
 
+  // Verifies DRAFT RFQ capture routes to update.
   it("captures a DRAFT RFQ as an update", async () => {
     const stack = createStack();
     addRfq(stack.db, "DRAFT");
@@ -227,6 +242,7 @@ describe("IC edit lifecycle", () => {
     });
   });
 
+  // Verifies locked RFQ capture skips as not editable.
   it.each(["SUBMITTED", "COMPLETED"] as const)(
     "captures a %s RFQ as not editable",
     async (status) => {
@@ -240,6 +256,7 @@ describe("IC edit lifecycle", () => {
     },
   );
 
+  // Verifies converted PQ capture skips as already converted.
   it("captures a converted PQ as already converted", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.PO);
@@ -250,6 +267,7 @@ describe("IC edit lifecycle", () => {
     });
   });
 
+  // Verifies PQ update keeps seller item identity.
   it("updates DRAFT RFQ commercial fields without changing seller identity", async () => {
     const stack = createStack();
     addRfq(stack.db, "DRAFT");
@@ -295,6 +313,7 @@ describe("IC edit lifecycle", () => {
     });
   });
 
+  // Verifies missing VatGroup preserves existing TAX_CODE.
   it("keeps RFQ TAX_CODE when PQ update omits VatGroup", async () => {
     const stack = createStack();
     addRfq(stack.db, "DRAFT");
@@ -319,6 +338,7 @@ describe("IC edit lifecycle", () => {
     expect(stack.db.tables.IC_RFQ_LINE[0]?.TAX_CODE).toBe("IN-12.5");
   });
 
+  // Verifies zero buyer qty never wipes quoted qty.
   it("does not wipe RFQ quoted qty when buyer PQ quoted qty is 0", async () => {
     const stack = createStack();
     addRfq(stack.db, "DRAFT");
@@ -343,7 +363,9 @@ describe("IC edit lifecycle", () => {
   });
 });
 
+// Covers: single-PQ base-entry resolution + idempotent PQ→PO link.
 describe("PQ to PO source resolution", () => {
+  // Verifies uniform single-PQ lines resolve to one entry.
   it("accepts only lines copied from one Purchase Quotation", () => {
     expect(
       resolveSinglePqBaseEntry([
@@ -353,6 +375,7 @@ describe("PQ to PO source resolution", () => {
     ).toBe(55);
   });
 
+  // Verifies mixed/multiple/non-PQ sources resolve to undefined.
   it.each([
     [{ BaseEntry: 55, BaseType: 540000006 }, {}],
     [
@@ -364,6 +387,7 @@ describe("PQ to PO source resolution", () => {
     expect(resolveSinglePqBaseEntry(lines)).toBeUndefined();
   });
 
+  // Verifies PQ→PO link records idempotently once.
   it("records an idempotent PQ to PO map for an IC PQ", async () => {
     const stack = createStack();
     await stack.documentMap.create({
@@ -403,7 +427,9 @@ describe("PQ to PO source resolution", () => {
   });
 });
 
+// Covers: PO→AR draft patch, tax/UoM/WH rules, failure safety.
 describe("PO to A/R Draft propagation", () => {
+  // Verifies merged draft patch keeps seller identity + SQ links.
   it("patches a fully merged draft while preserving seller identity and SQ base links", async () => {
     const log = vi.spyOn(icLog, "info").mockImplementation(() => undefined);
     const stack = createStack();
@@ -469,6 +495,7 @@ describe("PO to A/R Draft propagation", () => {
     log.mockRestore();
   });
 
+  // Verifies buyer tax maps to sales tax; never copies WH/UoM.
   it("maps buyer purchase tax to seller sales tax and never copies IN-* / WH / UoM", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -548,6 +575,7 @@ describe("PO to A/R Draft propagation", () => {
     expect(patchedLines[0]?.WarehouseCode).not.toBe("BY-WH");
   });
 
+  // Verifies unmappable buyer tax keeps seller VatGroup.
   it("keeps seller VatGroup when buyer tax cannot be mapped", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -589,6 +617,7 @@ describe("PO to A/R Draft propagation", () => {
     );
   });
 
+  // Verifies garbled tax codes are dropped before SAP PATCH.
   it("drops garbled GET tax codes so SAP is not PATCHed with invalid VatGroup", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -627,6 +656,7 @@ describe("PO to A/R Draft propagation", () => {
     expect(patched).not.toHaveProperty("TaxCode");
   });
 
+  // Verifies tax sanitizer accepts printable, rejects BOM/mojibake.
   it("accepts printable SAP tax codes and rejects BOM / mojibake", () => {
     expect(sapTaxCodeOrEmpty("OUT-18")).toBe("OUT-18");
     expect(sapTaxCodeOrEmpty("IN-12.5")).toBe("IN-12.5");
@@ -635,6 +665,7 @@ describe("PO to A/R Draft propagation", () => {
     expect(sapTaxCodeOrEmpty("TOO-LONG-TAX")).toBe("");
   });
 
+  // Verifies unusable AR map skips without SAP GET.
   it("skips maps without a usable A/R Draft target", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT, IC_DOC_MAP_STATUS.ERROR, 2, null);
@@ -651,6 +682,7 @@ describe("PO to A/R Draft propagation", () => {
     expect(getArInvoiceDraft).not.toHaveBeenCalled();
   });
 
+  // Verifies PENDING/ERROR maps still patch usable drafts.
   it.each([IC_DOC_MAP_STATUS.PENDING, IC_DOC_MAP_STATUS.ERROR])(
     "patches a usable %s A/R Draft mapping",
     async (status) => {
@@ -673,6 +705,7 @@ describe("PO to A/R Draft propagation", () => {
     },
   );
 
+  // Verifies promoted invoice stops draft propagation.
   it("skips propagation after invoice promotion", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -690,6 +723,7 @@ describe("PO to A/R Draft propagation", () => {
     expect(getArInvoiceDraft).not.toHaveBeenCalled();
   });
 
+  // Verifies failed PATCH leaves mapping untouched.
   it("does not mutate the mapping when target PATCH fails", async () => {
     const stack = createStack();
     const mapping = await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -720,7 +754,9 @@ describe("PO to A/R Draft propagation", () => {
   });
 });
 
+// Covers: seller-ownership, posted-invoice verify, idempotent promote.
 describe("A/R Invoice confirmation", () => {
+  // Verifies promote without PO map returns 404.
   it("returns not found when the seller has no PO mapping", async () => {
     const stack = createStack();
     const service = createPromoteArDraftService({
@@ -733,6 +769,7 @@ describe("A/R Invoice confirmation", () => {
     ).rejects.toMatchObject({ errorCode: "IC_AR_MAPPING_NOT_FOUND", statusCode: 404 });
   });
 
+  // Verifies wrong seller company cannot promote draft.
   it("enforces seller ownership", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -746,6 +783,7 @@ describe("A/R Invoice confirmation", () => {
     ).rejects.toMatchObject({ errorCode: "IC_AR_MAPPING_NOT_FOUND", statusCode: 404 });
   });
 
+  // Verifies posted invoice promotes idempotently once.
   it("verifies and promotes a posted seller invoice idempotently", async () => {
     const stack = createStack();
     await addMap(stack, IC_OBJECT.AR_DRAFT);
@@ -771,6 +809,7 @@ describe("A/R Invoice confirmation", () => {
     expect(getPostedArInvoice).toHaveBeenCalledOnce();
   });
 
+  // Verifies failed SAP verify never promotes map.
   it("does not promote when posted-invoice verification fails", async () => {
     const stack = createStack();
     const mapping = await addMap(stack, IC_OBJECT.AR_DRAFT);

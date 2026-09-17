@@ -35,7 +35,13 @@ const header = (lines: IcRfqLine[]): IcRfqHeader => ({
   lines,
 });
 
+/**
+ * attach-rfq-sales-uom.test.ts: RFQ seller sales UoM attach — buyer preserved.
+ * Covers: sales resolve, OUOM-name match, skip-if-set, empty-resolve keep.
+ */
+// Covers seller sales UoM resolution onto RFQ lines.
 describe("attachRfqSellerSalesUom", () => {
+  // Verifies seller UoM attached, buyer UoM kept.
   it("resolves seller sales UoM and keeps buyer purchase UoM on uomCode", async () => {
     const resolve = vi.fn(async () => ({ uomCode: "PCS", uomEntry: 7 }));
     const result = await attachRfqSellerSalesUom(header([line()]), resolve);
@@ -50,6 +56,7 @@ describe("attachRfqSellerSalesUom", () => {
     expect(result.lines?.[0]?.sqUomEntry).toBe(7);
   });
 
+  // Verifies OUOM-name match resolves sales UoM.
   it("matches seller sales UoM when item master stores the OUOM name", async () => {
     const resolve = vi.fn(async () => ({ uomCode: "PCS", uomEntry: 1 }));
     const result = await attachRfqSellerSalesUom(header([line({ uomCode: "Pieces" })]), resolve);
@@ -63,6 +70,7 @@ describe("attachRfqSellerSalesUom", () => {
     expect(result.lines?.[0]?.uomCode).toBe("Pieces");
   });
 
+  // Verifies preset sqUomCode skips re-resolve.
   it("does not re-resolve when sqUomCode is already set", async () => {
     const resolve = vi.fn(async () => ({ uomCode: "SHOULD-NOT-USE", uomEntry: 99 }));
     const result = await attachRfqSellerSalesUom(
@@ -75,6 +83,7 @@ describe("attachRfqSellerSalesUom", () => {
     expect(result.lines?.[0]?.sqUomEntry).toBe(3);
   });
 
+  // Verifies empty resolve keeps buyer UoM.
   it("leaves buyer UoM when sales resolve is empty", async () => {
     const resolve = vi.fn(async () => null);
     const result = await attachRfqSellerSalesUom(header([line()]), resolve);

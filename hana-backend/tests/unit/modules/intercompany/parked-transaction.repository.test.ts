@@ -11,7 +11,13 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * parked-transaction.repository.test.ts: Flow 2 parked transactions — create, reuse, POS context.
+ * Covers: deterministic reuse, POS resolution, payload logging, PARK flags.
+ */
+// Verifies parked transaction create/reuse and POS resolution.
 describe("ParkedTransactionRepository", () => {
+  // Verifies new deterministic ID reloads after insert.
   it("reloads a newly parked transaction by its deterministic ID", async () => {
     const storedRows: Array<{ data: string; id: number; transactionRefNum: string }> = [];
     const repository = createParkedTransactionRepository({
@@ -56,6 +62,7 @@ describe("ParkedTransactionRepository", () => {
     ).resolves.toMatchObject({ parkedTransactionId: 45, reused: false });
   });
 
+  // Verifies park events log without raw JSON payload.
   it("emits traceable payload, POS-context, and persistence events without parked JSON", async () => {
     const log = vi.spyOn(icLog, "info").mockImplementation(() => undefined);
     const service = createParkTransactionService({
@@ -103,6 +110,7 @@ describe("ParkedTransactionRepository", () => {
     log.mockRestore();
   });
 
+  // Verifies PARK flag strings normalize to booleans.
   it.each([
     ["YES", true],
     [" yes ", true],
@@ -116,6 +124,7 @@ describe("ParkedTransactionRepository", () => {
     expect(company?.park).toBe(expected);
   });
 
+  // Verifies POS invoice data carries SQ base links.
   it("builds literal POS invoice data with seller SQ base links", () => {
     const data = buildPosParkedInvoiceData({
       buyerCompanyName: "Buyer Ltd",
@@ -169,6 +178,7 @@ describe("ParkedTransactionRepository", () => {
       transactionID: "IC-PO-1-500",
     });
   });
+  // Verifies single covering store picks lowest counter.
   it("resolves the only store covering every warehouse and selects its lowest counter", async () => {
     const repository = createParkedTransactionRepository({
       query: async (_dbName, sql) => {
@@ -213,6 +223,7 @@ describe("ParkedTransactionRepository", () => {
     });
   });
 
+  // Verifies ambiguous stores throw instead of guessing.
   it("rejects ambiguous stores", async () => {
     const repository = createParkedTransactionRepository({
       query: async () => [
@@ -226,6 +237,7 @@ describe("ParkedTransactionRepository", () => {
     );
   });
 
+  // Verifies existing transaction reuses without duplicate insert.
   it("reuses an existing deterministic transaction instead of inserting a duplicate", async () => {
     const statements: string[] = [];
     const repository = createParkedTransactionRepository({
@@ -256,6 +268,7 @@ describe("ParkedTransactionRepository", () => {
     expect(statements).toHaveLength(1);
   });
 
+  // Verifies insert binds POS metadata and reloads row.
   it("inserts parameterized POS metadata and reloads the generated row", async () => {
     const calls: Array<{ sql: string; parameters: unknown[] }> = [];
     let lookupCount = 0;

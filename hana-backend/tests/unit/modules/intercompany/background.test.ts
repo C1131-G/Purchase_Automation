@@ -1,3 +1,7 @@
+/**
+ * background.test.ts: P7 worker jobs — retry, missed-PQ detect, cleanup.
+ * Covers: retry success/dead, no-duplicate detect, session purge, loop.
+ */
 import { describe, expect, it } from "vitest";
 
 import { createDetectMissedPqJob } from "@/modules/intercompany/background/jobs/01-detect-missed-pq/detect-missed-pq.job";
@@ -121,7 +125,9 @@ const createBackgroundStack = () => {
   };
 };
 
+// Covers: retry queue, missed-PQ detect, session cleanup, worker loop.
 describe("P7 background worker jobs", () => {
+  // Verifies retry handler success marks queue SUCCESS.
   it("T7.1 retry success with mock action", async () => {
     const stack = createBackgroundStack();
     const enqueued = await stack.retry.enqueue({
@@ -163,6 +169,7 @@ describe("P7 background worker jobs", () => {
     expect(stored?.STATUS).toBe(IC_RETRY_STATUS.SUCCESS);
   });
 
+  // Verifies max retries exhaust to DEAD + notify.
   it("T7.2 retry exceeds max → DEAD + notify", async () => {
     const stack = createBackgroundStack();
     await stack.retry.enqueue({
@@ -213,6 +220,7 @@ describe("P7 background worker jobs", () => {
     expect(deadNotify).toBeTruthy();
   });
 
+  // Verifies missed-PQ detect stays idempotent per draft.
   it("T7.3 detect does not duplicate RFQ", async () => {
     const stack = createBackgroundStack();
 
@@ -255,6 +263,7 @@ describe("P7 background worker jobs", () => {
     expect(stack.db.tables.IC_RFQ_HEADER).toHaveLength(1);
   });
 
+  // Verifies cleanup deletes only expired SL sessions.
   it("T7.4 session cleanup removes expired", async () => {
     const stack = createBackgroundStack();
     stack.db.tables.IC_SL_SESSION.push(
@@ -288,6 +297,7 @@ describe("P7 background worker jobs", () => {
     expect(stack.db.tables.IC_SL_SESSION[0]?.SESSION_TOKEN).toBe("live-token");
   });
 
+  // Verifies one worker loop runs detect/retry/session jobs.
   it("T7.5 worker one loop runs all jobs (offline)", async () => {
     const stack = createBackgroundStack();
     stack.db.tables.IC_SL_SESSION.push({
@@ -337,6 +347,7 @@ describe("P7 background worker jobs", () => {
     expect(loop.session.removed).toBe(1);
   });
 
+  // Verifies retry listing filters by company + status.
   it("P8A listForCompany retries filters by company + status", async () => {
     const stack = createBackgroundStack();
     await stack.retry.enqueue({
@@ -373,6 +384,7 @@ describe("P7 background worker jobs", () => {
     expect(deadOnly[0]?.retryId).toBe(dead.retryId);
   });
 
+  // Verifies manual runOne requeues DEAD then succeeds.
   it("P8A runOne requeues DEAD and processes success", async () => {
     const stack = createBackgroundStack();
     const enqueued = await stack.retry.enqueue({
@@ -406,6 +418,7 @@ describe("P7 background worker jobs", () => {
     expect(stored?.status).toBe(IC_RETRY_STATUS.SUCCESS);
   });
 
+  // Verifies POS-parking retry repairs map without AR draft.
   it("retries POS parking without falling back to an A/R draft", async () => {
     const stack = createBackgroundStack();
     const mapping = await stack.documentMap.create({

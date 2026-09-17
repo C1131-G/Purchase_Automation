@@ -12,7 +12,13 @@ import {
 } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/create-seller-sq";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
+/**
+ * partner-warehouse.test.ts: Seller warehouse resolve — branch match + SQ build.
+ * Covers: masters lookups, fallbacks, SQ lines, branch switch, context resolve.
+ */
+// Covers seller warehouse lookups and branch fallbacks.
 describe("partner warehouse masters (branch-matched WH)", () => {
+  // Verifies first active warehouse on branch.
   it("returns first active WH on BPL", async () => {
     const queryTenant = vi.fn(async () => [{ WhsCode: "W01" }]);
     const masters = createPartnerWarehouseMasters({ queryTenant });
@@ -23,6 +29,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     expect(queryTenant).toHaveBeenCalledWith("RCM_DB", expect.stringContaining("OWHS"), [1]);
   });
 
+  // Verifies first active branch+warehouse fallback.
   it("returns first active branch+WH fallback", async () => {
     const queryTenant = vi.fn(async () => [{ BPLid: 7, WhsCode: "L101" }]);
     const masters = createPartnerWarehouseMasters({ queryTenant });
@@ -33,6 +40,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     expect(queryTenant).toHaveBeenCalledWith("RCM_DB", expect.stringContaining("OWHS"));
   });
 
+  // Verifies known warehouse returns its branch.
   it("resolveWarehouseIfExists returns BPL for known WH", async () => {
     const queryTenant = vi.fn(async () => [{ BPLid: 4, WhsCode: "PQ-WH" }]);
     const masters = createPartnerWarehouseMasters({ queryTenant });
@@ -45,6 +53,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     ]);
   });
 
+  // Verifies query failure returns null safely.
   it("returns null when query fails", async () => {
     const masters = createPartnerWarehouseMasters({
       queryTenant: async () => {
@@ -60,6 +69,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     expect(await masters.resolveWarehouseByCodeOrName("RCM_DB", "Main")).toBeNull();
   });
 
+  // Verifies BPL-less active warehouse works.
   it("any active WH works without BPLid (Ajax-style)", async () => {
     const masters = createPartnerWarehouseMasters({
       queryTenant: async () => [{ BPLid: null, WhsCode: "01" }],
@@ -70,6 +80,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     });
   });
 
+  // Verifies name match returns code plus branch.
   it("resolveWarehouseByCodeOrName matches WhsName then returns code + BPL", async () => {
     const queryTenant = vi.fn(async () => [{ BPLid: 3, WhsCode: "WH01" }]);
     const masters = createPartnerWarehouseMasters({ queryTenant });
@@ -84,6 +95,7 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     ]);
   });
 
+  // Verifies default branch reads OBPL place.
   it("getDefaultObplBranch reads first enabled place", async () => {
     const masters = createPartnerWarehouseMasters({
       queryTenant: async () => [{ BPLId: 2 }],
@@ -92,7 +104,9 @@ describe("partner warehouse masters (branch-matched WH)", () => {
   });
 });
 
+// Covers SQ line warehouse and UoM handling.
 describe("buildSalesQuotationLines warehouse", () => {
+  // Verifies branch warehouse set on all lines.
   it("sets branch WH on all lines (no item WH switch)", async () => {
     const { documentLines, taxUsage } = await buildSalesQuotationLines(
       [
@@ -124,6 +138,7 @@ describe("buildSalesQuotationLines warehouse", () => {
     });
   });
 
+  // Verifies resolved entry keeps SQ non-manual.
   it("keeps RFQ UoM and resolves UoMEntry so SQ is not Manual", async () => {
     const { documentLines } = await buildSalesQuotationLines(
       [
@@ -156,6 +171,7 @@ describe("buildSalesQuotationLines warehouse", () => {
     expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
   });
 
+  // Verifies warehouse set keeps RFQ UoM.
   it("keeps RFQ UoM when warehouse is set (does not drop or rewrite UoM)", async () => {
     const { documentLines } = await buildSalesQuotationLines(
       [
@@ -180,6 +196,7 @@ describe("buildSalesQuotationLines warehouse", () => {
     expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
   });
 
+  // Verifies buyer UoMEntry never passes through.
   it("does not trust buyer UoMEntry; uses seller-resolved entry only", async () => {
     const { documentLines } = await buildSalesQuotationLines(
       [
@@ -203,6 +220,7 @@ describe("buildSalesQuotationLines warehouse", () => {
     expect(documentLines[0]?.UoMEntry).toBe(42);
   });
 
+  // Verifies convert copies RFQ UoM only.
   it("convert copies RFQ UoM only and does not re-pick item-master sales UoM", async () => {
     const { documentLines } = await buildSalesQuotationLines(
       [
@@ -226,6 +244,7 @@ describe("buildSalesQuotationLines warehouse", () => {
     expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
   });
 
+  // Verifies sqUomCode preferred over purchase snapshot.
   it("convert prefers RFQ sqUomCode over stored purchase snapshot", async () => {
     const { documentLines } = await buildSalesQuotationLines(
       [
@@ -248,7 +267,9 @@ describe("buildSalesQuotationLines warehouse", () => {
   });
 });
 
+// Covers seller SQ warehouse and branch switching.
 describe("createSellerSq warehouse + branch", () => {
+  // Verifies existing RFQ warehouse switches branch.
   it("uses RFQ warehouse and switches branch when RFQ WH exists on seller", async () => {
     const createSalesQuotation = vi.fn(async () => ({ docEntry: 98, docNum: 5000 }));
     const documents = { createSalesQuotation } as unknown as IcSlDocuments;
@@ -291,6 +312,7 @@ describe("createSellerSq warehouse + branch", () => {
     expect(input.lines[0]?.WarehouseCode).toBe("WH-PQ");
   });
 
+  // Verifies missing RFQ warehouse falls back.
   it("uses default branch WH when RFQ WH not on seller", async () => {
     const createSalesQuotation = vi.fn(async () => ({ docEntry: 99, docNum: 5001 }));
     const documents = { createSalesQuotation } as unknown as IcSlDocuments;
@@ -338,6 +360,7 @@ describe("createSellerSq warehouse + branch", () => {
     expect(input.lines[0]?.WarehouseCode).toBe("WH-ON-1");
   });
 
+  // Verifies switch when default lacks warehouse.
   it("switches to available branch when default branch has no WH", async () => {
     const createSalesQuotation = vi.fn(async () => ({ docEntry: 100, docNum: 5002 }));
     const documents = { createSalesQuotation } as unknown as IcSlDocuments;
@@ -383,6 +406,7 @@ describe("createSellerSq warehouse + branch", () => {
     expect(input.lines[0]?.WarehouseCode).toBe("WH-ON-7");
   });
 
+  // Verifies missing warehouse throws clearly.
   it("throws when no WH exists on default or any fallback branch", async () => {
     const documents = {
       createSalesQuotation: vi.fn(),
@@ -414,6 +438,7 @@ describe("createSellerSq warehouse + branch", () => {
     ).rejects.toThrow(/No active warehouse/);
   });
 
+  // Verifies first line warehouse is picked.
   it("pickPqWarehouseCode reads first line warehouse", () => {
     expect(
       pickPqWarehouseCode([
@@ -437,6 +462,7 @@ describe("createSellerSq warehouse + branch", () => {
     ).toBe("W-X");
   });
 
+  // Verifies context skips lookup without database.
   it("resolveSqWarehouseContext skips lookup without db", async () => {
     const ctx = await resolveSqWarehouseContext({
       defaultBranchId: 1,
@@ -448,6 +474,7 @@ describe("createSellerSq warehouse + branch", () => {
     expect(ctx.source).toBe("none");
   });
 
+  // Verifies context selects another branch when default lacks warehouses.
   it("resolveSqWarehouseContext falls back when default has no WH", async () => {
     const masters = createPartnerWarehouseMasters({
       queryTenant: async (_db, _sql, params) => {
@@ -473,6 +500,7 @@ describe("createSellerSq warehouse + branch", () => {
     });
   });
 
+  // Verifies context prefers the RFQ warehouse and its branch.
   it("resolveSqWarehouseContext prefers RFQ warehouse when found", async () => {
     const masters = createPartnerWarehouseMasters({
       queryTenant: async (_db, sql, params) => {
@@ -496,6 +524,7 @@ describe("createSellerSq warehouse + branch", () => {
     });
   });
 
+  // Verifies context accepts warehouses without branches when buyer warehouse misses.
   it("resolveSqWarehouseContext uses any WH when buyer WH missing and no BPL on OWHS", async () => {
     const masters: PartnerWarehouseMasters = {
       getDefaultObplBranch: async () => null,

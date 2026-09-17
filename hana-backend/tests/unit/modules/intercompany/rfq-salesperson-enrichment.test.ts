@@ -23,6 +23,11 @@ vi.mock("@/modules/intercompany/domain/rfq/attach-rfq-sales-uom", () => ({
 
 import { enrichRfqFromPqDraft } from "@/modules/intercompany/domain/rfq/enrich-rfq-from-pq-draft";
 
+/**
+ * rfq-salesperson-enrichment.test.ts: RFQ buyer salesperson + warehouse enrichment.
+ * Covers: OPQT/PQT1/OSLP mocks, buyer code/name, warehouse passthrough.
+ */
+// Covers buyer salesperson + warehouse enrichment on RFQ.
 describe("IC RFQ salesperson enrichment", () => {
   beforeEach(() => {
     executeTenantQuery.mockImplementation(async (_db: string, sql: string) => {
@@ -42,6 +47,7 @@ describe("IC RFQ salesperson enrichment", () => {
     });
   });
 
+  // Verifies buyer salesperson shown on IC lines.
   it("shows the buyer salesperson for every IC warehouse line", async () => {
     const result = await enrichRfqFromPqDraft({
       buyerCode: null,

@@ -20,6 +20,10 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * pq-copy-eligibility.test.ts: PQ copy-from gating — RFQ submitted checks.
+ * Covers: base-entry filter, flow1 off, non-IC, block/allow, assert, list.
+ */
 const createStack = (flow1Enabled = true) => {
   const db = createMemoryDb();
   seedMemoryCompanyGraph(db);
@@ -57,7 +61,9 @@ const addRfq = (
   });
 };
 
+// Covers PQ copy-from eligibility gating.
 describe("PQ copy eligibility", () => {
+  // Verifies only PQ base entries are collected.
   it("collects only purchase-quotation base entries", () => {
     expect(
       collectPqBaseEntries([
@@ -69,6 +75,7 @@ describe("PQ copy eligibility", () => {
     ).toEqual([11, 12]);
   });
 
+  // Verifies disabled Flow 1 allows copy.
   it("allows copy when Flow 1 is off", async () => {
     const { eligibility } = createStack(false);
 
@@ -79,6 +86,7 @@ describe("PQ copy eligibility", () => {
     await expect(eligibility.listAllowedDocEntries("DB_A")).resolves.toBeNull();
   });
 
+  // Verifies non-IC company allows copy.
   it("allows copy when the company is not on the IC graph", async () => {
     const { eligibility } = createStack();
 
@@ -89,6 +97,7 @@ describe("PQ copy eligibility", () => {
     await expect(eligibility.listAllowedDocEntries("UNKNOWN_DB")).resolves.toBeNull();
   });
 
+  // Verifies missing RFQ blocks copy.
   it("blocks copy when the PQ has no RFQ", async () => {
     const { eligibility } = createStack();
 
@@ -99,6 +108,7 @@ describe("PQ copy eligibility", () => {
     });
   });
 
+  // Verifies DRAFT/CANCELLED RFQ blocks copy.
   it.each(["DRAFT", "CANCELLED"] as const)("blocks copy while the RFQ is %s", async (status) => {
     const { db, eligibility } = createStack();
     addRfq(db, status);
@@ -110,6 +120,7 @@ describe("PQ copy eligibility", () => {
     });
   });
 
+  // Verifies SUBMITTED/COMPLETED RFQ allows copy.
   it.each(["SUBMITTED", "COMPLETED"] as const)("allows copy when the RFQ is %s", async (status) => {
     const { db, eligibility } = createStack();
     addRfq(db, status);
@@ -121,6 +132,7 @@ describe("PQ copy eligibility", () => {
     });
   });
 
+  // Verifies copy lines rejected before submission.
   it("rejects copy-from lines until the RFQ is submitted", async () => {
     const { eligibility } = createStack();
 
@@ -133,6 +145,7 @@ describe("PQ copy eligibility", () => {
     } satisfies Partial<AppError>);
   });
 
+  // Verifies list filters to submitted RFQs only.
   it("lists only submitted RFQ PQ entries for copy-from filters", async () => {
     const { db, eligibility } = createStack();
     addRfq(db, "DRAFT", 10);

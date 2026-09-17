@@ -20,6 +20,11 @@ import {
   mapSourceItemsToPartnerItems,
 } from "@/modules/intercompany/config/item-mapping/partner-item.mapping";
 
+/**
+ * partner-item.mapping.test.ts: OSCN Substitute item mapping — buyer to partner codes.
+ * Covers: happy-path mapping, missing rows, empty substitutes, warehouse hints.
+ */
+// Verifies OSCN Substitute mapping from buyer to partner items.
 describe("partner-item.mapping (OSCN Substitute)", () => {
   beforeEach(() => {
     loadOscnForCardCode.mockReset();
@@ -28,6 +33,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     loadOscnWarehouseHints.mockResolvedValue(new Map());
   });
 
+  // Verifies buyer code maps to Substitute plus partner name.
   it("maps buyer ItemCode → Substitute and partner OITM ItemName", async () => {
     loadOscnForCardCode.mockResolvedValue([
       {
@@ -56,6 +62,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     expect(loadItemNamesByCodes).toHaveBeenCalledWith("RCM_DB", ["RCM-SKU-1"]);
   });
 
+  // Verifies missing OSCN row raises mapping error.
   it("fails when OSCN row is missing for a line item", async () => {
     loadOscnForCardCode.mockResolvedValue([]);
     loadItemNamesByCodes.mockResolvedValue(new Map());
@@ -70,6 +77,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     ).rejects.toBeInstanceOf(IcItemCodeMappingError);
   });
 
+  // Verifies empty Substitute raises mapping error.
   it("fails when Substitute is empty", async () => {
     loadOscnForCardCode.mockResolvedValue([
       { ItemCode: "A1", CardCode: "V-RCM", Substitute: "", Descriptio: "" },
@@ -85,6 +93,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     ).rejects.toMatchObject({ emptySubstituteCodes: ["A1"] });
   });
 
+  // Verifies unknown Substitute on partner OITM fails.
   it("fails when Substitute is not on partner OITM", async () => {
     loadOscnForCardCode.mockResolvedValue([
       { ItemCode: "A1", CardCode: "V-RCM", Substitute: "R1", Descriptio: "" },
@@ -101,6 +110,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     ).rejects.toMatchObject({ missingSubstituteCodes: ["R1"] });
   });
 
+  // Verifies OSCN warehouse hint carries to RFQ match.
   it("copies OSCN.U_Warehouse hint for seller RFQ warehouse match", async () => {
     loadOscnForCardCode.mockResolvedValue([
       {
@@ -124,6 +134,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     expect(loadOscnWarehouseHints).toHaveBeenCalledWith("AJAX_DB", "V-RCM", ["AJAX-SKU-1"]);
   });
 
+  // Verifies line ItemCode fields rewrite to partner codes.
   it("applyPartnerItemMapToLines rewrites ItemCode fields", () => {
     const partnerMap = new Map([
       [

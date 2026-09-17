@@ -18,7 +18,13 @@ const sqlFor = (state: {
   },
 });
 
+/**
+ * revision.service.test.ts: IC revision token service — stability and scoping.
+ * Covers: token stability, change invalidation, company-bound queries.
+ */
+// Verifies revision token stability and company scoping.
 describe("IC revision service", () => {
+  // Verifies token stays stable until IC row changes.
   it("returns a stable token until an existing IC row changes", async () => {
     const state = {
       rfq: { RFQ_ID: 10, HEADER_UPDATED_AT: "2026-08-24 10:00:00", LINE_UPDATED_AT: "" },
@@ -36,6 +42,7 @@ describe("IC revision service", () => {
     expect(await service.getForCompany(8)).not.toBe(first);
   });
 
+  // Verifies every visibility query binds session company.
   it("binds the session company to every visibility query", async () => {
     const params: unknown[][] = [];
     const sql: IcSqlClient = {

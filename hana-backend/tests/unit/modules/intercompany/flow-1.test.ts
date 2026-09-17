@@ -1,3 +1,7 @@
+/**
+ * flow-1.test.ts: PQ draft → RFQ chain — create/fill/submit/convert branches.
+ * Covers: skip paths, idempotent create, fill guards, convert success, retry/authz.
+ */
 import { describe, expect, it } from "vitest";
 
 import { createAfterPqSaved } from "@/modules/intercompany/api/hooks/after-pq-saved.hook";
@@ -246,7 +250,9 @@ const createFlow1TestStack = (opts?: {
   };
 };
 
+// Covers: PQ→RFQ happy path, fill/submit guards, convert, retry, authz.
 describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
+  // Verifies non-IC vendor skips without RFQ.
   it("T6.1 non-IC vendor → skip", async () => {
     const { orchestrator } = createFlow1TestStack();
     const result = await orchestrator.run({
@@ -259,6 +265,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(String((result as { reason?: string }).reason)).toMatch(/^non_ic_vendor/);
   });
 
+  // Verifies disabled flag skips Flow 1.
   it("T6.1b flag off → skip", async () => {
     const { orchestrator } = createFlow1TestStack({ enableFlag: false });
     const result = await orchestrator.run({
@@ -269,6 +276,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(result).toMatchObject({ reason: "flow1_disabled", status: "skipped" });
   });
 
+  // Verifies RFQ created once per PQ draft (idempotent rerun).
   it("T6.2 create RFQ idempotent per draft", async () => {
     const { orchestrator, db, rfq } = createFlow1TestStack();
     const input = {
@@ -312,6 +320,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(header?.rfqNumber).toContain("9001");
   });
 
+  // Verifies fill sanitizer blocks item change, allows price/qty.
   it("T6.3 fill rejects item change but allows quoted qty", () => {
     expect(() =>
       sanitizeFillLines([{ itemCode: "HACK", lineNum: 0, quantity: 99, unitPrice: 1 }]),
@@ -331,6 +340,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     ]);
   });
 
+  // Verifies overlay caps quoted qty to required qty.
   it("caps quoted qty to required qty on overlay", () => {
     const merged = overlayRfqLinePatches(
       [
@@ -356,6 +366,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(merged[0]?.quantity).toBe(10);
   });
 
+  // Verifies submit auto-converts, marks COMPLETED, notifies.
   it("T6.4 submit → status + notification", async () => {
     const { orchestrator, fill, rfq, db } = createFlow1TestStack();
     await orchestrator.run({
@@ -387,6 +398,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     );
   });
 
+  // Verifies convert PATCHes PQ + creates SQ with full chain.
   it("T6.5 convert success path with mocked SL", async () => {
     let applied = false;
     let converted = false;
@@ -508,6 +520,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     );
   });
 
+  // Verifies PQ patch carries only seller commercials via merge.
   it("T6.5b commercial line map patches only qty/price/disc/quoted date/reqDate", () => {
     const built = buildRfqCommercialDocumentLines([
       {
@@ -568,6 +581,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
   });
 
+  // Verifies SQ failure enqueues retry; RFQ stays SUBMITTED.
   it("T6.6 SQ fail → retry enqueue; RFQ stays SUBMITTED", async () => {
     const { orchestrator, fill, db } = createFlow1TestStack({
       documents: {
@@ -596,6 +610,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.SUBMITTED);
   });
 
+  // Verifies only buyer company may run convert.
   it("T6.7 authz: wrong company cannot convert", async () => {
     const { orchestrator, fill, convert, db } = createFlow1TestStack();
     await orchestrator.run({
@@ -621,6 +636,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(buyerResult.status).toBe("success");
   });
 
+  // Verifies disabled hook sync path skips without throw.
   it("afterPqDraftSaved never throws (sync path for unit assert)", async () => {
     const { orchestrator } = createFlow1TestStack({ enableFlag: false });
     const hook = createAfterPqSaved(orchestrator, { runInBackground: false });
@@ -629,6 +645,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
   });
 
+  // Verifies background convert completes after immediate SUBMITTED return.
   it("RFQ submit default path returns SUBMITTED immediately (convert runs in background)", async () => {
     let convertStarted = false;
     const { orchestrator, convert, db, rfq, notifications } = createFlow1TestStack({
@@ -697,6 +714,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(convertStarted).toBe(true);
   });
 
+  // Verifies COMPLETED RFQ edits propagate to PQ+SQ until PQ→PO.
   it("COMPLETED RFQ update re-applies commercials to PQ and SQ until PQ→PO", async () => {
     let pqPatch: { draftEntry: number; documentLines: Record<string, unknown>[] } | undefined;
     let sqPatch:
@@ -784,6 +802,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
   });
 
+  // Verifies SUBMITTED RFQ rejects line updates (409).
   it("blocks RFQ line update while status is SUBMITTED", async () => {
     const { orchestrator, fill, db } = createFlow1TestStack();
     await orchestrator.run({
@@ -807,6 +826,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
   });
 
+  // Verifies hook accepts immediately when Flow 1 disabled.
   it("afterPqDraftSaved default path accepts immediately (IC runs in background)", async () => {
     const { orchestrator } = createFlow1TestStack({ enableFlag: false });
     const hook = createAfterPqSaved(orchestrator);

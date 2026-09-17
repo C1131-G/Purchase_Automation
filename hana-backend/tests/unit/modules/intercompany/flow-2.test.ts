@@ -40,6 +40,10 @@ import {
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
 
+/**
+ * flow-2.test.ts: PO to seller invoice draft or POS parking — routing and retries.
+ * Covers: skip guards, SQ resolution, base links, idempotency, parking, background hooks.
+ */
 /** IC remarks line that carries seller SQ DocNum for Flow 2 resolve. */
 const remarksWithSq = (sqDocNum = 810): string => `buyer notes\nSQ ${sqDocNum}`;
 
@@ -179,7 +183,9 @@ const createFlow2TestStack = (opts?: {
   };
 };
 
+// Covers seller routing, SQ conversion, retries, and background acceptance.
 describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
+  // Verifies parking bypasses invoice creation and records the POS target.
   it("routes PARK=YES to POS without creating an A/R draft", async () => {
     let draftCreateCount = 0;
     let parkedInput: Parameters<ParkTransactionService["park"]>[0] | null = null;
@@ -227,6 +233,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     });
   });
 
+  // Verifies parking retries retain their route despite company flag changes.
   it("queues a parked-transaction retry without falling back to /Drafts", async () => {
     let draftCreateCount = 0;
     let parkCount = 0;
@@ -286,6 +293,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(draftCreateCount).toBe(0);
   });
 
+  // Verifies parked edits distinguish updated transactions from consumed ones.
   it.each([
     ["updated", "success"],
     ["consumed", "skipped"],
@@ -362,6 +370,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
       expect(result).toEqual({ reason: "parked_transaction_consumed", status: "skipped" });
     }
   });
+  // Verifies attachment stripping preserves customer and document lines.
   it("removes attachment fields from IC partner payloads", () => {
     const payload = {
       AttachmentEntry: 91,
@@ -381,6 +390,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     });
   });
 
+  // Verifies draft purchase orders skip invoice creation.
   it("T5.1 draft PO → skip", async () => {
     const { orchestrator } = createFlow2TestStack();
     const result = await orchestrator.run({
@@ -392,6 +402,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(result).toEqual({ reason: "draft_po", status: "skipped" });
   });
 
+  // Verifies vendors outside the IC mapping skip processing.
   it("T5.2 non-IC vendor → skip", async () => {
     const { orchestrator } = createFlow2TestStack();
     const result = await orchestrator.run({
@@ -404,6 +415,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(String((result as { reason?: string }).reason)).toMatch(/^non_ic_vendor/);
   });
 
+  // Verifies the disabled flag skips Flow 2.
   it("T5.3 flag off → skip", async () => {
     const { orchestrator } = createFlow2TestStack({ enableFlag: false });
     const result = await orchestrator.run({
@@ -415,6 +427,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(result).toMatchObject({ reason: "flow2_disabled", status: "skipped" });
   });
 
+  // Verifies SQ base links and document references survive payload construction.
   it("T5.4 build payload is SQ base convert (BaseType 23) + remarks", () => {
     const payload = buildArInvoicePayload({
       buyerCustomerCode: "C-A-ON-B",
@@ -474,6 +487,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(payload.DocumentLines[0].VatGroup).toBeUndefined();
   });
 
+  // Verifies an SQ without open lines cannot produce a draft.
   it("T5.4b skips closed SQ lines; fails when none open", () => {
     expect(() =>
       buildArInvoicePayload({
@@ -493,6 +507,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     ).toThrow(/no open lines/i);
   });
 
+  // Verifies missing seller quotations block standalone invoice creation.
   it("T5.4c service requires seller SQ (no free-standing AR from PO)", async () => {
     const service = createBuildArInvoiceService({
       documents: {
@@ -556,6 +571,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     ).rejects.toThrow(/Sales Quotation not found/i);
   });
 
+  // Verifies resolved SQ lines become invoice draft base references.
   it("T5.4d service loads SQ and posts BaseType 23 lines", async () => {
     const service = createBuildArInvoiceService({
       documents: {
@@ -625,6 +641,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(payload.draftPayload.CardCode).toBe("C-A-ON-B");
   });
 
+  // Verifies PQ document numbers resolve through RFQ mappings, not entries.
   it("T5.4e resolves SQ via PQ DocNum remarks + RFQ→SQ map (not DocEntry)", async () => {
     // Production case: PO Comments carry PQ/RFQ DocNum (e.g. 8000603), never SQ line.
     // IC_RFQ stores real PQ DocEntry separately; old lookup treated DocNum as entry and missed.
@@ -726,6 +743,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     });
   });
 
+  // Verifies remarks-chain recovery repairs the missing RFQ to SQ mapping.
   it("T5.4f recovers seller SQ via SL remarks chain when RFQ→SQ map is missing", async () => {
     // Production case (RCM→Ajax): PO remarks only "Based on PQ …"; RFQ found; map empty.
     const db = createMemoryDb();
@@ -823,6 +841,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(mapAfter?.targetDocEntry).toBe("810");
   });
 
+  // Verifies successful mappings prevent duplicate SAP document creation.
   it("T5.5 idempotent: existing SUCCESS map → skip create", async () => {
     let slCalls = 0;
     const stack = createFlow2TestStack({
@@ -859,6 +878,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(stack.db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
   });
 
+  // Verifies SAP failures queue retries and record mapping errors.
   it("T5.6 SL fail → retry enqueued; result queued_retry", async () => {
     const { orchestrator, db } = createFlow2TestStack({
       slCreate: async () => {
@@ -895,6 +915,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
   });
 
+  // Verifies draft creation records success and notifies only the seller.
   it("happy path A→B converts SQ → AR map + notifications", async () => {
     let postedPayload: Record<string, unknown> | null = null;
     const stack = createFlow2TestStack({
@@ -957,6 +978,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     expect(lines[0].ItemCode).toBeUndefined();
   });
 
+  // Verifies synchronous hooks resolve with the disabled-flow skip result.
   it("afterPoCreated never throws (sync path for unit assert)", async () => {
     const { orchestrator } = createFlow2TestStack({ enableFlag: false });
     const hook = createAfterPoCreated(orchestrator, { runInBackground: false });
@@ -965,6 +987,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     ).resolves.toMatchObject({ status: "skipped" });
   });
 
+  // Verifies background hooks accept before Flow 2 finishes.
   it("afterPoCreated default path accepts immediately (IC runs in background)", async () => {
     const { orchestrator } = createFlow2TestStack({ enableFlag: false });
     const hook = createAfterPoCreated(orchestrator);
@@ -973,6 +996,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
     ).resolves.toMatchObject({ flow: "flow2", status: "accepted" });
   });
 
+  // Verifies draft capture skips before reading configuration.
   it("po-capture service draft short-circuit without config I/O when isDraft", async () => {
     const capture = createPoCaptureService({
       configuration: {
