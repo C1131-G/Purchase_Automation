@@ -11,7 +11,6 @@ import { LoginInputSchema } from "@/modules/auth/auth.schema";
 import { MasterDataQuerySchema } from "@/modules/master-data/master-data.schema";
 import { OrganizationQuerySchema } from "@/modules/organization/organization.schema";
 import { PurchaseOrderQuerySchema } from "@/modules/purchase-order/purchase-order.schema";
-import { GRPOQuerySchema } from "@/modules/grpo/grpo.schema";
 let pathsRegistered = false;
 
 export const generateOpenApiSpec = () => {
@@ -25,7 +24,6 @@ export const generateOpenApiSpec = () => {
   // Query + auth schemas (create/update document bodies registered in swagger-paths-documents).
   registry.register("LoginInput", LoginInputSchema);
   registry.register("PurchaseOrderQuery", PurchaseOrderQuerySchema);
-  registry.register("GRPOQuery", GRPOQuerySchema);
   registry.register("MasterDataQuery", MasterDataQuerySchema);
   registry.register("OrganizationsQuery", OrganizationQuerySchema);
 

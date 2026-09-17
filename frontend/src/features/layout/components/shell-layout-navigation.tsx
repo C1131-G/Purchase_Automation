@@ -99,21 +99,6 @@ export function ShellLayoutNavigation({
                   Purchase Orders
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/purchase/create-grpo"
-                  onMouseEnter={() => onTableNavIntent("/purchase/grpo")}
-                  onFocus={() => onTableNavIntent("/purchase/grpo")}
-                  onTouchStart={() => onTableNavIntent("/purchase/grpo")}
-                  isActive={
-                    pathname === "/purchase/create-grpo" ||
-                    pathname === "/purchase/grpo" ||
-                    pathname.startsWith("/purchase/grpo/")
-                  }
-                >
-                  GRPO
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
 
             <SidebarMenuCollapsible

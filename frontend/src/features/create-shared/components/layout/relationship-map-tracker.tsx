@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   Undo2,
   Banknote,
-  Truck,
   ClipboardList,
 } from "lucide-react";
 import React from "react";
@@ -23,7 +22,6 @@ interface RelationshipMapTrackerProps {
     | "ar-credit-memo"
     | "purchase-quotation"
     | "purchase-order"
-    | "grpo"
     | "incoming-payment";
   docEntry: number;
 }
@@ -127,13 +125,13 @@ export function RelationshipMapTracker({
 }: RelationshipMapTrackerProps & { compact?: boolean }) {
   const { data, isLoading, isError } = useQuery(relationshipMapQueries.map(docType, docEntry));
 
-  const isAP = ["purchase-quotation", "purchase-order", "grpo"].includes(docType);
+  const isAP = ["purchase-quotation", "purchase-order"].includes(docType);
 
   const isIcSalesDoc =
     !isAP && (docType === "request-for-quotation" || docType === "sales-quotation");
 
   if (isLoading) {
-    const nodeCount = isAP ? 3 : isIcSalesDoc ? 2 : 5;
+    const nodeCount = isAP ? 2 : isIcSalesDoc ? 2 : 5;
     return (
       <div
         className={`bg-surface rounded-xl shadow-sm border border-linen-100 w-full ${
@@ -211,7 +209,6 @@ export function RelationshipMapTracker({
   const isIcSalesMap = isIcSalesDoc;
   const hasDoc1 = isAP ? !!data.purchaseQuotation?.length : !!data.salesQuotation?.length;
   const hasDoc2 = isAP ? !!data.purchaseOrder?.length : !!data.salesOrder?.length;
-  const hasDocGRPO = isAP ? !!data.grpo?.length : false;
   const hasDoc3 = !isAP && !!data.arInvoice?.length;
   const hasDoc4 = !isAP && !!data.arCreditMemo?.length;
   const hasDoc5 = !isAP && !!data.incomingPayment?.length;
@@ -287,13 +284,6 @@ export function RelationshipMapTracker({
           active: hasDoc2,
           items: data.purchaseOrder,
           linkPrefix: "/purchase/orders",
-        },
-        {
-          icon: Truck,
-          label: "GRPO",
-          active: hasDocGRPO,
-          items: data.grpo,
-          linkPrefix: "/purchase/grpo",
         },
       ]
     : isIcSalesMap

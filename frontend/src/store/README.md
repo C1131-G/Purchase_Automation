@@ -29,10 +29,10 @@ Legacy table files such as `table-filter.store.ts`, `table-order.store.ts`, and 
 
 Document create drafts use the factory in `create/document-draft.factory.ts`.
 
-| Pattern                | Stores                                                                  | Documents (examples)             |
-| ---------------------- | ----------------------------------------------------------------------- | -------------------------------- |
-| **A** — header only    | Header store; product lines stay in React state inside the feature hook | PO, PQ, SO, SQ, AR invoice       |
-| **B** — header + lines | Header and line stores                                                  | GRPO, AP invoice, AP credit memo |
+| Pattern                | Stores                                                                  | Documents (examples)                                           |
+| ---------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **A** — header only    | Header store; product lines stay in React state inside the feature hook | PO, PQ, SO, SQ, AR invoice                                     |
+| **B** — header + lines | Header and line stores                                                  | (no longer used — was GRPO/AP invoice/AP credit memo, removed) |
 
 ## What Not To Store
 

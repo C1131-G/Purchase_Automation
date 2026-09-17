@@ -12,8 +12,6 @@ import {
   unwrapMasterData,
 } from "@/features/create-pages/create-shared/api/create-shared.mapper";
 import type {
-  ItemBatchLookup,
-  ItemSerialLookup,
   MasterDataResponse,
   ProductLookupItem,
   ProductWarehouseStockItem,
@@ -41,11 +39,10 @@ const fetchCustomersFromMasterDataRoute = async (): Promise<{
 const fetchSalesEmployees = async () =>
   apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/sales-quotations/SalesEmployee");
 
-/** Product browse cache is per document + vendor — never share PQ catalog with GRPO. */
+/** Product browse cache is per document + vendor. */
 export type ProductCatalogScope =
   | "purchase-quotation"
   | "purchase-order"
-  | "grpo"
   | "sales-quotation"
   | "hydrate";
 
@@ -71,12 +68,6 @@ export const createSharedKeys = {
   warehouseBins: (warehouseCode: string) =>
     [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
   branches: () => [...createSharedKeys.all, "branches"] as const,
-  itemBatches: (itemCode: string, warehouseCode: string) =>
-    [...createSharedKeys.all, "item-batches", itemCode, warehouseCode] as const,
-  itemSerials: (itemCode: string, warehouseCode: string) =>
-    [...createSharedKeys.all, "item-serials", itemCode, warehouseCode] as const,
-  itemDefaultBin: (itemCode: string, warehouseCode: string) =>
-    [...createSharedKeys.all, "item-default-bin", itemCode, warehouseCode] as const,
   accounts: (search?: string, limit?: number) =>
     [...createSharedKeys.all, "accounts", search ?? "", limit ?? 20] as const,
 };
@@ -418,94 +409,6 @@ export const createSharedQueries = {
       queryKey: [...createSharedKeys.branches(), "obpl-v1"] as const,
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
-  itemBatches: (itemCode?: string, warehouseCode?: string) => {
-    const item = itemCode?.trim() ?? "";
-    const warehouse = warehouseCode?.trim() ?? "";
-    return queryOptions({
-      enabled: Boolean(item && warehouse),
-      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
-      queryFn: async (): Promise<ItemBatchLookup[]> => {
-        if (!item || !warehouse) {
-          return [];
-        }
-        return unwrapMasterData(await masterDataAPI.getItemBatches(item, warehouse))
-          .map((row) => {
-            const record = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
-            return {
-              admissionDate: String(record.admissionDate ?? record.AdmissionDate ?? "").trim(),
-              batchNumber: String(record.batchNumber ?? record.BatchNumber ?? "").trim(),
-              expiryDate: String(record.expiryDate ?? record.ExpiryDate ?? "").trim(),
-              manufacturingDate: String(
-                record.manufacturingDate ?? record.ManufacturingDate ?? "",
-              ).trim(),
-              notes: String(record.notes ?? record.Notes ?? "").trim(),
-              quantity: Number(record.quantity ?? record.Quantity ?? 0) || 0,
-            };
-          })
-          .filter((row) => row.batchNumber);
-      },
-      queryKey: createSharedKeys.itemBatches(item, warehouse),
-      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
-    });
-  },
-  itemSerials: (itemCode?: string, warehouseCode?: string) => {
-    const item = itemCode?.trim() ?? "";
-    const warehouse = warehouseCode?.trim() ?? "";
-    return queryOptions({
-      enabled: Boolean(item && warehouse),
-      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
-      queryFn: async (): Promise<ItemSerialLookup[]> => {
-        if (!item || !warehouse) {
-          return [];
-        }
-        return unwrapMasterData(await masterDataAPI.getItemSerials(item, warehouse))
-          .map((row) => {
-            const record = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
-            return {
-              expiryDate: String(record.expiryDate ?? record.ExpiryDate ?? "").trim(),
-              internalSerialNumber: String(
-                record.internalSerialNumber ?? record.InternalSerialNumber ?? "",
-              ).trim(),
-              manufacturerSerialNumber: String(
-                record.manufacturerSerialNumber ?? record.ManufacturerSerialNumber ?? "",
-              ).trim(),
-              manufacturingDate: String(
-                record.manufacturingDate ?? record.ManufacturingDate ?? "",
-              ).trim(),
-            };
-          })
-          .filter((row) => row.internalSerialNumber);
-      },
-      queryKey: createSharedKeys.itemSerials(item, warehouse),
-      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
-    });
-  },
-  itemDefaultBin: (itemCode?: string, warehouseCode?: string) => {
-    const item = itemCode?.trim() ?? "";
-    const warehouse = warehouseCode?.trim() ?? "";
-    return queryOptions({
-      enabled: Boolean(item && warehouse),
-      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
-      queryFn: async () => {
-        if (!item || !warehouse) {
-          return null;
-        }
-        const response = await masterDataAPI.getItemDefaultBin(item, warehouse);
-        const data = response?.data;
-        if (!data || typeof data !== "object") {
-          return null;
-        }
-        const binAbsEntry = Number(data.binAbsEntry);
-        const binCode = String(data.binCode ?? "").trim();
-        if (!Number.isFinite(binAbsEntry) || binAbsEntry <= 0 || !binCode) {
-          return null;
-        }
-        return { binAbsEntry: Math.trunc(binAbsEntry), binCode };
-      },
-      queryKey: createSharedKeys.itemDefaultBin(item, warehouse),
-      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
-    });
-  },
   /** DSC1 (chart of accounts) suggestions for document line-item account pickers. */
   accounts: (search?: string, limit?: number) =>
     queryOptions({

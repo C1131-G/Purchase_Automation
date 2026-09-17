@@ -505,7 +505,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             effectiveDocDueDate,
           );
           // OpenQty is the real remaining-fulfillable quantity. Surface it on the
-          // row so downstream CopyTo cascades (PO/GRPO/AP Invoice) and any
+          // row so downstream CopyTo cascades (PO) and any
           // partial-fulfillment UI can consume it. When quoted qty is still 0,
           // fall back to required qty so open qty is not wiped on PQ edit hydrate.
           const sapOpenQty = Number(

@@ -20,9 +20,9 @@ describe("shouldPersistQueryKey", () => {
   });
 
   it("rejects dynamic / heavy query keys", () => {
-    expect(shouldPersistQueryKey(["create-shared", "products-v3", "grpo", "", "sku", 20])).toBe(
-      false,
-    );
+    expect(
+      shouldPersistQueryKey(["create-shared", "products-v3", "purchase-order", "", "sku", 20]),
+    ).toBe(false);
     expect(shouldPersistQueryKey(["create-shared", "product-warehouse-stocks", "SKU"])).toBe(false);
     expect(shouldPersistQueryKey(["create-shared", "business-partner-addresses", "V001"])).toBe(
       false,

@@ -29,8 +29,6 @@ const getTargetLabel = (target: string) => {
   switch (target) {
     case "PO":
       return "Purchase Order";
-    case "GRPO":
-      return "Goods Receipt PO";
     case "Sales Order":
       return "Sales Order";
     case "A/R Invoice":
@@ -46,8 +44,6 @@ const getTargetRoute = (target: string) => {
   switch (target) {
     case "PO":
       return "/purchase/create-order";
-    case "GRPO":
-      return "/purchase/create-grpo";
     default:
       return "/sales/create-quotation";
   }
@@ -56,7 +52,6 @@ const getTargetRoute = (target: string) => {
 const getTargetIcon = (target: string) => {
   switch (target) {
     case "PO":
-    case "GRPO":
     case "Sales Order":
       return (
         <Truck className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
@@ -670,10 +665,7 @@ export function BaseProductSection({
     copyToDocNum = String(savedDocNum);
   }
 
-  const isPurchase =
-    backToUrl.toLowerCase().includes("purchase") ||
-    backToUrl.toLowerCase().includes("grpo") ||
-    backToUrl.toLowerCase().includes("ap-");
+  const isPurchase = backToUrl.toLowerCase().includes("purchase");
   const transactionType = isPurchase ? "purchase" : "sales";
 
   // Show skeleton when loading (edit hydration)

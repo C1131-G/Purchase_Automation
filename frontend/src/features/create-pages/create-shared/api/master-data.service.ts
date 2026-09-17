@@ -209,42 +209,6 @@ export const masterDataAPI = {
     apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/branches`,
     ),
-  getItemBatches: async (itemCode: string, warehouseCode: string) => {
-    const query = new URLSearchParams();
-    if (itemCode.trim()) {
-      query.set("itemCode", itemCode.trim());
-    }
-    if (warehouseCode.trim()) {
-      query.set("warehouseCode", warehouseCode.trim());
-    }
-    return apiClient<MasterDataResponse<Record<string, unknown>> | Record<string, unknown>[]>(
-      `/api/v1/master-data/item-batches?${query.toString()}`,
-    );
-  },
-  getItemSerials: async (itemCode: string, warehouseCode: string) => {
-    const query = new URLSearchParams();
-    if (itemCode.trim()) {
-      query.set("itemCode", itemCode.trim());
-    }
-    if (warehouseCode.trim()) {
-      query.set("warehouseCode", warehouseCode.trim());
-    }
-    return apiClient<MasterDataResponse<Record<string, unknown>> | Record<string, unknown>[]>(
-      `/api/v1/master-data/item-serials?${query.toString()}`,
-    );
-  },
-  getItemDefaultBin: async (itemCode: string, warehouseCode: string) => {
-    const query = new URLSearchParams();
-    if (itemCode.trim()) {
-      query.set("itemCode", itemCode.trim());
-    }
-    if (warehouseCode.trim()) {
-      query.set("warehouseCode", warehouseCode.trim());
-    }
-    return apiClient<{ data: { binAbsEntry?: number; binCode?: string } | null; success: boolean }>(
-      `/api/v1/master-data/item-default-bin?${query.toString()}`,
-    );
-  },
   /** DSC1 (chart of accounts) lookup for document line-item account pickers. */
   getAccounts: async (search?: string, limit?: number) => {
     const query = new URLSearchParams();

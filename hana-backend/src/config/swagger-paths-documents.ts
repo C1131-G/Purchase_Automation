@@ -1,6 +1,5 @@
 // Registers OpenAPI paths for all document modules (matches Express mounts).
 
-import { CreateGRPOInputSchema, UpdateGRPOInputSchema } from "@/modules/grpo/grpo.schema";
 import {
   CreatePurchaseOrderInputSchema,
   UpdatePurchaseOrderInputSchema,
@@ -39,13 +38,6 @@ export const registerAllDocumentModulePaths = () => {
       create: "CreatePurchaseQuotationInput",
       update: "UpdatePurchaseQuotationInput",
     },
-  });
-  registerDocumentPaths({
-    entityPath: "grpos",
-    entityLabel: "GRPO",
-    createSchema: CreateGRPOInputSchema,
-    updateSchema: UpdateGRPOInputSchema,
-    schemaNames: { create: "CreateGRPOInput", update: "UpdateGRPOInput" },
   });
   registerDocumentPaths({
     entityPath: "sales-quotations",

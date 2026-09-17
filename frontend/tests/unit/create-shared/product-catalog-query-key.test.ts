@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 
 describe("product catalog query keys", () => {
-  it("scopes PQ, PO, and GRPO catalogs separately for the same vendor", () => {
+  it("scopes PQ, PO, and SQ catalogs separately for the same vendor", () => {
     const pq = createSharedQueries.products(
       undefined,
       undefined,
@@ -22,21 +22,21 @@ describe("product catalog query keys", () => {
       "V001",
       "purchase-order",
     ).queryKey;
-    const grpo = createSharedQueries.products(
+    const sq = createSharedQueries.products(
       undefined,
       undefined,
       50,
       "purchase",
       undefined,
       "V001",
-      "grpo",
+      "sales-quotation",
     ).queryKey;
 
     expect(pq).not.toEqual(po);
-    expect(pq).not.toEqual(grpo);
-    expect(po).not.toEqual(grpo);
+    expect(pq).not.toEqual(sq);
+    expect(po).not.toEqual(sq);
     expect(pq).toContain("purchase-quotation");
-    expect(grpo).toContain("grpo");
+    expect(sq).toContain("sales-quotation");
   });
 
   it("scopes different vendors under the same document separately", () => {
@@ -47,7 +47,7 @@ describe("product catalog query keys", () => {
       "purchase",
       undefined,
       "V001",
-      "grpo",
+      "purchase-order",
     ).queryKey;
     const vendorB = createSharedQueries.products(
       undefined,
@@ -56,7 +56,7 @@ describe("product catalog query keys", () => {
       "purchase",
       undefined,
       "V002",
-      "grpo",
+      "purchase-order",
     ).queryKey;
 
     expect(vendorA).not.toEqual(vendorB);
@@ -70,7 +70,7 @@ describe("product catalog query keys", () => {
       "purchase",
       undefined,
       "V001",
-      "grpo",
+      "purchase-order",
     ).queryKey;
     const popup = createSharedQueries.products(
       undefined,
@@ -79,7 +79,7 @@ describe("product catalog query keys", () => {
       "purchase",
       undefined,
       "V001",
-      "grpo",
+      "purchase-order",
     ).queryKey;
     const firstPageOnly = createSharedQueries.products(
       undefined,
@@ -88,7 +88,7 @@ describe("product catalog query keys", () => {
       "purchase",
       undefined,
       "V001",
-      "grpo",
+      "purchase-order",
     ).queryKey;
 
     expect(prefetch).toEqual(popup);

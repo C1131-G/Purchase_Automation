@@ -11,7 +11,6 @@ import {
   toSapCommentsField,
   toSapCreateCommentsField,
 } from "@/validation/schemas/inputs/sap-document-fields";
-import { SapBatchNumberInputSchema } from "@/validation/schemas/inputs/sap-lot-collections.schema";
 
 describe("SAP document field limits", () => {
   it("matches DI API / HANA table lengths", () => {
@@ -86,13 +85,5 @@ describe("SAP document field limits", () => {
     expect(toSapCreateCommentsField("   ")).toBe(CREATED_FROM_PORTAL_REMARK);
     expect(toSapCreateCommentsField(null)).toBe(CREATED_FROM_PORTAL_REMARK);
     expect(toSapCreateCommentsField("Need by Friday")).toBe("Need by Friday");
-  });
-
-  it("rejects batch numbers longer than DistNumber (36)", () => {
-    const result = SapBatchNumberInputSchema.safeParse({
-      BatchNumber: "A".repeat(37),
-      Quantity: 1,
-    });
-    expect(result.success).toBe(false);
   });
 });

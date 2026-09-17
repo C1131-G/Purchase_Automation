@@ -13,14 +13,9 @@ interface CopyToOption {
   icon: React.ReactNode;
 }
 
-type SourceDocType =
-  | "PurchaseOrder"
-  | "GoodsReceiptPO"
-  | "PurchaseQuotation"
-  | "SalesQuotation"
-  | "SalesOrder";
+type SourceDocType = "PurchaseOrder" | "PurchaseQuotation" | "SalesQuotation" | "SalesOrder";
 
-type TargetType = "PO" | "GRPO" | "Sales Order" | "A/R Invoice" | "A/R Credit Note";
+type TargetType = "PO" | "Sales Order" | "A/R Invoice" | "A/R Credit Note";
 
 interface CopyToDropdownProps {
   docNum: string;
@@ -32,7 +27,6 @@ interface CopyToDropdownProps {
 const targetIcon = (target: string) => {
   switch (target) {
     case "PO":
-    case "GRPO":
     case "Sales Order": {
       return <Truck className="h-4 w-4" />;
     }
@@ -52,13 +46,6 @@ const targetMeta = (target: string, sourceDocType: string) => {
   switch (target) {
     case "PO": {
       return "Create Purchase Order from this Quotation";
-    }
-    case "GRPO": {
-      return sourceDocType === "PurchaseOrder"
-        ? "Create GRPO from this PO"
-        : sourceDocType === "PurchaseQuotation"
-          ? "Create GRPO from this Quotation"
-          : "Create GRPO from this document";
     }
     case "Sales Order": {
       return "Create Sales Order from this quotation";
@@ -231,12 +218,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
     icon: targetIcon(target),
     label: target,
     meta: targetMeta(target, sourceDocType),
-    to:
-      target === "PO"
-        ? "/purchase/create-order"
-        : target === "GRPO"
-          ? "/purchase/create-grpo"
-          : "/sales/create-quotation",
+    to: target === "PO" ? "/purchase/create-order" : "/sales/create-quotation",
   }));
 
   return (

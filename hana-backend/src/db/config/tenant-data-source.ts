@@ -10,7 +10,6 @@ import { BankDetailsSchema } from "@/db/schemas/bank-details.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
-import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
@@ -39,7 +38,6 @@ const TENANT_ENTITIES = [
   PurchaseOrderSchema,
   PurchaseQuotationSchema,
   PurchaseQuotationLineSchema,
-  GRPOSchema,
   UserSchema,
   ItemSchema,
   ItemPriceSchema,

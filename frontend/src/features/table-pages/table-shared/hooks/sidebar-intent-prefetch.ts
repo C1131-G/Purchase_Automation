@@ -5,7 +5,6 @@ import {
   type CreateMasterParty,
 } from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
 import { icRfqQueries } from "@/features/intercompany/api/intercompany.queries";
-import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/api/sales-quotation.queries";
@@ -14,7 +13,6 @@ import { runSmartPrefetch } from "@/features/table-pages/table-shared/hooks/pref
 export type TableRoutePath =
   | "/purchase/orders"
   | "/purchase/quotations"
-  | "/purchase/grpo"
   | "/sales/quotations"
   | "/sales/request-for-quotations";
 
@@ -33,7 +31,6 @@ const partyForTableRoute = (routePath: TableRoutePath): CreateMasterParty =>
  */
 export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: TableRoutePath) => {
   const queryOptionsByPath = {
-    "/purchase/grpo": grpoQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/orders": purchaseOrderQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/quotations": purchaseQuotationQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/quotations": salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),

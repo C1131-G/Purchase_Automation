@@ -7,7 +7,6 @@ import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware
 import { authRoutes } from "@/modules/auth/auth.routes";
 import { bankDetailsRoutes } from "@/modules/bank-details/bank-details.routes";
 import { dashboardRoutes } from "@/modules/dashboard/dashboard.routes";
-import { grpoRoutes } from "@/modules/grpo/grpo.routes";
 import { masterDataRoutes } from "@/modules/master-data/master-data.routes";
 import { organizationRoutes } from "@/modules/organization/organization.routes";
 import { purchaseOrderRoutes } from "@/modules/purchase-order/purchase-order.routes";
@@ -29,7 +28,6 @@ router.use("/dashboard", dashboardRoutes);
 // Procure-to-Pay (P2P): Routes primarily used by Vendors to track their orders, deliveries, and incoming credits.
 router.use("/purchase-orders", purchaseOrderRoutes);
 router.use("/purchase-quotations", purchaseQuotationRoutes);
-router.use("/grpos", grpoRoutes);
 
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
 router.use("/sales-quotations", salesQuotationRoutes);

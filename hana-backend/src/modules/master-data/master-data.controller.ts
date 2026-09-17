@@ -291,55 +291,10 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const getItemBatches = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
-  try {
-    const { dbName } = authReq.user;
-    const itemCode = typeof req.query.itemCode === "string" ? req.query.itemCode : "";
-    const warehouseCode =
-      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : "";
-    const batchesResult = await masterDataService.getItemBatches(dbName, itemCode, warehouseCode);
-    res.status(200).json({ data: batchesResult, success: true });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getItemDefaultBin = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
-  try {
-    const { dbName } = authReq.user;
-    const itemCode = typeof req.query.itemCode === "string" ? req.query.itemCode : "";
-    const warehouseCode =
-      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : "";
-    const defaultBin = await masterDataService.getItemDefaultBin(dbName, itemCode, warehouseCode);
-    res.status(200).json({ data: defaultBin, success: true });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getItemSerials = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
-  try {
-    const { dbName } = authReq.user;
-    const itemCode = typeof req.query.itemCode === "string" ? req.query.itemCode : "";
-    const warehouseCode =
-      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : "";
-    const serialsResult = await masterDataService.getItemSerials(dbName, itemCode, warehouseCode);
-    res.status(200).json({ data: serialsResult, success: true });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const masterDataController = {
   getAccounts,
   getBusinessPartnerAddresses,
   getCustomers,
-  getItemBatches,
-  getItemDefaultBin,
-  getItemSerials,
   getPriceLists,
   getProductWarehouseStocks,
   getProductWarehouseStocksBatch,

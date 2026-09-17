@@ -93,7 +93,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   const updateMutation = useUpdateIcRfq();
   const convertMutation = useConvertIcRfq();
 
-  // Loading toast only during initial hydrate (once per doc), like SQ/PO/GRPO.
+  // Loading toast only during initial hydrate (once per doc), like SQ/PO.
   // Background refetches (`isFetching`) must NOT re-show it.
   const hydratingDocRef = useRef(false);
   useEffect(() => {

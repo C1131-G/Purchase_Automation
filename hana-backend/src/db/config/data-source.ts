@@ -10,7 +10,6 @@ import { logger } from "@/core/logger/pino-logger";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BankDetailsSchema } from "@/db/schemas/bank-details.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
-import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
 // Schemas
@@ -25,7 +24,6 @@ import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
 const GLOBAL_ENTITIES = [
   OrganizationSchema,
   PurchaseOrderSchema,
-  GRPOSchema,
   UserSchema,
   ItemSchema,
   BusinessPartnerSchema,

@@ -1,16 +1,12 @@
-import { ChevronRight, ClipboardList, FileText, Lock, RotateCcw, StickyNote } from "lucide-react";
+import { ChevronRight, ClipboardList, FileText, Lock, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
 import { cn } from "@/shared/utils/cn";
 
-export type SourceDocType =
-  | "PurchaseOrder"
-  | "GoodsReceiptPO"
-  | "PurchaseQuotation"
-  | "SalesQuotation";
-type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | "SalesQuotation";
+export type SourceDocType = "PurchaseOrder" | "PurchaseQuotation" | "SalesQuotation";
+type SourceFamily = "PurchaseOrder" | "PurchaseQuotation" | "SalesQuotation";
 
 interface CopyFromSourceOption {
   label: string;
@@ -39,9 +35,6 @@ const sourceIcon = (code: string) => {
     case "PurchaseOrder": {
       return <FileText className="h-4 w-4" />;
     }
-    case "GoodsReceiptPO": {
-      return <StickyNote className="h-4 w-4" />;
-    }
     case "PurchaseQuotation": {
       return <FileText className="h-4 w-4" />;
     }
@@ -58,9 +51,6 @@ const sourceMeta = (code: string) => {
   switch (code) {
     case "PurchaseOrder": {
       return "Copy from Purchase Order";
-    }
-    case "GoodsReceiptPO": {
-      return "Copy from GRPO";
     }
     case "PurchaseQuotation": {
       return "Copy from Purchase Quotation";
@@ -204,11 +194,9 @@ function CopyFromDropdownInner({
           label:
             code === "PurchaseOrder"
               ? "Purchase Order"
-              : code === "GoodsReceiptPO"
-                ? "GRPO"
-                : code === "PurchaseQuotation"
-                  ? "Purchase Quotation"
-                  : "Sales Quotation",
+              : code === "PurchaseQuotation"
+                ? "Purchase Quotation"
+                : "Sales Quotation",
           meta: sourceMeta(code),
         };
         if (isLocked) {

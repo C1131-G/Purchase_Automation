@@ -14,7 +14,6 @@ export interface RelationshipMapResult {
   incomingPayment: NodeResult[];
   purchaseQuotation?: NodeResult[];
   purchaseOrder?: NodeResult[];
-  grpo?: NodeResult[];
   delivery?: NodeResult[];
   /** IC RFQ upstream of seller SQ (Flow 1). */
   requestForQuotation?: NodeResult[];

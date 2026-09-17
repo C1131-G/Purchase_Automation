@@ -8,13 +8,11 @@ export const AUTO_GENERATED_PREFIX = "Auto Generated";
 
 /** Short type codes written into remarks. */
 const DOC_TYPE_SHORT: Record<string, string> = {
-  GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "PQ",
 };
 
 const DOC_TYPE_SHORT_PLURAL: Record<string, string> = {
-  GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "PQ",
 };

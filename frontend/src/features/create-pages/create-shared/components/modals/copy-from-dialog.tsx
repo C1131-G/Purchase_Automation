@@ -1,9 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Check, ClipboardList, FileText, Loader2, StickyNote } from "lucide-react";
+import { Check, ClipboardList, FileText, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { GRPODetail } from "@/features/table-pages/grpo/api/grpo.service";
-import { grpoAPI } from "@/features/table-pages/grpo/api/grpo.service";
 import type { PurchaseOrderDetail } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
 import { purchaseOrderAPI } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
 import {
@@ -19,11 +17,7 @@ import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/tab
 import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import { CopyFromDateFilter } from "./copy-from-date-filter";
 
-export type SourceDocType =
-  | "PurchaseOrder"
-  | "GoodsReceiptPO"
-  | "PurchaseQuotation"
-  | "SalesQuotation";
+export type SourceDocType = "PurchaseOrder" | "PurchaseQuotation" | "SalesQuotation";
 
 const VISIBLE_LINES = 6;
 
@@ -75,14 +69,12 @@ interface DocDetailCache {
 const SKELETON_ROW_KEYS = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5", "slot-6"] as const;
 
 const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
-  GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "Quotation",
   SalesQuotation: "Quotation",
 };
 
 const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
-  GoodsReceiptPO: <StickyNote className="h-4 w-4" />,
   PurchaseOrder: <FileText className="h-4 w-4" />,
   PurchaseQuotation: <FileText className="h-4 w-4" />,
   SalesQuotation: <ClipboardList className="h-4 w-4" />,
@@ -94,7 +86,7 @@ function detailCacheKey(docType: SourceDocType, docCode: string): string {
 
 function computeDetail(
   _docType: SourceDocType,
-  data: PurchaseOrderDetail | GRPODetail | PurchaseQuotationDetail | SalesQuotationDetail,
+  data: PurchaseOrderDetail | PurchaseQuotationDetail | SalesQuotationDetail,
 ): DocDetailCache {
   const lines = data.DocumentLines ?? [];
   const result: DocDetailCache = {
@@ -261,24 +253,6 @@ export function CopyFromDialog({
             params.DocDateEnd = dateRange.to;
           }
           result = await purchaseOrderAPI.getPurchaseOrders(params);
-        } else if (sourceDocType === "GoodsReceiptPO") {
-          const params: Record<string, unknown> = {
-            CardCode: vendorCode,
-            limit,
-          };
-          if (query) {
-            params.DocNum = query;
-          }
-          if (!query && isLoadMore) {
-            params.page = page;
-          }
-          if (dateRange.from) {
-            params.DocDateStart = dateRange.from;
-          }
-          if (dateRange.to) {
-            params.DocDateEnd = dateRange.to;
-          }
-          result = await grpoAPI.getGRPOs(params);
         } else if (sourceDocType === "PurchaseQuotation") {
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
@@ -444,20 +418,10 @@ export function CopyFromDialog({
     setHoverDetailLoading(true);
 
     try {
-      let data:
-        | PurchaseOrderDetail
-        | GRPODetail
-        | PurchaseQuotationDetail
-        | SalesQuotationDetail
-        | null = null;
+      let data: PurchaseOrderDetail | PurchaseQuotationDetail | SalesQuotationDetail | null = null;
       if (doc.docType === "PurchaseOrder") {
         const res = await purchaseOrderAPI.getPurchaseOrderByDocNum(doc.code);
         ({ data } = res);
-      } else if (doc.docType === "GoodsReceiptPO") {
-        if (doc.docEntry) {
-          const res = await grpoAPI.getGRPOById(doc.docEntry);
-          ({ data } = res);
-        }
       } else if (doc.docType === "PurchaseQuotation") {
         const res = await purchaseQuotationAPI.getPurchaseQuotationByDocNum(doc.code);
         ({ data } = res);

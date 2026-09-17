@@ -20,17 +20,14 @@ import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout/dashb
 import { Route as LayoutIntercompanyIndexRouteImport } from './routes/_layout/intercompany/index'
 import { Route as LayoutIntercompanyNotificationsRouteImport } from './routes/_layout/intercompany/notifications'
 import { Route as LayoutIntercompanyRetriesRouteImport } from './routes/_layout/intercompany/retries'
-import { Route as LayoutPurchaseCreateGrpoRouteImport } from './routes/_layout/purchase/create-grpo'
 import { Route as LayoutPurchaseCreateOrderRouteImport } from './routes/_layout/purchase/create-order'
 import { Route as LayoutPurchaseCreateQuotationRouteImport } from './routes/_layout/purchase/create-quotation'
-import { Route as LayoutPurchaseGrpoRouteRouteImport } from './routes/_layout/purchase/grpo/route'
 import { Route as LayoutPurchaseOrdersRouteRouteImport } from './routes/_layout/purchase/orders/route'
 import { Route as LayoutPurchaseQuotationsRouteRouteImport } from './routes/_layout/purchase/quotations/route'
 import { Route as LayoutSalesCreateQuotationRouteImport } from './routes/_layout/sales/create-quotation'
 import { Route as LayoutSalesQuotationsRouteRouteImport } from './routes/_layout/sales/quotations/route'
 import { Route as LayoutSalesRequestForQuotationsRouteRouteImport } from './routes/_layout/sales/request-for-quotations/route'
 import { Route as LayoutSalesRequestForQuotationsRfqIdRouteImport } from './routes/_layout/sales/request-for-quotations/$rfqId'
-import { Route as LayoutPurchaseGrpoDocNumUpdateRouteImport } from './routes/_layout/purchase/grpo/$docNum.update'
 import { Route as LayoutPurchaseOrdersDocNumUpdateRouteImport } from './routes/_layout/purchase/orders/$docNum.update'
 import { Route as LayoutPurchaseQuotationsDocNumUpdateRouteImport } from './routes/_layout/purchase/quotations/$docNum.update'
 import { Route as LayoutSalesQuotationsDocNumUpdateRouteImport } from './routes/_layout/sales/quotations/$docNum.update'
@@ -91,12 +88,6 @@ const LayoutIntercompanyRetriesRoute =
     path: '/retries',
     getParentRoute: () => LayoutIntercompanyRouteRoute,
   } as any)
-const LayoutPurchaseCreateGrpoRoute =
-  LayoutPurchaseCreateGrpoRouteImport.update({
-    id: '/purchase/create-grpo',
-    path: '/purchase/create-grpo',
-    getParentRoute: () => LayoutRoute,
-  } as any)
 const LayoutPurchaseCreateOrderRoute =
   LayoutPurchaseCreateOrderRouteImport.update({
     id: '/purchase/create-order',
@@ -109,11 +100,6 @@ const LayoutPurchaseCreateQuotationRoute =
     path: '/purchase/create-quotation',
     getParentRoute: () => LayoutRoute,
   } as any)
-const LayoutPurchaseGrpoRouteRoute = LayoutPurchaseGrpoRouteRouteImport.update({
-  id: '/purchase/grpo',
-  path: '/purchase/grpo',
-  getParentRoute: () => LayoutRoute,
-} as any)
 const LayoutPurchaseOrdersRouteRoute =
   LayoutPurchaseOrdersRouteRouteImport.update({
     id: '/purchase/orders',
@@ -150,12 +136,6 @@ const LayoutSalesRequestForQuotationsRfqIdRoute =
     path: '/$rfqId',
     getParentRoute: () => LayoutSalesRequestForQuotationsRouteRoute,
   } as any)
-const LayoutPurchaseGrpoDocNumUpdateRoute =
-  LayoutPurchaseGrpoDocNumUpdateRouteImport.update({
-    id: '/$docNum/update',
-    path: '/$docNum/update',
-    getParentRoute: () => LayoutPurchaseGrpoRouteRoute,
-  } as any)
 const LayoutPurchaseOrdersDocNumUpdateRoute =
   LayoutPurchaseOrdersDocNumUpdateRouteImport.update({
     id: '/$docNum/update',
@@ -180,7 +160,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/dashboard': typeof LayoutDashboardRouteRouteWithChildren
   '/intercompany': typeof LayoutIntercompanyRouteRouteWithChildren
-  '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
   '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
@@ -189,14 +168,12 @@ export interface FileRoutesByFullPath {
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
   '/intercompany/retries': typeof LayoutIntercompanyRetriesRoute
-  '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/dashboard/': typeof LayoutDashboardIndexRoute
   '/intercompany/': typeof LayoutIntercompanyIndexRoute
   '/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
-  '/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
   '/purchase/orders/$docNum/update': typeof LayoutPurchaseOrdersDocNumUpdateRoute
   '/purchase/quotations/$docNum/update': typeof LayoutPurchaseQuotationsDocNumUpdateRoute
   '/sales/quotations/$docNum/update': typeof LayoutSalesQuotationsDocNumUpdateRoute
@@ -204,7 +181,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
   '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
@@ -213,14 +189,12 @@ export interface FileRoutesByTo {
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
   '/intercompany/retries': typeof LayoutIntercompanyRetriesRoute
-  '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/dashboard': typeof LayoutDashboardIndexRoute
   '/intercompany': typeof LayoutIntercompanyIndexRoute
   '/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
-  '/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
   '/purchase/orders/$docNum/update': typeof LayoutPurchaseOrdersDocNumUpdateRoute
   '/purchase/quotations/$docNum/update': typeof LayoutPurchaseQuotationsDocNumUpdateRoute
   '/sales/quotations/$docNum/update': typeof LayoutSalesQuotationsDocNumUpdateRoute
@@ -232,7 +206,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_layout/dashboard': typeof LayoutDashboardRouteRouteWithChildren
   '/_layout/intercompany': typeof LayoutIntercompanyRouteRouteWithChildren
-  '/_layout/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
   '/_layout/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
   '/_layout/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
@@ -241,14 +214,12 @@ export interface FileRoutesById {
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/_layout/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
   '/_layout/intercompany/retries': typeof LayoutIntercompanyRetriesRoute
-  '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/_layout/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
   '/_layout/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/_layout/dashboard/': typeof LayoutDashboardIndexRoute
   '/_layout/intercompany/': typeof LayoutIntercompanyIndexRoute
   '/_layout/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
-  '/_layout/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
   '/_layout/purchase/orders/$docNum/update': typeof LayoutPurchaseOrdersDocNumUpdateRoute
   '/_layout/purchase/quotations/$docNum/update': typeof LayoutPurchaseQuotationsDocNumUpdateRoute
   '/_layout/sales/quotations/$docNum/update': typeof LayoutSalesQuotationsDocNumUpdateRoute
@@ -260,7 +231,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard'
     | '/intercompany'
-    | '/purchase/grpo'
     | '/purchase/orders'
     | '/purchase/quotations'
     | '/sales/quotations'
@@ -269,14 +239,12 @@ export interface FileRouteTypes {
     | '/dashboard/sales'
     | '/intercompany/notifications'
     | '/intercompany/retries'
-    | '/purchase/create-grpo'
     | '/purchase/create-order'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
     | '/dashboard/'
     | '/intercompany/'
     | '/sales/request-for-quotations/$rfqId'
-    | '/purchase/grpo/$docNum/update'
     | '/purchase/orders/$docNum/update'
     | '/purchase/quotations/$docNum/update'
     | '/sales/quotations/$docNum/update'
@@ -284,7 +252,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/purchase/grpo'
     | '/purchase/orders'
     | '/purchase/quotations'
     | '/sales/quotations'
@@ -293,14 +260,12 @@ export interface FileRouteTypes {
     | '/dashboard/sales'
     | '/intercompany/notifications'
     | '/intercompany/retries'
-    | '/purchase/create-grpo'
     | '/purchase/create-order'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
     | '/dashboard'
     | '/intercompany'
     | '/sales/request-for-quotations/$rfqId'
-    | '/purchase/grpo/$docNum/update'
     | '/purchase/orders/$docNum/update'
     | '/purchase/quotations/$docNum/update'
     | '/sales/quotations/$docNum/update'
@@ -311,7 +276,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/_layout/dashboard'
     | '/_layout/intercompany'
-    | '/_layout/purchase/grpo'
     | '/_layout/purchase/orders'
     | '/_layout/purchase/quotations'
     | '/_layout/sales/quotations'
@@ -320,14 +284,12 @@ export interface FileRouteTypes {
     | '/_layout/dashboard/sales'
     | '/_layout/intercompany/notifications'
     | '/_layout/intercompany/retries'
-    | '/_layout/purchase/create-grpo'
     | '/_layout/purchase/create-order'
     | '/_layout/purchase/create-quotation'
     | '/_layout/sales/create-quotation'
     | '/_layout/dashboard/'
     | '/_layout/intercompany/'
     | '/_layout/sales/request-for-quotations/$rfqId'
-    | '/_layout/purchase/grpo/$docNum/update'
     | '/_layout/purchase/orders/$docNum/update'
     | '/_layout/purchase/quotations/$docNum/update'
     | '/_layout/sales/quotations/$docNum/update'
@@ -418,13 +380,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIntercompanyRetriesRouteImport
       parentRoute: typeof LayoutIntercompanyRouteRoute
     }
-    '/_layout/purchase/create-grpo': {
-      id: '/_layout/purchase/create-grpo'
-      path: '/purchase/create-grpo'
-      fullPath: '/purchase/create-grpo'
-      preLoaderRoute: typeof LayoutPurchaseCreateGrpoRouteImport
-      parentRoute: typeof LayoutRoute
-    }
     '/_layout/purchase/create-order': {
       id: '/_layout/purchase/create-order'
       path: '/purchase/create-order'
@@ -437,13 +392,6 @@ declare module '@tanstack/react-router' {
       path: '/purchase/create-quotation'
       fullPath: '/purchase/create-quotation'
       preLoaderRoute: typeof LayoutPurchaseCreateQuotationRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/purchase/grpo': {
-      id: '/_layout/purchase/grpo'
-      path: '/purchase/grpo'
-      fullPath: '/purchase/grpo'
-      preLoaderRoute: typeof LayoutPurchaseGrpoRouteRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/purchase/orders': {
@@ -487,13 +435,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/sales/request-for-quotations/$rfqId'
       preLoaderRoute: typeof LayoutSalesRequestForQuotationsRfqIdRouteImport
       parentRoute: typeof LayoutSalesRequestForQuotationsRouteRoute
-    }
-    '/_layout/purchase/grpo/$docNum/update': {
-      id: '/_layout/purchase/grpo/$docNum/update'
-      path: '/$docNum/update'
-      fullPath: '/purchase/grpo/$docNum/update'
-      preLoaderRoute: typeof LayoutPurchaseGrpoDocNumUpdateRouteImport
-      parentRoute: typeof LayoutPurchaseGrpoRouteRoute
     }
     '/_layout/purchase/orders/$docNum/update': {
       id: '/_layout/purchase/orders/$docNum/update'
@@ -550,20 +491,6 @@ const LayoutIntercompanyRouteRouteChildren: LayoutIntercompanyRouteRouteChildren
 const LayoutIntercompanyRouteRouteWithChildren =
   LayoutIntercompanyRouteRoute._addFileChildren(
     LayoutIntercompanyRouteRouteChildren,
-  )
-
-interface LayoutPurchaseGrpoRouteRouteChildren {
-  LayoutPurchaseGrpoDocNumUpdateRoute: typeof LayoutPurchaseGrpoDocNumUpdateRoute
-}
-
-const LayoutPurchaseGrpoRouteRouteChildren: LayoutPurchaseGrpoRouteRouteChildren =
-  {
-    LayoutPurchaseGrpoDocNumUpdateRoute: LayoutPurchaseGrpoDocNumUpdateRoute,
-  }
-
-const LayoutPurchaseGrpoRouteRouteWithChildren =
-  LayoutPurchaseGrpoRouteRoute._addFileChildren(
-    LayoutPurchaseGrpoRouteRouteChildren,
   )
 
 interface LayoutPurchaseOrdersRouteRouteChildren {
@@ -629,12 +556,10 @@ const LayoutSalesRequestForQuotationsRouteRouteWithChildren =
 interface LayoutRouteChildren {
   LayoutDashboardRouteRoute: typeof LayoutDashboardRouteRouteWithChildren
   LayoutIntercompanyRouteRoute: typeof LayoutIntercompanyRouteRouteWithChildren
-  LayoutPurchaseGrpoRouteRoute: typeof LayoutPurchaseGrpoRouteRouteWithChildren
   LayoutPurchaseOrdersRouteRoute: typeof LayoutPurchaseOrdersRouteRouteWithChildren
   LayoutPurchaseQuotationsRouteRoute: typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   LayoutSalesQuotationsRouteRoute: typeof LayoutSalesQuotationsRouteRouteWithChildren
   LayoutSalesRequestForQuotationsRouteRoute: typeof LayoutSalesRequestForQuotationsRouteRouteWithChildren
-  LayoutPurchaseCreateGrpoRoute: typeof LayoutPurchaseCreateGrpoRoute
   LayoutPurchaseCreateOrderRoute: typeof LayoutPurchaseCreateOrderRoute
   LayoutPurchaseCreateQuotationRoute: typeof LayoutPurchaseCreateQuotationRoute
   LayoutSalesCreateQuotationRoute: typeof LayoutSalesCreateQuotationRoute
@@ -643,14 +568,12 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardRouteRoute: LayoutDashboardRouteRouteWithChildren,
   LayoutIntercompanyRouteRoute: LayoutIntercompanyRouteRouteWithChildren,
-  LayoutPurchaseGrpoRouteRoute: LayoutPurchaseGrpoRouteRouteWithChildren,
   LayoutPurchaseOrdersRouteRoute: LayoutPurchaseOrdersRouteRouteWithChildren,
   LayoutPurchaseQuotationsRouteRoute:
     LayoutPurchaseQuotationsRouteRouteWithChildren,
   LayoutSalesQuotationsRouteRoute: LayoutSalesQuotationsRouteRouteWithChildren,
   LayoutSalesRequestForQuotationsRouteRoute:
     LayoutSalesRequestForQuotationsRouteRouteWithChildren,
-  LayoutPurchaseCreateGrpoRoute: LayoutPurchaseCreateGrpoRoute,
   LayoutPurchaseCreateOrderRoute: LayoutPurchaseCreateOrderRoute,
   LayoutPurchaseCreateQuotationRoute: LayoutPurchaseCreateQuotationRoute,
   LayoutSalesCreateQuotationRoute: LayoutSalesCreateQuotationRoute,

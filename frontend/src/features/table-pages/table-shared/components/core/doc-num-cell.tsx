@@ -11,7 +11,6 @@ interface DocNumCellProps {
     | "ar-credit-memo"
     | "purchase-quotation"
     | "purchase-order"
-    | "grpo"
     | "incoming-payment"
     | "goods-receipt"
     | "goods-issue"

@@ -2,7 +2,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { ProductLotAllocationModal } from "@/features/create-pages/create-shared/components/modals/product-lot-allocation-modal";
 import { CreateProductTableRow } from "@/features/create-pages/create-shared/components/tables/create-product-table-row";
 import type { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import type {
@@ -10,10 +9,6 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import {
-  hasLotAllocations,
-  isLotManaged,
-} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import type { TaxDocumentSide } from "@/features/create-pages/create-shared/utils/product-tax-codes";
 
 // CreateProductTable: Specialized data grid for building document line items.
@@ -87,10 +82,6 @@ interface CreateProductTableProps {
   showTaxCode?: boolean;
   taxCodes?: CreateLookupOption[];
   taxSide?: TaxDocumentSide;
-  /** GRPO create/edit only: require batch/serial on managed items. */
-  lotRequired?: boolean;
-  /** When set, the row button opens a full lot page instead of the modal. */
-  onOpenLotPage?: (row: ProductRow) => void;
 }
 
 export function CreateProductTable({
@@ -132,41 +123,7 @@ export function CreateProductTable({
   showTaxCode = true,
   taxCodes = [],
   taxSide = "purchase",
-  lotRequired = false,
-  onOpenLotPage,
 }: CreateProductTableProps) {
-  const lotMode = taxSide === "sales" ? "select" : "enter";
-  const [lotRowId, setLotRowId] = useState<string | null>(null);
-  const promptedLotsRef = useRef(new Set<string>());
-  const useLotPage = Boolean(onOpenLotPage);
-
-  useEffect(() => {
-    if (!lotRequired || useLotPage) {
-      return;
-    }
-    const liveIds = new Set(productRows.map((row) => `${row.id}:${row.productCode}`));
-    for (const key of promptedLotsRef.current) {
-      if (!liveIds.has(key)) {
-        promptedLotsRef.current.delete(key);
-      }
-    }
-    if (lotRowId) {
-      return;
-    }
-    for (const row of productRows) {
-      const key = `${row.id}:${row.productCode}`;
-      if (!isLotManaged(row) || promptedLotsRef.current.has(key)) {
-        continue;
-      }
-      promptedLotsRef.current.add(key);
-      if (!hasLotAllocations(row)) {
-        setLotRowId(row.id);
-        break;
-      }
-    }
-  }, [lotRequired, lotRowId, productRows, useLotPage]);
-
-  const lotRow = lotRowId ? (productRows.find((row) => row.id === lotRowId) ?? null) : null;
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   const emptyColSpan =
     10 +
@@ -321,9 +278,7 @@ export function CreateProductTable({
                 <th className="w-[7%] px-2 py-2 text-left">Total</th>
                 {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
                 {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
-                <th className={`${lotRequired ? "w-[10%]" : "w-[7%]"} px-2 py-2 text-right`}>
-                  Actions
-                </th>
+                <th className="w-[7%] px-2 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -394,13 +349,6 @@ export function CreateProductTable({
                     showTaxCode={showTaxCode}
                     taxCodes={taxCodes}
                     taxSide={taxSide}
-                    lotRequired={lotRequired}
-                    {...(lotRequired
-                      ? {
-                          onOpenLotAllocation: () =>
-                            onOpenLotPage ? onOpenLotPage(row) : setLotRowId(row.id),
-                        }
-                      : {})}
                   />
                 );
               })}
@@ -416,21 +364,6 @@ export function CreateProductTable({
           </table>
         </div>
       </div>
-      {lotRequired && !useLotPage ? (
-        <ProductLotAllocationModal
-          mode={lotMode}
-          open={Boolean(lotRow)}
-          required={lotRequired}
-          row={lotRow}
-          onClose={() => setLotRowId(null)}
-          onSave={(patch) => {
-            if (!lotRow) {
-              return;
-            }
-            updateProductRow(lotRow.id, patch);
-          }}
-        />
-      ) : null}
     </div>
   );
 }

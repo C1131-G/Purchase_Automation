@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, ChevronDown, Layers, Search, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, Search, Trash2 } from "lucide-react";
 import React, { type ComponentProps, type ReactElement } from "react";
 import ReactDOM from "react-dom";
 
@@ -18,11 +18,6 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import {
-  isLotManaged,
-  lotAllocationError,
-  lotButtonLabel,
-} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import {
   formatTaxCodeLabel,
   mapTaxCodeForSide,
@@ -234,8 +229,6 @@ interface CreateProductTableRowProps {
   showTaxCode?: boolean;
   taxCodes?: CreateLookupOption[];
   taxSide?: TaxDocumentSide;
-  lotRequired?: boolean;
-  onOpenLotAllocation?: () => void;
 }
 
 export function CreateProductTableRow({
@@ -276,8 +269,6 @@ export function CreateProductTableRow({
   showTaxCode = true,
   taxCodes: taxCodesProp = [],
   taxSide = "purchase",
-  lotRequired = false,
-  onOpenLotAllocation,
 }: CreateProductTableRowProps) {
   const invalidFieldClass =
     "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200";
@@ -1786,28 +1777,6 @@ export function CreateProductTableRow({
       )}
       <td className="min-w-0 px-2 py-2 text-right">
         <div className="flex items-center justify-end gap-1">
-          {isLotManaged(row) && onOpenLotAllocation ? (
-            <Tooltip
-              content={lotAllocationError(row, lotRequired) || lotButtonLabel(row)}
-              className="block w-auto max-w-none"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenLotAllocation();
-                }}
-                className={`inline-flex h-10 min-w-[6.5rem] cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition ${
-                  lotAllocationError(row, lotRequired)
-                    ? "border-red-300 bg-red-50 text-red-700"
-                    : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50"
-                }`}
-                aria-label={`${lotButtonLabel(row)} numbers`}
-              >
-                <Layers className="h-4 w-4" />
-                {lotButtonLabel(row)}
-              </button>
-            </Tooltip>
-          ) : null}
           <Tooltip content="Remove row" className="block w-auto max-w-none">
             <button
               type="button"
