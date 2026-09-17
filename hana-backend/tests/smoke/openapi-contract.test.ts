@@ -14,7 +14,6 @@ const REQUIRED_PATH_PREFIXES = [
   "/ap-invoices",
   "/ap-credit-memos",
   "/sales-quotations",
-  "/outgoing-payments",
   "/bank-details",
   "/relationship-map/{docType}/{docEntry}",
   "/attachments",
@@ -22,6 +21,7 @@ const REQUIRED_PATH_PREFIXES = [
   "/master-data/products",
   "/master-data/products-by-codes",
   "/master-data/product-warehouse-stocks-batch",
+  "/master-data/accounts",
   "/master-data/item-batches",
   "/master-data/item-serials",
   "/master-data/item-default-bin",
@@ -94,7 +94,7 @@ describe("OpenAPI contract (sql-style full coverage + quality)", () => {
     }
 
     // sql documents ~30+ registerPath calls; document modules multiply that.
-    expect(opCount).toBeGreaterThan(40);
+    expect(opCount, "opCount").toBeGreaterThan(40);
   });
 
   it("does not use legacy PascalCase SAP path names for documents", () => {

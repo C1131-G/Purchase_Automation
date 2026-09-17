@@ -6,7 +6,6 @@ import ReactDOM from "react-dom";
 import { Calendar } from "@/components/calendar/calendar";
 import { NumericInput } from "@/components/input/numeric-input";
 import { LookupPopup } from "@/components/lookup/lookup-popup";
-import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 
 import { Tooltip } from "@/components/tooltip";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -752,14 +751,17 @@ export function CreateProductTableRow({
   }, [row.binLocationAllocation]);
 
   const accountQuery = useQuery({
-    ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 100),
+    ...createSharedQueries.accounts(accountInput || undefined, 100),
     enabled: accountFocused || accountLookupOpen,
   });
   const accountSuggestions = React.useMemo(() => {
-    return (accountQuery.data?.data ?? []).map((acc) => ({
-      code: acc.GLAccount,
-      name: acc.Account,
-    }));
+    return (accountQuery.data ?? []).map((acc) => {
+      const record = acc && typeof acc === "object" ? (acc as Record<string, unknown>) : {};
+      return {
+        code: String(record.GLAccount ?? ""),
+        name: String(record.Account ?? ""),
+      };
+    });
   }, [accountQuery.data]);
 
   React.useEffect(() => {

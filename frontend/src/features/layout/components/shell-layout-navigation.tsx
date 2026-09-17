@@ -144,21 +144,6 @@ export function ShellLayoutNavigation({
                   A/P Credit Memo
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/purchase/create-outgoing-payment"
-                  onMouseEnter={() => onTableNavIntent("/purchase/outgoing-payment")}
-                  onFocus={() => onTableNavIntent("/purchase/outgoing-payment")}
-                  onTouchStart={() => onTableNavIntent("/purchase/outgoing-payment")}
-                  isActive={
-                    pathname === "/purchase/create-outgoing-payment" ||
-                    pathname === "/purchase/outgoing-payment" ||
-                    pathname.startsWith("/purchase/outgoing-payment/")
-                  }
-                >
-                  Outgoing Payment
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
 
             <SidebarMenuCollapsible

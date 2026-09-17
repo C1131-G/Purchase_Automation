@@ -33,7 +33,6 @@ router.get("/:docType/:docEntry", async (req: Request, res: Response) => {
       "grpo",
       "ap-invoice",
       "ap-credit-memo",
-      "outgoing-payment",
     ].includes(docType as string);
 
     if (!docType || (!isIC && !isAR && !isAP)) {

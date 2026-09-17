@@ -26,8 +26,7 @@ interface RelationshipMapTrackerProps {
     | "ap-invoice"
     | "ap-credit-memo"
     | "grpo"
-    | "incoming-payment"
-    | "outgoing-payment";
+    | "incoming-payment";
   docEntry: number;
 }
 
@@ -136,14 +135,13 @@ export function RelationshipMapTracker({
     "ap-invoice",
     "ap-credit-memo",
     "grpo",
-    "outgoing-payment",
   ].includes(docType);
 
   const isIcSalesDoc =
     !isAP && (docType === "request-for-quotation" || docType === "sales-quotation");
 
   if (isLoading) {
-    const nodeCount = isAP ? 6 : isIcSalesDoc ? 2 : 5;
+    const nodeCount = isAP ? 5 : isIcSalesDoc ? 2 : 5;
     return (
       <div
         className={`bg-surface rounded-xl shadow-sm border border-linen-100 w-full ${
@@ -224,7 +222,7 @@ export function RelationshipMapTracker({
   const hasDocGRPO = isAP ? !!data.grpo?.length : false;
   const hasDoc3 = isAP ? !!data.apInvoice?.length : !!data.arInvoice?.length;
   const hasDoc4 = isAP ? !!data.apCreditMemo?.length : !!data.arCreditMemo?.length;
-  const hasDoc5 = isAP ? !!data.outgoingPayment?.length : !!data.incomingPayment?.length;
+  const hasDoc5 = !isAP && !!data.incomingPayment?.length;
 
   const icSalesNodes = [
     {
@@ -318,13 +316,6 @@ export function RelationshipMapTracker({
           active: hasDoc4,
           items: data.apCreditMemo,
           linkPrefix: "/purchase/ap-credit-memo",
-        },
-        {
-          icon: Banknote,
-          label: "Outgoing Payment",
-          active: hasDoc5,
-          items: data.outgoingPayment,
-          linkPrefix: "/purchase/outgoing-payment",
         },
       ]
     : isIcSalesMap

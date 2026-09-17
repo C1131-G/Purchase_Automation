@@ -21,7 +21,6 @@ import {
   CreateInvoiceInputSchema,
   UpdateInvoiceInputSchema,
 } from "@/validation/schemas/inputs/invoice.input";
-import { CreatePaymentInputSchema } from "@/validation/schemas/inputs/payments.input";
 
 import { registerDocumentPaths } from "./swagger-document-path-register";
 
@@ -82,13 +81,5 @@ export const registerAllDocumentModulePaths = () => {
       create: "CreateSalesQuotationInput",
       update: "UpdateSalesQuotationInput",
     },
-  });
-  registerDocumentPaths({
-    entityPath: "outgoing-payments",
-    entityLabel: "Outgoing payment",
-    supportsCancel: true,
-    supportsUpdate: true,
-    createSchema: CreatePaymentInputSchema,
-    schemaNames: { create: "CreateOutgoingPaymentInput" },
   });
 };

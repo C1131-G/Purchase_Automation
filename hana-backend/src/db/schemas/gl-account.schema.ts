@@ -1,5 +1,5 @@
 // GL Account Schema: Maps to the SAP B1 'DSC1' table (Chart of Accounts).
-// Provides account lookup for outgoing payment creation.
+// Provides account lookup for document line-item account pickers.
 
 import { EntitySchema } from "typeorm";
 

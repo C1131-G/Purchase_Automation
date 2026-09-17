@@ -90,6 +90,14 @@ export const registerAllPaths = () => {
     tags: ["Master Data"],
     responses: jsonResponses({ successDescription: "Bin list." }),
   });
+  registerPath("/master-data/accounts", "get", {
+    security: cookieSecurity,
+    operationId: "listAccounts",
+    summary: "List chart-of-accounts rows",
+    description: "DSC1 accounts for document line-item account pickers.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Account rows." }),
+  });
   registerPath("/master-data/product-warehouse-stocks", "get", {
     security: cookieSecurity,
     operationId: "listProductWarehouseStocks",

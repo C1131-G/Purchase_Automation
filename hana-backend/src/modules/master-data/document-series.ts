@@ -9,7 +9,6 @@ export const SAP_SERIES_OBJECT = {
   apCreditMemo: "19",
   apInvoice: "18",
   goodsReceiptPO: "20",
-  outgoingPayment: "46",
   purchaseOrder: "22",
   purchaseQuotation: "540000006",
   salesQuotation: "23",

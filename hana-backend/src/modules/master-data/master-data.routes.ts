@@ -6,6 +6,7 @@ import { validateSession } from "@/core/middleware/auth.middleware";
 import { masterDataController } from "./master-data.controller";
 import { validateQuery } from "@/core/middleware/validation.middleware";
 import { MasterDataQuerySchema } from "./master-data.schema";
+import { AccountQuerySchema } from "./master-data.schema";
 
 const router = express.Router();
 
@@ -64,6 +65,9 @@ router.get("/price-lists", masterDataController.getPriceLists);
 
 // GET /series: List of document series from Service Layer
 router.get("/series", masterDataController.getSeries);
+
+// GET /accounts: Chart of accounts (DSC1) for document line-item account pickers.
+router.get("/accounts", validateQuery(AccountQuerySchema), masterDataController.getAccounts);
 
 // GET /warehouses/:code/bins: List of bins for a warehouse from Service Layer
 router.get("/warehouses/:code/bins", masterDataController.getWarehouseBins);

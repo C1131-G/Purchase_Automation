@@ -21,7 +21,6 @@ import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.sche
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { OscnSchema } from "@/db/schemas/oscn.schema";
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
-import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
@@ -47,7 +46,6 @@ const TENANT_ENTITIES = [
   GRPOSchema,
   APInvoiceSchema,
   APCreditMemoSchema,
-  OutgoingPaymentSchema,
   UserSchema,
   ItemSchema,
   ItemPriceSchema,

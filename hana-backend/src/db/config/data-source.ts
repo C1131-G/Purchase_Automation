@@ -17,7 +17,6 @@ import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
 // Schemas
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
-import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
@@ -31,7 +30,6 @@ const GLOBAL_ENTITIES = [
   GRPOSchema,
   APInvoiceSchema,
   APCreditMemoSchema,
-  OutgoingPaymentSchema,
   UserSchema,
   ItemSchema,
   BusinessPartnerSchema,

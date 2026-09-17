@@ -26,11 +26,9 @@ import { Route as LayoutPurchaseCreateApCreditMemoRouteImport } from './routes/_
 import { Route as LayoutPurchaseCreateApInvoiceRouteImport } from './routes/_layout/purchase/create-ap-invoice'
 import { Route as LayoutPurchaseCreateGrpoRouteImport } from './routes/_layout/purchase/create-grpo'
 import { Route as LayoutPurchaseCreateOrderRouteImport } from './routes/_layout/purchase/create-order'
-import { Route as LayoutPurchaseCreateOutgoingPaymentRouteImport } from './routes/_layout/purchase/create-outgoing-payment'
 import { Route as LayoutPurchaseCreateQuotationRouteImport } from './routes/_layout/purchase/create-quotation'
 import { Route as LayoutPurchaseGrpoRouteRouteImport } from './routes/_layout/purchase/grpo/route'
 import { Route as LayoutPurchaseOrdersRouteRouteImport } from './routes/_layout/purchase/orders/route'
-import { Route as LayoutPurchaseOutgoingPaymentRouteRouteImport } from './routes/_layout/purchase/outgoing-payment/route'
 import { Route as LayoutPurchaseQuotationsRouteRouteImport } from './routes/_layout/purchase/quotations/route'
 import { Route as LayoutSalesCreateQuotationRouteImport } from './routes/_layout/sales/create-quotation'
 import { Route as LayoutSalesQuotationsRouteRouteImport } from './routes/_layout/sales/quotations/route'
@@ -40,7 +38,6 @@ import { Route as LayoutPurchaseApCreditMemoDocNumUpdateRouteImport } from './ro
 import { Route as LayoutPurchaseApInvoiceDocNumUpdateRouteImport } from './routes/_layout/purchase/ap-invoice/$docNum.update'
 import { Route as LayoutPurchaseGrpoDocNumUpdateRouteImport } from './routes/_layout/purchase/grpo/$docNum.update'
 import { Route as LayoutPurchaseOrdersDocNumUpdateRouteImport } from './routes/_layout/purchase/orders/$docNum.update'
-import { Route as LayoutPurchaseOutgoingPaymentDocNumUpdateRouteImport } from './routes/_layout/purchase/outgoing-payment/$docNum.update'
 import { Route as LayoutPurchaseQuotationsDocNumUpdateRouteImport } from './routes/_layout/purchase/quotations/$docNum.update'
 import { Route as LayoutSalesQuotationsDocNumUpdateRouteImport } from './routes/_layout/sales/quotations/$docNum.update'
 
@@ -136,12 +133,6 @@ const LayoutPurchaseCreateOrderRoute =
     path: '/purchase/create-order',
     getParentRoute: () => LayoutRoute,
   } as any)
-const LayoutPurchaseCreateOutgoingPaymentRoute =
-  LayoutPurchaseCreateOutgoingPaymentRouteImport.update({
-    id: '/purchase/create-outgoing-payment',
-    path: '/purchase/create-outgoing-payment',
-    getParentRoute: () => LayoutRoute,
-  } as any)
 const LayoutPurchaseCreateQuotationRoute =
   LayoutPurchaseCreateQuotationRouteImport.update({
     id: '/purchase/create-quotation',
@@ -157,12 +148,6 @@ const LayoutPurchaseOrdersRouteRoute =
   LayoutPurchaseOrdersRouteRouteImport.update({
     id: '/purchase/orders',
     path: '/purchase/orders',
-    getParentRoute: () => LayoutRoute,
-  } as any)
-const LayoutPurchaseOutgoingPaymentRouteRoute =
-  LayoutPurchaseOutgoingPaymentRouteRouteImport.update({
-    id: '/purchase/outgoing-payment',
-    path: '/purchase/outgoing-payment',
     getParentRoute: () => LayoutRoute,
   } as any)
 const LayoutPurchaseQuotationsRouteRoute =
@@ -219,12 +204,6 @@ const LayoutPurchaseOrdersDocNumUpdateRoute =
     path: '/$docNum/update',
     getParentRoute: () => LayoutPurchaseOrdersRouteRoute,
   } as any)
-const LayoutPurchaseOutgoingPaymentDocNumUpdateRoute =
-  LayoutPurchaseOutgoingPaymentDocNumUpdateRouteImport.update({
-    id: '/$docNum/update',
-    path: '/$docNum/update',
-    getParentRoute: () => LayoutPurchaseOutgoingPaymentRouteRoute,
-  } as any)
 const LayoutPurchaseQuotationsDocNumUpdateRoute =
   LayoutPurchaseQuotationsDocNumUpdateRouteImport.update({
     id: '/$docNum/update',
@@ -247,7 +226,6 @@ export interface FileRoutesByFullPath {
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
-  '/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
   '/sales/request-for-quotations': typeof LayoutSalesRequestForQuotationsRouteRouteWithChildren
@@ -259,7 +237,6 @@ export interface FileRoutesByFullPath {
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
-  '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/dashboard/': typeof LayoutDashboardIndexRoute
@@ -269,7 +246,6 @@ export interface FileRoutesByFullPath {
   '/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
   '/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
   '/purchase/orders/$docNum/update': typeof LayoutPurchaseOrdersDocNumUpdateRoute
-  '/purchase/outgoing-payment/$docNum/update': typeof LayoutPurchaseOutgoingPaymentDocNumUpdateRoute
   '/purchase/quotations/$docNum/update': typeof LayoutPurchaseQuotationsDocNumUpdateRoute
   '/sales/quotations/$docNum/update': typeof LayoutSalesQuotationsDocNumUpdateRoute
 }
@@ -280,7 +256,6 @@ export interface FileRoutesByTo {
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
-  '/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
   '/sales/request-for-quotations': typeof LayoutSalesRequestForQuotationsRouteRouteWithChildren
@@ -292,7 +267,6 @@ export interface FileRoutesByTo {
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
-  '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/dashboard': typeof LayoutDashboardIndexRoute
@@ -302,7 +276,6 @@ export interface FileRoutesByTo {
   '/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
   '/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
   '/purchase/orders/$docNum/update': typeof LayoutPurchaseOrdersDocNumUpdateRoute
-  '/purchase/outgoing-payment/$docNum/update': typeof LayoutPurchaseOutgoingPaymentDocNumUpdateRoute
   '/purchase/quotations/$docNum/update': typeof LayoutPurchaseQuotationsDocNumUpdateRoute
   '/sales/quotations/$docNum/update': typeof LayoutSalesQuotationsDocNumUpdateRoute
 }
@@ -317,7 +290,6 @@ export interface FileRoutesById {
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/_layout/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
   '/_layout/purchase/orders': typeof LayoutPurchaseOrdersRouteRouteWithChildren
-  '/_layout/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   '/_layout/purchase/quotations': typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
   '/_layout/sales/request-for-quotations': typeof LayoutSalesRequestForQuotationsRouteRouteWithChildren
@@ -329,7 +301,6 @@ export interface FileRoutesById {
   '/_layout/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/_layout/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
-  '/_layout/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/_layout/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/_layout/dashboard/': typeof LayoutDashboardIndexRoute
@@ -339,7 +310,6 @@ export interface FileRoutesById {
   '/_layout/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
   '/_layout/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
   '/_layout/purchase/orders/$docNum/update': typeof LayoutPurchaseOrdersDocNumUpdateRoute
-  '/_layout/purchase/outgoing-payment/$docNum/update': typeof LayoutPurchaseOutgoingPaymentDocNumUpdateRoute
   '/_layout/purchase/quotations/$docNum/update': typeof LayoutPurchaseQuotationsDocNumUpdateRoute
   '/_layout/sales/quotations/$docNum/update': typeof LayoutSalesQuotationsDocNumUpdateRoute
 }
@@ -354,7 +324,6 @@ export interface FileRouteTypes {
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
     | '/purchase/orders'
-    | '/purchase/outgoing-payment'
     | '/purchase/quotations'
     | '/sales/quotations'
     | '/sales/request-for-quotations'
@@ -366,7 +335,6 @@ export interface FileRouteTypes {
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
     | '/purchase/create-order'
-    | '/purchase/create-outgoing-payment'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
     | '/dashboard/'
@@ -376,7 +344,6 @@ export interface FileRouteTypes {
     | '/purchase/ap-invoice/$docNum/update'
     | '/purchase/grpo/$docNum/update'
     | '/purchase/orders/$docNum/update'
-    | '/purchase/outgoing-payment/$docNum/update'
     | '/purchase/quotations/$docNum/update'
     | '/sales/quotations/$docNum/update'
   fileRoutesByTo: FileRoutesByTo
@@ -387,7 +354,6 @@ export interface FileRouteTypes {
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
     | '/purchase/orders'
-    | '/purchase/outgoing-payment'
     | '/purchase/quotations'
     | '/sales/quotations'
     | '/sales/request-for-quotations'
@@ -399,7 +365,6 @@ export interface FileRouteTypes {
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
     | '/purchase/create-order'
-    | '/purchase/create-outgoing-payment'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
     | '/dashboard'
@@ -409,7 +374,6 @@ export interface FileRouteTypes {
     | '/purchase/ap-invoice/$docNum/update'
     | '/purchase/grpo/$docNum/update'
     | '/purchase/orders/$docNum/update'
-    | '/purchase/outgoing-payment/$docNum/update'
     | '/purchase/quotations/$docNum/update'
     | '/sales/quotations/$docNum/update'
   id:
@@ -423,7 +387,6 @@ export interface FileRouteTypes {
     | '/_layout/purchase/ap-invoice'
     | '/_layout/purchase/grpo'
     | '/_layout/purchase/orders'
-    | '/_layout/purchase/outgoing-payment'
     | '/_layout/purchase/quotations'
     | '/_layout/sales/quotations'
     | '/_layout/sales/request-for-quotations'
@@ -435,7 +398,6 @@ export interface FileRouteTypes {
     | '/_layout/purchase/create-ap-invoice'
     | '/_layout/purchase/create-grpo'
     | '/_layout/purchase/create-order'
-    | '/_layout/purchase/create-outgoing-payment'
     | '/_layout/purchase/create-quotation'
     | '/_layout/sales/create-quotation'
     | '/_layout/dashboard/'
@@ -445,7 +407,6 @@ export interface FileRouteTypes {
     | '/_layout/purchase/ap-invoice/$docNum/update'
     | '/_layout/purchase/grpo/$docNum/update'
     | '/_layout/purchase/orders/$docNum/update'
-    | '/_layout/purchase/outgoing-payment/$docNum/update'
     | '/_layout/purchase/quotations/$docNum/update'
     | '/_layout/sales/quotations/$docNum/update'
   fileRoutesById: FileRoutesById
@@ -577,13 +538,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseCreateOrderRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/purchase/create-outgoing-payment': {
-      id: '/_layout/purchase/create-outgoing-payment'
-      path: '/purchase/create-outgoing-payment'
-      fullPath: '/purchase/create-outgoing-payment'
-      preLoaderRoute: typeof LayoutPurchaseCreateOutgoingPaymentRouteImport
-      parentRoute: typeof LayoutRoute
-    }
     '/_layout/purchase/create-quotation': {
       id: '/_layout/purchase/create-quotation'
       path: '/purchase/create-quotation'
@@ -603,13 +557,6 @@ declare module '@tanstack/react-router' {
       path: '/purchase/orders'
       fullPath: '/purchase/orders'
       preLoaderRoute: typeof LayoutPurchaseOrdersRouteRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/purchase/outgoing-payment': {
-      id: '/_layout/purchase/outgoing-payment'
-      path: '/purchase/outgoing-payment'
-      fullPath: '/purchase/outgoing-payment'
-      preLoaderRoute: typeof LayoutPurchaseOutgoingPaymentRouteRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/purchase/quotations': {
@@ -674,13 +621,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/purchase/orders/$docNum/update'
       preLoaderRoute: typeof LayoutPurchaseOrdersDocNumUpdateRouteImport
       parentRoute: typeof LayoutPurchaseOrdersRouteRoute
-    }
-    '/_layout/purchase/outgoing-payment/$docNum/update': {
-      id: '/_layout/purchase/outgoing-payment/$docNum/update'
-      path: '/$docNum/update'
-      fullPath: '/purchase/outgoing-payment/$docNum/update'
-      preLoaderRoute: typeof LayoutPurchaseOutgoingPaymentDocNumUpdateRouteImport
-      parentRoute: typeof LayoutPurchaseOutgoingPaymentRouteRoute
     }
     '/_layout/purchase/quotations/$docNum/update': {
       id: '/_layout/purchase/quotations/$docNum/update'
@@ -791,21 +731,6 @@ const LayoutPurchaseOrdersRouteRouteWithChildren =
     LayoutPurchaseOrdersRouteRouteChildren,
   )
 
-interface LayoutPurchaseOutgoingPaymentRouteRouteChildren {
-  LayoutPurchaseOutgoingPaymentDocNumUpdateRoute: typeof LayoutPurchaseOutgoingPaymentDocNumUpdateRoute
-}
-
-const LayoutPurchaseOutgoingPaymentRouteRouteChildren: LayoutPurchaseOutgoingPaymentRouteRouteChildren =
-  {
-    LayoutPurchaseOutgoingPaymentDocNumUpdateRoute:
-      LayoutPurchaseOutgoingPaymentDocNumUpdateRoute,
-  }
-
-const LayoutPurchaseOutgoingPaymentRouteRouteWithChildren =
-  LayoutPurchaseOutgoingPaymentRouteRoute._addFileChildren(
-    LayoutPurchaseOutgoingPaymentRouteRouteChildren,
-  )
-
 interface LayoutPurchaseQuotationsRouteRouteChildren {
   LayoutPurchaseQuotationsDocNumUpdateRoute: typeof LayoutPurchaseQuotationsDocNumUpdateRoute
 }
@@ -858,7 +783,6 @@ interface LayoutRouteChildren {
   LayoutPurchaseApInvoiceRouteRoute: typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   LayoutPurchaseGrpoRouteRoute: typeof LayoutPurchaseGrpoRouteRouteWithChildren
   LayoutPurchaseOrdersRouteRoute: typeof LayoutPurchaseOrdersRouteRouteWithChildren
-  LayoutPurchaseOutgoingPaymentRouteRoute: typeof LayoutPurchaseOutgoingPaymentRouteRouteWithChildren
   LayoutPurchaseQuotationsRouteRoute: typeof LayoutPurchaseQuotationsRouteRouteWithChildren
   LayoutSalesQuotationsRouteRoute: typeof LayoutSalesQuotationsRouteRouteWithChildren
   LayoutSalesRequestForQuotationsRouteRoute: typeof LayoutSalesRequestForQuotationsRouteRouteWithChildren
@@ -866,7 +790,6 @@ interface LayoutRouteChildren {
   LayoutPurchaseCreateApInvoiceRoute: typeof LayoutPurchaseCreateApInvoiceRoute
   LayoutPurchaseCreateGrpoRoute: typeof LayoutPurchaseCreateGrpoRoute
   LayoutPurchaseCreateOrderRoute: typeof LayoutPurchaseCreateOrderRoute
-  LayoutPurchaseCreateOutgoingPaymentRoute: typeof LayoutPurchaseCreateOutgoingPaymentRoute
   LayoutPurchaseCreateQuotationRoute: typeof LayoutPurchaseCreateQuotationRoute
   LayoutSalesCreateQuotationRoute: typeof LayoutSalesCreateQuotationRoute
 }
@@ -880,8 +803,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
     LayoutPurchaseApInvoiceRouteRouteWithChildren,
   LayoutPurchaseGrpoRouteRoute: LayoutPurchaseGrpoRouteRouteWithChildren,
   LayoutPurchaseOrdersRouteRoute: LayoutPurchaseOrdersRouteRouteWithChildren,
-  LayoutPurchaseOutgoingPaymentRouteRoute:
-    LayoutPurchaseOutgoingPaymentRouteRouteWithChildren,
   LayoutPurchaseQuotationsRouteRoute:
     LayoutPurchaseQuotationsRouteRouteWithChildren,
   LayoutSalesQuotationsRouteRoute: LayoutSalesQuotationsRouteRouteWithChildren,
@@ -891,8 +812,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutPurchaseCreateApInvoiceRoute: LayoutPurchaseCreateApInvoiceRoute,
   LayoutPurchaseCreateGrpoRoute: LayoutPurchaseCreateGrpoRoute,
   LayoutPurchaseCreateOrderRoute: LayoutPurchaseCreateOrderRoute,
-  LayoutPurchaseCreateOutgoingPaymentRoute:
-    LayoutPurchaseCreateOutgoingPaymentRoute,
   LayoutPurchaseCreateQuotationRoute: LayoutPurchaseCreateQuotationRoute,
   LayoutSalesCreateQuotationRoute: LayoutSalesCreateQuotationRoute,
 }

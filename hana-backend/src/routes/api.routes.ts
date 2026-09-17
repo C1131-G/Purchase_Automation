@@ -12,7 +12,6 @@ import { dashboardRoutes } from "@/modules/dashboard/dashboard.routes";
 import { grpoRoutes } from "@/modules/grpo/grpo.routes";
 import { masterDataRoutes } from "@/modules/master-data/master-data.routes";
 import { organizationRoutes } from "@/modules/organization/organization.routes";
-import { outgoingPaymentRoutes } from "@/modules/outgoing-payment/outgoing-payment.routes";
 import { purchaseOrderRoutes } from "@/modules/purchase-order/purchase-order.routes";
 import { purchaseQuotationRoutes } from "@/modules/purchase-quotation/purchase-quotation.routes";
 import salesRelationshipRoutes from "@/modules/relationship-map/relationship-map.routes";
@@ -35,7 +34,6 @@ router.use("/purchase-quotations", purchaseQuotationRoutes);
 router.use("/grpos", grpoRoutes);
 router.use("/ap-invoices", apInvoiceRoutes);
 router.use("/ap-credit-memos", apCreditMemoRoutes);
-router.use("/outgoing-payments", outgoingPaymentRoutes);
 
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
 router.use("/sales-quotations", salesQuotationRoutes);

@@ -19,8 +19,7 @@ export function RelationshipMapHover({
     | "grpo"
     | "ap-invoice"
     | "ap-credit-memo"
-    | "incoming-payment"
-    | "outgoing-payment";
+    | "incoming-payment";
   docEntry: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);

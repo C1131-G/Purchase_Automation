@@ -79,6 +79,8 @@ export const createSharedKeys = {
     [...createSharedKeys.all, "item-serials", itemCode, warehouseCode] as const,
   itemDefaultBin: (itemCode: string, warehouseCode: string) =>
     [...createSharedKeys.all, "item-default-bin", itemCode, warehouseCode] as const,
+  accounts: (search?: string, limit?: number) =>
+    [...createSharedKeys.all, "accounts", search ?? "", limit ?? 20] as const,
 };
 
 /** Stable key segment for batch codes (order-independent). */
@@ -506,4 +508,13 @@ export const createSharedQueries = {
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     });
   },
+  /** DSC1 (chart of accounts) suggestions for document line-item account pickers. */
+  accounts: (search?: string, limit?: number) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
+      placeholderData: keepPreviousData,
+      queryFn: async () => unwrapMasterData(await masterDataAPI.getAccounts(search, limit)),
+      queryKey: createSharedKeys.accounts(search, limit),
+      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
+    }),
 };

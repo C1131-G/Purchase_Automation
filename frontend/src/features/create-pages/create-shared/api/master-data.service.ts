@@ -245,4 +245,19 @@ export const masterDataAPI = {
       `/api/v1/master-data/item-default-bin?${query.toString()}`,
     );
   },
+  /** DSC1 (chart of accounts) lookup for document line-item account pickers. */
+  getAccounts: async (search?: string, limit?: number) => {
+    const query = new URLSearchParams();
+    if (search) {
+      query.set("search", search);
+    }
+    if (limit) {
+      query.set("limit", String(limit));
+    }
+    const qs = query.toString();
+    return apiClient<
+      | MasterDataResponse<{ GLAccount: string; Account: string }>
+      | { GLAccount: string; Account: string }[]
+    >(`/api/v1/master-data/accounts${qs ? `?${qs}` : ""}`);
+  },
 };

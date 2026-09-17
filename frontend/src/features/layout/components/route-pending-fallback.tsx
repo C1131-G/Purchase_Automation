@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
-import { CreateOutgoingPaymentSkeleton } from "@/components/skeleton/create-outgoing-payment-skeleton";
-import { OutgoingPaymentEditSkeleton } from "@/components/skeleton/outgoing-payment-edit-skeleton";
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { OverviewDashboardSkeleton } from "@/features/dashboard/components/overview/OverviewSectionSkeletons";
 
@@ -15,14 +13,6 @@ export function routePendingFallbackForPath(pathname: string): ReactNode {
 
   if (path.startsWith("/dashboard") || path === "/" || path === "") {
     return <OverviewDashboardSkeleton />;
-  }
-
-  if (path.includes("outgoing-payment") && (path.includes("create") || path.includes("update"))) {
-    return path.includes("update") ? (
-      <OutgoingPaymentEditSkeleton />
-    ) : (
-      <CreateOutgoingPaymentSkeleton />
-    );
   }
 
   if (

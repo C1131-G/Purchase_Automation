@@ -1,13 +1,12 @@
 /**
  * Document numbering series (SAP NNM1) helpers for create/edit headers.
- * Object codes: PQ=540000006, PO=22, GRPO=20, AP Invoice=18, APCM=19, SQ=23, OP=46.
+ * Object codes: PQ=540000006, PO=22, GRPO=20, AP Invoice=18, APCM=19, SQ=23.
  */
 
 export const SAP_SERIES_OBJECT = {
   apCreditMemo: "19",
   apInvoice: "18",
   goodsReceiptPO: "20",
-  outgoingPayment: "46",
   purchaseOrder: "22",
   purchaseQuotation: "540000006",
   salesQuotation: "23",

@@ -1,6 +1,9 @@
 // Master Data Query Validation: Schema for filtering read-only lookup data.
 
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+
+extendZodWithOpenApi(z);
 
 export const MasterDataQuerySchema = z.object({
   // search: Optional keyword for searching products, vendors, or customers.
@@ -23,3 +26,17 @@ export const MasterDataQuerySchema = z.object({
 });
 
 export type MasterDataQuery = z.infer<typeof MasterDataQuerySchema>;
+
+/** DSC1 (chart of accounts) lookup used by document line-item account pickers. */
+export const AccountQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ description: "Search by Account name", example: "Cash" }),
+  limit: z.coerce.number().int().positive().max(100).default(20).optional(),
+});
+
+export type AccountQuery = z.infer<typeof AccountQuerySchema>;

@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { AuthenticatedRequest } from "@/types/express.types";
 // Services
 import { parseItemCodesParam } from "./master-data.batch-utils";
+import type { AccountQuery } from "./master-data.schema";
 import { masterDataService } from "./master-data.service";
 
 // Fetches the list of all available products (items) from the tenant database.
@@ -260,6 +261,24 @@ export const getWarehouseBins = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// Fetches DSC1 chart-of-accounts rows for line-item account selection dropdowns.
+export const getAccounts = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    AccountQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search, limit } = authReq.query;
+    const result = await masterDataService.getAccounts(dbName, { search, limit });
+    res.status(200).json({ data: result.data, success: true, total: result.total });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /** SAP business places (OBPL.BPLId) for multi-branch document header. */
 export const getBranches = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
@@ -315,6 +334,7 @@ export const getItemSerials = async (req: Request, res: Response, next: NextFunc
 };
 
 export const masterDataController = {
+  getAccounts,
   getBusinessPartnerAddresses,
   getCustomers,
   getItemBatches,

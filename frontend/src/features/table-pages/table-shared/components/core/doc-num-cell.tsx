@@ -15,7 +15,6 @@ interface DocNumCellProps {
     | "ap-invoice"
     | "ap-credit-memo"
     | "incoming-payment"
-    | "outgoing-payment"
     | "goods-receipt"
     | "goods-issue"
     | "transfer-request"
