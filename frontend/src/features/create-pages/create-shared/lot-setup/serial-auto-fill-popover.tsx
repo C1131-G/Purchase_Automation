@@ -19,21 +19,27 @@ import {
 
 const PANEL_WIDTH = 360;
 const VIEW_MARGIN = 8;
+/** Max segments a pattern may have; keeps generated numbers readable. */
 const MAX_PARTS = 6;
 const KIND_LABELS: Record<SerialAutoFillPartKind, string> = {
   number: "Number",
   string: "String",
 };
 
+/** The popover's own form state — `count` comes from the table being filled. */
 type SerialAutoFillForm = Omit<SerialAutoFillInput, "count">;
 
 interface SerialAutoFillPopoverProps {
+  /** Rows to generate numbers for; the preview must match this exactly. */
   count: number;
   disabled?: boolean;
+  /** Writes the generated numbers; return false to keep the popover open. */
   onFill: (input: SerialAutoFillForm) => boolean;
+  /** Trigger label — "Auto fill batches" when used in the batch table. */
   title?: string;
 }
 
+/** Right-aligns the panel to the trigger and flips it above when space is tight. */
 function panelStyleFromRect(rect: DOMRect, height: number): CSSProperties {
   const left = Math.max(
     VIEW_MARGIN,
@@ -59,6 +65,7 @@ function panelStyleFromRect(rect: DOMRect, height: number): CSSProperties {
   };
 }
 
+/** Compact type picker (string/number) for one pattern segment. */
 function SerialKindSelect({
   ariaLabel,
   onChange,
@@ -125,6 +132,7 @@ function SerialKindSelect({
   );
 }
 
+/** Seed pattern: one string segment (prefix) + one number segment (counter). */
 function defaultParts(): SerialAutoFillPart[] {
   return [
     { kind: "string", value: "" },
@@ -132,6 +140,14 @@ function defaultParts(): SerialAutoFillPart[] {
   ];
 }
 
+/**
+ * Builds lot numbers from a small pattern builder (e.g. string "S" + number
+ * "001") and previews the result live.
+ *
+ * Shared by the batch and serial tables — only the title differs. "Fill" stays
+ * disabled until the preview yields exactly one number per row, so a partially
+ * matching pattern can never overwrite the rows.
+ */
 export function SerialAutoFillPopover({
   count,
   disabled = false,
@@ -157,6 +173,7 @@ export function SerialAutoFillPopover({
   });
 
   const form: SerialAutoFillForm = { direction, parts };
+  // Live preview doubles as the guard: Fill only works for a full, exact set.
   const preview = buildSerialAutoFillNumbers({ ...form, count });
   const canFill = !disabled && preview.length === count && count > 0;
   const hasNumber = parts.some((part) => part.kind === "number");

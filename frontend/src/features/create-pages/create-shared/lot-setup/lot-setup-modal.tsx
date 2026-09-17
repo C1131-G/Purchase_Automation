@@ -17,8 +17,10 @@ import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
 import { useSidebarOpen } from "@/store/sidebar/sidebar.store";
 
 interface LotSetupModalProps {
+  /** Step to start on; the modal switches to the other kind when OK says "next". */
   kind: LotSetupKind;
   open: boolean;
+  /** Document line pre-selected when opened from a product row's lot button. */
   selectedRowId?: string | undefined;
   onClose: () => void;
   /** Called after the whole lot setup flow completes (OK on last step, or submit triggered) */
@@ -61,6 +63,7 @@ function LotSetupInner({
   const setup = useLotSetup(kind, pinRowId);
 
   const handleOk = () => {
+    // Validate the whole step before confirming it, so a bad row can't be skipped.
     if (setup.pageError) {
       setFormError(setup.pageError);
       return;
@@ -212,6 +215,7 @@ export function LotSetupModal({
   onAfterOk,
 }: LotSetupModalProps) {
   const sidebarOpen = useSidebarOpen();
+  // Which step is on screen: starts at the requested kind, then follows "next".
   const [currentKind, setCurrentKind] = useState<LotSetupKind>(initialKind);
 
   useEffect(() => {
@@ -224,7 +228,8 @@ export function LotSetupModal({
   // We use a key on LotSetupInner to remount when kind changes
   const handleOk = (result: ReturnType<typeof resolveLotSetupAfterOk>) => {
     if (result.type === "next") {
-      // Multi-step: switch to the next lot type (e.g. batches → serials)
+      // Multi-step: switch to the next lot type (e.g. batches → serials) in place.
+      // The key on LotSetupInner remounts it, which re-pins the new kind.
       setCurrentKind(result.kind);
       return;
     }

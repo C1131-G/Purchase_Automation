@@ -11,14 +11,26 @@ import { LOT_SELECT_TRIGGER_CLASS } from "@/features/create-pages/create-shared/
 const NONE_VALUE = "__none__";
 
 interface LotBinCellProps {
+  /** OIBQ/bin AbsEntry currently selected on the lot row. */
   binAbsEntry?: number | undefined;
+  /** Displayed bin code, so the cell renders before the bin list loads. */
   binCode?: string | undefined;
   disabled?: boolean;
+  /** Writes the picked bin back to the lot row (both id and code). */
   onChange: (bin: { binAbsEntry?: number | undefined; binCode?: string | undefined }) => void;
+  /** Portal target override — set to the fullscreen element by the serial table. */
   portalContainer?: HTMLElement | null | undefined;
+  /** Warehouse whose bins are listed; the cell is disabled without one. */
   warehouseCode: string;
 }
 
+/**
+ * Bin Location cell for a batch/serial row.
+ *
+ * Bins are loaded per warehouse and the dropdown is portalled with a fixed
+ * position so it stays visible inside the lot modal (and in fullscreen serial
+ * setup), instead of being clipped by the table's overflow.
+ */
 export function LotBinCell({
   binAbsEntry,
   binCode,

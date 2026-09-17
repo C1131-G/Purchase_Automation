@@ -5,14 +5,30 @@ import type {
   LotSetupReturnTo,
 } from "@/features/create-pages/create-shared/lot-setup/lot-setup.types";
 
+/**
+ * Client state that ties the create-GRPO form to the lot setup modal.
+ *
+ * Lot setup used to be a separate route, so anything the create page kept in
+ * React state (attachments, addresses, warehouse/vendor inputs) had to be
+ * stashed here to survive the navigation. It also carries the progress of the
+ * batch/serial steps and the create action the modal intercepted, so the modal
+ * can name the right button and hand the save back to the create page.
+ */
 export interface GrpoLotSessionState {
+  /** Batch step confirmed — cleared again when lines change and need re-checking. */
   batchesConfirmed: boolean;
+  /** Create-page fields captured before the modal took over. */
   chrome: GrpoCreateFormChrome | null;
+  /** Set when the flow finished and the create page should run the pending save. */
   continueSubmit: boolean;
+  /** Doc number shown in the modal header / Doc. No. column ("New" when unsaved). */
   docLabel: string;
+  /** Create action the user triggered (save-new / view / close / draft). */
   pendingAction: GrpoLotPendingAction | null;
   reset: () => void;
+  /** Route + search state to restore when the modal closes. */
   returnTo: LotSetupReturnTo | null;
+  /** Serial step confirmed — same re-check semantics as `batchesConfirmed`. */
   serialsConfirmed: boolean;
   setChrome: (chrome: GrpoCreateFormChrome) => void;
   setDocLabel: (docLabel: string) => void;
@@ -23,14 +39,18 @@ export interface GrpoLotSessionState {
     pendingAction: GrpoLotPendingAction;
     returnTo: LotSetupReturnTo;
   }) => void;
+  /** Batch step: confirmed on OK, invalidated when the lines change underneath it. */
   confirmBatches: () => void;
+  /** Serial step: same confirm/invalidate pair as batches. */
   confirmSerials: () => void;
+  /** Signals the create page to run the save the modal intercepted. */
   requestContinueSubmit: () => void;
   clearContinueSubmit: () => void;
   invalidateBatches: () => void;
   invalidateSerials: () => void;
 }
 
+/** Session defaults — the same object is reused by `reset` for a clean slate. */
 const emptySession = {
   batchesConfirmed: false,
   chrome: null,

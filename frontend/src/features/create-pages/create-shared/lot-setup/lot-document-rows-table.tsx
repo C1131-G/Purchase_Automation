@@ -9,15 +9,27 @@ import {
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 
 interface LotDocumentRowsTableProps {
+  /** Document line whose allocations are shown in the bottom table. */
   activeRowId: string | null;
+  /** GRPO doc number (or "New") rendered in the Doc. No. column. */
   docLabel: string;
   kind: LotSetupKind;
+  /** Row picker — chooses which line the bottom table edits. */
   onSelectRow: (rowId: string) => void;
+  /** Inline Needed qty edit; re-seeds the line's lot allocations. */
   onNeededQtyChange: (rowId: string, quantity: number) => void;
+  /** Only lines managed for this kind (batch- or serial-managed). */
   rows: ProductRow[];
+  /** warehouseCode → warehouse name, for the Warehouse column label. */
   warehouseNames?: Record<string, string>;
 }
 
+/**
+ * Top table of the lot setup modal: the GRPO lines that need batches or serials.
+ *
+ * Serial setup is per-serial, so it also shows the source Doc. No.; batch setup
+ * hides that column because one batch row can cover several documents.
+ */
 export function LotDocumentRowsTable({
   activeRowId,
   docLabel,

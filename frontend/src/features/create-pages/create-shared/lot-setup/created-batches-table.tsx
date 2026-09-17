@@ -17,14 +17,26 @@ import type {
 import { allocatedBatchQuantity } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 
 interface CreatedBatchesTableProps {
+  /** Warehouse has bin locations enabled → Bin Location becomes mandatory. */
   binRequired: boolean;
+  /** Adds one batch row for the qty still unallocated on the active line. */
   onAddSplit: () => void;
+  /** Writes generated batch numbers into the existing rows; false when they don't fit. */
   onAutoFill: (input: Omit<SerialAutoFillInput, "count">) => boolean;
   onChange: (index: number, patch: Partial<ProductBatchAllocation>) => void;
   onRemove: (index: number) => void;
+  /** Active document line; null until a row is picked above. */
   row: ProductRow | null;
 }
 
+/**
+ * Bottom table of the batch setup step: the batches created for the active
+ * document line.
+ *
+ * Each row is one batch (number, qty, optional bin, optional expiry) and the
+ * total is capped at the line's Needed qty — the footer offers "Split remaining"
+ * while qty is still open and disables itself once the line is fully covered.
+ */
 export function CreatedBatchesTable({
   binRequired,
   onAddSplit,
@@ -35,6 +47,7 @@ export function CreatedBatchesTable({
 }: CreatedBatchesTableProps) {
   const batches = row?.batchNumbers ?? [];
   const needed = row ? lineNeededQty(row) : 0;
+  // Qty still open on the line; drives both the split button label and its guard.
   const remaining = Math.max(0, needed - allocatedBatchQuantity(batches));
   const canSplit = Boolean(row) && (batches.length === 0 || remaining > 0);
   const splitLabel =

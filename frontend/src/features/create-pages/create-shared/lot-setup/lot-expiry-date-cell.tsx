@@ -17,11 +17,14 @@ const VIEW_MARGIN = 8;
 
 interface LotExpiryDateCellProps {
   ariaLabel: string;
+  /** ISO date, or undefined when the user clears the optional expiry. */
   onChange: (next: string | undefined) => void;
+  /** Portal target override — set to the fullscreen element by the serial table. */
   portalContainer?: HTMLElement | null | undefined;
   value?: string | undefined;
 }
 
+/** Places the calendar above or below the cell, clamped inside the viewport. */
 function calendarPanelStyle(rect: DOMRect): CSSProperties {
   const left = Math.max(
     VIEW_MARGIN,
@@ -48,6 +51,13 @@ function calendarPanelStyle(rect: DOMRect): CSSProperties {
   };
 }
 
+/**
+ * Optional Expiry Date cell for a batch/serial row.
+ *
+ * Renders as a button showing "Optional" until a date is picked. The calendar
+ * is portalled (fixed position) so it survives the lot table's overflow, and
+ * closes on outside click, Escape, resize and fullscreen changes.
+ */
 export function LotExpiryDateCell({
   ariaLabel,
   onChange,

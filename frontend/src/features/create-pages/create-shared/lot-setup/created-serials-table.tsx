@@ -17,14 +17,27 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 
 interface CreatedSerialsTableProps {
+  /** Warehouse has bin locations enabled → Bin Location becomes mandatory. */
   binRequired: boolean;
+  /** Appends one empty serial row, capped at the line's Needed qty. */
   onAddSplit: () => void;
+  /** Writes generated serial numbers into the existing rows; false when they don't fit. */
   onAutoFill: (input: Omit<SerialAutoFillInput, "count">) => boolean;
   onChange: (index: number, patch: Partial<ProductSerialAllocation>) => void;
   onRemove: (index: number) => void;
+  /** Active document line; null until a row is picked above. */
   row: ProductRow | null;
 }
 
+/**
+ * Bottom table of the serial setup step: one row per serial of the active
+ * document line.
+ *
+ * Qty is always 1 (shown read-only) because a serial is a single unit, so the
+ * row count is kept equal to the line's Needed qty and "Add serial" stops at
+ * that limit. The whole table can be expanded to browser fullscreen, which is
+ * why the bin and expiry popups are portalled to the fullscreen element.
+ */
 export function CreatedSerialsTable({
   binRequired,
   onAddSplit,
@@ -35,6 +48,7 @@ export function CreatedSerialsTable({
 }: CreatedSerialsTableProps) {
   const serials = row?.serialNumbers ?? [];
   const needed = row ? lineNeededQty(row) : 0;
+  // Serials are 1 unit each, so the row count must not exceed the Needed qty.
   const remaining = Math.max(0, needed - allocatedSerialCount(serials));
   const canAdd = Boolean(row) && serials.length < needed;
   const fullscreenRef = useRef<HTMLDivElement>(null);

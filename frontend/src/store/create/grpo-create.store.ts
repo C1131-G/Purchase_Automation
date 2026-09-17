@@ -5,6 +5,7 @@ import {
   getTodayISO,
 } from "@/store/create/document-draft.factory";
 
+/** One GRPO line: the shared product row plus the PO line's ordered quantity. */
 export type GRPOLineItemState = ProductRow & {
   baseQuantity?: number | undefined;
 };
@@ -46,6 +47,7 @@ export const useGRPOCreateStore = storeApi.useStore;
 export const createGRPOCreateStoreInstance = storeApi.createStore;
 
 export const useGRPOHeader = () => useGRPOCreateStore((state) => state.header);
+/** GRPO lines — the single source of truth for batch/serial allocations. */
 export const useGRPOLines = () => useGRPOCreateStore((state) => state.lines);
 export const useSetGRPOHeaderAction = () => useGRPOCreateStore((state) => state.setHeader);
 export const useSetGRPOLinesAction = () => useGRPOCreateStore((state) => state.setLines);

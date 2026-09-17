@@ -36,9 +36,19 @@ import {
 } from "@/store/create/grpo-create.store";
 import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
 
+/** Cache key for one item + warehouse pair's default bin. */
 const binKey = (itemCode: string, warehouseCode: string): string =>
   `${itemCode.trim()}::${warehouseCode.trim()}`;
 
+/**
+ * All batch OR serial setup state for one GRPO document.
+ *
+ * The allocations live on the lines of the GRPO create store (not in local
+ * state), so the modal, the lot page and the create form always read the same
+ * batch/serial data. This hook only derives the rows for one `kind`, keeps the
+ * active line selected, seeds/repairs allocations as Needs change, and exposes
+ * the per-active-line mutators the two bottom tables call.
+ */
 export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   const header = useGRPOHeader();
   const lines = useGRPOLines();
@@ -50,6 +60,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     selectedRowId || documentRows[0]?.id || null,
   );
 
+  // Keep one line selected: honour the requested row, otherwise fall back to the first.
   useEffect(() => {
     if (selectedRowId && documentRows.some((row) => row.id === selectedRowId)) {
       setActiveRowId(selectedRowId);
@@ -60,6 +71,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     }
   }, [activeRowId, documentRows, selectedRowId]);
 
+  // Which warehouses require a bin location — reused as `binRequired` per line.
   const warehouseBinEnabled = useMemo(() => {
     const enabled = new Map<string, boolean>();
     for (const warehouse of warehousesQuery.data ?? []) {
@@ -80,6 +92,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     return names;
   }, [warehousesQuery.data]);
 
+  // Default bin per item+warehouse, fetched once then applied to new lot rows.
   const defaultBinPairs = useMemo(() => {
     const pairs: Array<{ itemCode: string; warehouseCode: string }> = [];
     const seen = new Set<string>();
@@ -114,6 +127,8 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     return bins;
   }, [defaultBinPairs, defaultBinQueries]);
 
+  // Seed/repair allocations whenever Needs or the default bins change:
+  // batches follow the Needed qty, serials are resized to one row per unit.
   useEffect(() => {
     setLines((prev) => {
       let changed = false;
@@ -155,10 +170,12 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
   }, [defaultBinByKey, header.docDate, kind, setLines]);
 
   const activeRow = documentRows.find((row) => row.id === activeRowId) ?? null;
+  // Bin is mandatory only when the active line's warehouse enables bin locations.
   const binRequired = activeRow
     ? warehouseBinEnabled.get(activeRow.warehouseCode.trim()) === true
     : false;
 
+  /** Updates the document line itself (used by the inline Needed qty edit). */
   const patchRow = useCallback(
     (rowId: string, patch: Partial<ProductRow>) => {
       setLines((prev) =>
@@ -192,6 +209,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [defaultBinByKey, header.docDate, kind, setLines],
   );
 
+  /** Replaces one line's batch allocations as typed (qty edits are rebalanced too). */
   const setBatches = useCallback(
     (rowId: string, batches: ProductBatchAllocation[]) => {
       setLines((prev) =>
@@ -206,6 +224,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [setLines],
   );
 
+  /** Replaces one line's serial allocations as typed. */
   const setSerials = useCallback(
     (rowId: string, serials: ProductSerialAllocation[]) => {
       setLines((prev) =>
@@ -225,6 +244,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [defaultBinByKey],
   );
 
+  /** "Split remaining": adds a batch row sized to the still-open qty. */
   const splitActiveBatch = useCallback(() => {
     if (!activeRow) {
       return;
@@ -240,6 +260,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     setBatches(activeRow.id, next);
   }, [activeRow, defaultBinFor, header.docDate, lines, setBatches]);
 
+  /** "Add serial": appends one empty serial row (one unit). */
   const splitActiveSerial = useCallback(() => {
     if (!activeRow) {
       return;
@@ -255,6 +276,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     setSerials(activeRow.id, next);
   }, [activeRow, defaultBinFor, header.docDate, lines, setSerials]);
 
+  /** Row edit for batches; sanitises the number and caps qty to the open Needed qty. */
   const updateActiveBatch = useCallback(
     (index: number, patch: Partial<ProductBatchAllocation>) => {
       if (!activeRow) {
@@ -281,6 +303,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setBatches],
   );
 
+  /** Removing the last batch re-seeds one so the line is never left with zero rows. */
   const removeActiveBatch = useCallback(
     (index: number) => {
       if (!activeRow) {
@@ -302,6 +325,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, defaultBinFor, header.docDate, lines, setBatches],
   );
 
+  /** Row edit for serials; quantity is forced to 1 and the number is sanitised. */
   const updateActiveSerial = useCallback(
     (index: number, patch: Partial<ProductSerialAllocation>) => {
       if (!activeRow) {
@@ -325,6 +349,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setSerials],
   );
 
+  /** Drops one serial row; the count can fall below Needed and be topped up later. */
   const removeActiveSerial = useCallback(
     (index: number) => {
       if (!activeRow) {
@@ -338,6 +363,11 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setSerials],
   );
 
+  /**
+   * Fills the active line's serial rows from the auto-fill pattern.
+   * Returns false when the pattern cannot produce exactly one number per row,
+   * so the popover keeps itself open instead of writing a partial set.
+   */
   const applyActiveSerialAutoFill = useCallback(
     (input: Omit<SerialAutoFillInput, "count">) => {
       if (!activeRow) {
@@ -354,6 +384,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setSerials],
   );
 
+  /** Batch twin of `applyActiveSerialAutoFill` — same one-number-per-row rule. */
   const applyActiveBatchAutoFill = useCallback(
     (input: Omit<SerialAutoFillInput, "count">) => {
       if (!activeRow) {
@@ -370,6 +401,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     [activeRow, setBatches],
   );
 
+  // First blocking error across the kind's lines; surfaced when the user hits OK.
   const pageError = useMemo(() => {
     for (const row of documentRows) {
       const required = warehouseBinEnabled.get(row.warehouseCode.trim()) === true;
@@ -381,6 +413,7 @@ export function useLotSetup(kind: LotSetupKind, selectedRowId?: string) {
     return null;
   }, [documentRows, kind, warehouseBinEnabled]);
 
+  // Footer readout: total allocated qty plus the row count for the kind.
   const footerCreatedQty = documentRows.reduce((sum, row) => sum + createdQtyForKind(row, kind), 0);
   const footerCreatedCount =
     kind === "batches"

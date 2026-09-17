@@ -17,6 +17,13 @@ import { useLotSetup } from "@/features/create-pages/create-shared/lot-setup/use
 import { useGRPOCreateStore, useGRPOLines } from "@/store/create/grpo-create.store";
 import { useGRPOLotSessionStore } from "@/store/create/grpo-lot-session.store";
 
+/**
+ * Legacy full-page twin of `LotSetupModal`.
+ *
+ * The `/purchase/grpo-lots/{batches,serials}` routes were removed so lot setup
+ * runs as a modal and the create-GRPO draft stays mounted; this page is kept
+ * for reference and still shares `useLotSetup` with the modal.
+ */
 interface LotSetupPageProps {
   kind: LotSetupKind;
   selectedRowId?: string;

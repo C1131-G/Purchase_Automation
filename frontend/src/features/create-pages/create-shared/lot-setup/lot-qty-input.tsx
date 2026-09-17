@@ -7,6 +7,7 @@ import { parseNumericDraft } from "@/shared/validation/numeric-input.validation"
 interface LotQtyInputProps {
   ariaLabel: string;
   className?: string;
+  /** Floor for the committed value; 1 for Needed qty, 0 for batch qty. */
   min?: number;
   onCommit: (quantity: number) => void;
   value: number;
