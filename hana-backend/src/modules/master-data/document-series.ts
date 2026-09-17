@@ -6,7 +6,6 @@ import { logger } from "@/core/logger/pino-logger";
 import { resolveDocumentSeries } from "@/modules/master-data/master-data.service";
 
 export const SAP_SERIES_OBJECT = {
-  apInvoice: "18",
   goodsReceiptPO: "20",
   purchaseOrder: "22",
   purchaseQuotation: "540000006",

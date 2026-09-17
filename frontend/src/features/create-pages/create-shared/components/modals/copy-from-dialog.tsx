@@ -2,8 +2,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, ClipboardList, FileText, Loader2, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { apInvoiceAPI } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
-import type { APInvoiceDetail } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
 import type { GRPODetail } from "@/features/table-pages/grpo/api/grpo.service";
 import { grpoAPI } from "@/features/table-pages/grpo/api/grpo.service";
 import type { PurchaseOrderDetail } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
@@ -24,7 +22,6 @@ import { CopyFromDateFilter } from "./copy-from-date-filter";
 export type SourceDocType =
   | "PurchaseOrder"
   | "GoodsReceiptPO"
-  | "APInvoice"
   | "PurchaseQuotation"
   | "SalesQuotation";
 
@@ -78,7 +75,6 @@ interface DocDetailCache {
 const SKELETON_ROW_KEYS = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5", "slot-6"] as const;
 
 const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
-  APInvoice: "AP Invoice",
   GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "Quotation",
@@ -86,7 +82,6 @@ const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
 };
 
 const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
-  APInvoice: <FileText className="h-4 w-4" />,
   GoodsReceiptPO: <StickyNote className="h-4 w-4" />,
   PurchaseOrder: <FileText className="h-4 w-4" />,
   PurchaseQuotation: <FileText className="h-4 w-4" />,
@@ -99,12 +94,7 @@ function detailCacheKey(docType: SourceDocType, docCode: string): string {
 
 function computeDetail(
   _docType: SourceDocType,
-  data:
-    | PurchaseOrderDetail
-    | GRPODetail
-    | APInvoiceDetail
-    | PurchaseQuotationDetail
-    | SalesQuotationDetail,
+  data: PurchaseOrderDetail | GRPODetail | PurchaseQuotationDetail | SalesQuotationDetail,
 ): DocDetailCache {
   const lines = data.DocumentLines ?? [];
   const result: DocDetailCache = {
@@ -308,24 +298,6 @@ export function CopyFromDialog({
             params.DocDateEnd = dateRange.to;
           }
           result = await purchaseQuotationAPI.getPurchaseQuotations(params);
-        } else if (sourceDocType === "SalesQuotation") {
-          const params: Record<string, unknown> = {
-            CardCode: vendorCode,
-            limit,
-          };
-          if (query) {
-            params.DocNum = query;
-          }
-          if (!query && isLoadMore) {
-            params.page = page;
-          }
-          if (dateRange.from) {
-            params.DocDateStart = dateRange.from;
-          }
-          if (dateRange.to) {
-            params.DocDateEnd = dateRange.to;
-          }
-          result = await salesQuotationAPI.getSalesQuotations(params);
         } else {
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
@@ -343,7 +315,7 @@ export function CopyFromDialog({
           if (dateRange.to) {
             params.DocDateEnd = dateRange.to;
           }
-          result = await apInvoiceAPI.getAPInvoices(params);
+          result = await salesQuotationAPI.getSalesQuotations(params);
         }
 
         const isAllowedStatus = includeClosed
@@ -475,7 +447,6 @@ export function CopyFromDialog({
       let data:
         | PurchaseOrderDetail
         | GRPODetail
-        | APInvoiceDetail
         | PurchaseQuotationDetail
         | SalesQuotationDetail
         | null = null;
@@ -490,11 +461,8 @@ export function CopyFromDialog({
       } else if (doc.docType === "PurchaseQuotation") {
         const res = await purchaseQuotationAPI.getPurchaseQuotationByDocNum(doc.code);
         ({ data } = res);
-      } else if (doc.docType === "SalesQuotation") {
-        const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.code);
-        ({ data } = res);
       } else {
-        const res = await apInvoiceAPI.getAPInvoice(doc.code);
+        const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.code);
         ({ data } = res);
       }
 

@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { toStatementPartnerTableLink } from "@/features/dashboard/utils/statement-partner-table-link";
 
 describe("toStatementPartnerTableLink", () => {
-  it("routes vendors to open A/P invoices with CardCode filter", () => {
+  it("routes vendors to open purchase orders with CardCode filter", () => {
     const link = toStatementPartnerTableLink("vendor", "V001");
 
-    expect(link.to).toBe("/purchase/ap-invoice");
+    expect(link.to).toBe("/purchase/orders");
     expect(link.search).toEqual({
       DocStatus: "Open",
       page: 1,

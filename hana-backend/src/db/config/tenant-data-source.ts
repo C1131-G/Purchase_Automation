@@ -5,8 +5,6 @@ import { DataSource } from "typeorm";
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
-import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
-import { APInvoiceHeaderSchema } from "@/db/schemas/apinvoiceheader.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BankDetailsSchema } from "@/db/schemas/bank-details.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
@@ -42,7 +40,6 @@ const TENANT_ENTITIES = [
   PurchaseQuotationSchema,
   PurchaseQuotationLineSchema,
   GRPOSchema,
-  APInvoiceSchema,
   UserSchema,
   ItemSchema,
   ItemPriceSchema,
@@ -61,7 +58,6 @@ const TENANT_ENTITIES = [
   ARInvoiceSchema,
   SalesEmployeeSchema,
   GRPOHeaderSchema,
-  APInvoiceHeaderSchema,
   AttachmentLineSchema,
 ] as const;
 

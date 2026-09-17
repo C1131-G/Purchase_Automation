@@ -13,10 +13,6 @@ import {
   CreateSalesQuotationInputSchema,
   UpdateSalesQuotationInputSchema,
 } from "@/modules/sales-quotation/sales-quotation.schema";
-import {
-  CreateInvoiceInputSchema,
-  UpdateInvoiceInputSchema,
-} from "@/validation/schemas/inputs/invoice.input";
 
 import { registerDocumentPaths } from "./swagger-document-path-register";
 
@@ -50,13 +46,6 @@ export const registerAllDocumentModulePaths = () => {
     createSchema: CreateGRPOInputSchema,
     updateSchema: UpdateGRPOInputSchema,
     schemaNames: { create: "CreateGRPOInput", update: "UpdateGRPOInput" },
-  });
-  registerDocumentPaths({
-    entityPath: "ap-invoices",
-    entityLabel: "AP Invoice",
-    createSchema: CreateInvoiceInputSchema,
-    updateSchema: UpdateInvoiceInputSchema,
-    schemaNames: { create: "CreateApInvoiceInput", update: "UpdateApInvoiceInput" },
   });
   registerDocumentPaths({
     entityPath: "sales-quotations",

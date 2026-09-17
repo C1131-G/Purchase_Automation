@@ -2,7 +2,6 @@ import AppError from "@/core/errors/app-error";
 import { executeTenantQuery, getTenantRepository } from "@/db/tenant-query";
 // Data Access & Schemas
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
-import { APInvoiceHeaderSchema } from "@/db/schemas/apinvoiceheader.schema";
 import { getGRPO } from "./grpo.detail-po.queries";
 
 export const getGRPOByDocNum = async (
@@ -41,21 +40,8 @@ export const getGRPOByDocNum = async (
     const grpoDocEntry = String(match.docEntry);
     const grpoDetail = await getGRPO(sessionId, grpoDocEntry);
 
-    // Calculate remaining open quantity per line by querying consumed quantities from PCH1 (AP Invoice lines).
-    const pch1Repo = await getTenantRepository(dbName, APInvoiceHeaderSchema);
-    const consumedLines = await pch1Repo
-      .createQueryBuilder("pch1")
-      .select("pch1.baseLine", "baseLine")
-      .addSelect("SUM(pch1.quantity)", "consumedQty")
-      .where("pch1.baseEntry = :baseEntry", { baseEntry: grpoDetail.DocEntry })
-      .andWhere("pch1.baseType = 20")
-      .groupBy("pch1.baseLine")
-      .getRawMany<{ baseLine: number; consumedQty: string }>();
-
+    // Remaining open quantity per line (was consumed-by-AP-Invoice; that document is removed).
     const consumedByLine = new Map<number, number>();
-    for (const row of consumedLines) {
-      consumedByLine.set(Number(row.baseLine), Number(row.consumedQty ?? 0));
-    }
 
     // Enrich lines with calculated OpenQty.
     const enrichedLines = (grpoDetail.DocumentLines || []).map((line: Record<string, unknown>) => {

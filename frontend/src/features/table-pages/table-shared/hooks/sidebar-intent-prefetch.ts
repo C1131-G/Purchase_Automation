@@ -5,7 +5,6 @@ import {
   type CreateMasterParty,
 } from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
 import { icRfqQueries } from "@/features/intercompany/api/intercompany.queries";
-import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
@@ -16,7 +15,6 @@ export type TableRoutePath =
   | "/purchase/orders"
   | "/purchase/quotations"
   | "/purchase/grpo"
-  | "/purchase/ap-invoice"
   | "/sales/quotations"
   | "/sales/request-for-quotations";
 
@@ -35,7 +33,6 @@ const partyForTableRoute = (routePath: TableRoutePath): CreateMasterParty =>
  */
 export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: TableRoutePath) => {
   const queryOptionsByPath = {
-    "/purchase/ap-invoice": apInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/grpo": grpoQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/orders": purchaseOrderQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/quotations": purchaseQuotationQueries.list(DEFAULT_TABLE_PARAMS),

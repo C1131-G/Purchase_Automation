@@ -14,6 +14,5 @@ export interface RelationshipMapResult {
   purchaseQuotation?: NodeResult[];
   purchaseOrder?: NodeResult[];
   grpo?: NodeResult[];
-  apInvoice?: NodeResult[];
   delivery?: NodeResult[];
 }

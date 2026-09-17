@@ -449,7 +449,7 @@ export function PurchaseOrderCreate({
             <CopyToDropdown
               docNum={String(state.isEditMode ? docNum : state.savedDocNum)}
               sourceDocType="PurchaseOrder"
-              targets={["GRPO", "AP Invoice"]}
+              targets={["GRPO"]}
             />
           ) : null
         }

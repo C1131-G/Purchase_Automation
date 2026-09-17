@@ -12,7 +12,6 @@ interface DocNumCellProps {
     | "purchase-quotation"
     | "purchase-order"
     | "grpo"
-    | "ap-invoice"
     | "incoming-payment"
     | "goods-receipt"
     | "goods-issue"

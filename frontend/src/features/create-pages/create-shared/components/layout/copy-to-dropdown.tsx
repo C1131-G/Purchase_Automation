@@ -16,12 +16,11 @@ interface CopyToOption {
 type SourceDocType =
   | "PurchaseOrder"
   | "GoodsReceiptPO"
-  | "APInvoice"
   | "PurchaseQuotation"
   | "SalesQuotation"
   | "SalesOrder";
 
-type TargetType = "PO" | "GRPO" | "AP Invoice" | "Sales Order" | "A/R Invoice" | "A/R Credit Note";
+type TargetType = "PO" | "GRPO" | "Sales Order" | "A/R Invoice" | "A/R Credit Note";
 
 interface CopyToDropdownProps {
   docNum: string;
@@ -37,7 +36,6 @@ const targetIcon = (target: string) => {
     case "Sales Order": {
       return <Truck className="h-4 w-4" />;
     }
-    case "AP Invoice":
     case "A/R Invoice": {
       return <StickyNote className="h-4 w-4" />;
     }
@@ -61,15 +59,6 @@ const targetMeta = (target: string, sourceDocType: string) => {
         : sourceDocType === "PurchaseQuotation"
           ? "Create GRPO from this Quotation"
           : "Create GRPO from this document";
-    }
-    case "AP Invoice": {
-      return sourceDocType === "PurchaseOrder"
-        ? "Create A/P Invoice from this PO"
-        : sourceDocType === "GoodsReceiptPO"
-          ? "Create A/P Invoice from this GRPO"
-          : sourceDocType === "PurchaseQuotation"
-            ? "Create A/P Invoice from this Quotation"
-            : "Create A/P Invoice from this document";
     }
     case "Sales Order": {
       return "Create Sales Order from this quotation";
@@ -247,9 +236,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
         ? "/purchase/create-order"
         : target === "GRPO"
           ? "/purchase/create-grpo"
-          : target === "AP Invoice"
-            ? "/purchase/create-ap-invoice"
-            : "/sales/create-quotation",
+          : "/sales/create-quotation",
   }));
 
   return (

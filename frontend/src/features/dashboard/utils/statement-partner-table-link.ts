@@ -33,7 +33,7 @@ export function toStatementPartnerTableLink(
 
   if (role === "vendor") {
     return {
-      to: "/purchase/ap-invoice",
+      to: "/purchase/orders",
       search: { ...openStatusSearch(), ...cardFilter },
     };
   }

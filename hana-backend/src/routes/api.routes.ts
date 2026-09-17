@@ -4,7 +4,6 @@
 import express from "express";
 
 import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware";
-import { apInvoiceRoutes } from "@/modules/ap-invoice/ap-invoice.routes";
 import { authRoutes } from "@/modules/auth/auth.routes";
 import { bankDetailsRoutes } from "@/modules/bank-details/bank-details.routes";
 import { dashboardRoutes } from "@/modules/dashboard/dashboard.routes";
@@ -31,7 +30,6 @@ router.use("/dashboard", dashboardRoutes);
 router.use("/purchase-orders", purchaseOrderRoutes);
 router.use("/purchase-quotations", purchaseQuotationRoutes);
 router.use("/grpos", grpoRoutes);
-router.use("/ap-invoices", apInvoiceRoutes);
 
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
 router.use("/sales-quotations", salesQuotationRoutes);

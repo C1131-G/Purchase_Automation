@@ -41,12 +41,11 @@ const fetchCustomersFromMasterDataRoute = async (): Promise<{
 const fetchSalesEmployees = async () =>
   apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/sales-quotations/SalesEmployee");
 
-/** Product browse cache is per document + vendor — never share PQ catalog with GRPO/AP Invoice. */
+/** Product browse cache is per document + vendor — never share PQ catalog with GRPO. */
 export type ProductCatalogScope =
   | "purchase-quotation"
   | "purchase-order"
   | "grpo"
-  | "ap-invoice"
   | "sales-quotation"
   | "hydrate";
 

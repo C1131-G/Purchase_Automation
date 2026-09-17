@@ -7,7 +7,6 @@ import { DataSource } from "typeorm";
 import { config } from "@/config/env";
 // Core & Utils
 import { logger } from "@/core/logger/pino-logger";
-import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BankDetailsSchema } from "@/db/schemas/bank-details.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
@@ -27,7 +26,6 @@ const GLOBAL_ENTITIES = [
   OrganizationSchema,
   PurchaseOrderSchema,
   GRPOSchema,
-  APInvoiceSchema,
   UserSchema,
   ItemSchema,
   BusinessPartnerSchema,

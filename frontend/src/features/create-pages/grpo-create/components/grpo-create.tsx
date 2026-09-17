@@ -13,7 +13,6 @@ import { LogisticsGrid } from "@/features/create-pages/create-shared/components/
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
-import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { VendorChangeConfirmationDialog } from "@/features/create-pages/create-shared/components/modals/vendor-change-confirmation-dialog";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import {
@@ -403,16 +402,6 @@ export function GRPOCreate({
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
         headerDiscountPercent={state.headerDiscountPercent}
-        secondaryActions={
-          !state.isClosed &&
-          (state.isEditMode ? docNum : state.isSaved ? state.savedDocNum : null) ? (
-            <CopyToDropdown
-              docNum={String(state.isEditMode ? docNum : state.savedDocNum)}
-              sourceDocType="GoodsReceiptPO"
-              targets={["AP Invoice"]}
-            />
-          ) : null
-        }
         warehouseErrors={state.warehouseErrors}
         onSubmitMode={state.handleCreateOrder}
         isSaved={state.isSaved}

@@ -316,7 +316,7 @@ export function StatementShell({
                     const tableLink = toStatementPartnerTableLink(role, partner.cardCode);
                     const roleLabel = role === "vendor" ? "Vendor" : "Customer";
                     const openDocsLabel =
-                      role === "vendor" ? "open A/P invoices" : "open sales quotations";
+                      role === "vendor" ? "open purchase orders" : "open sales quotations";
 
                     return (
                       <li

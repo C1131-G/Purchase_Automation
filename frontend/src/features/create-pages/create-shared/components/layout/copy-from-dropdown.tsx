@@ -8,7 +8,6 @@ import { cn } from "@/shared/utils/cn";
 export type SourceDocType =
   | "PurchaseOrder"
   | "GoodsReceiptPO"
-  | "APInvoice"
   | "PurchaseQuotation"
   | "SalesQuotation";
 type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | "SalesQuotation";
@@ -43,9 +42,6 @@ const sourceIcon = (code: string) => {
     case "GoodsReceiptPO": {
       return <StickyNote className="h-4 w-4" />;
     }
-    case "APInvoice": {
-      return <FileText className="h-4 w-4" />;
-    }
     case "PurchaseQuotation": {
       return <FileText className="h-4 w-4" />;
     }
@@ -65,9 +61,6 @@ const sourceMeta = (code: string) => {
     }
     case "GoodsReceiptPO": {
       return "Copy from GRPO";
-    }
-    case "APInvoice": {
-      return "Copy from A/P Invoice";
     }
     case "PurchaseQuotation": {
       return "Copy from Purchase Quotation";
@@ -213,11 +206,9 @@ function CopyFromDropdownInner({
               ? "Purchase Order"
               : code === "GoodsReceiptPO"
                 ? "GRPO"
-                : code === "APInvoice"
-                  ? "A/P Invoice"
-                  : code === "PurchaseQuotation"
-                    ? "Purchase Quotation"
-                    : "Sales Quotation",
+                : code === "PurchaseQuotation"
+                  ? "Purchase Quotation"
+                  : "Sales Quotation",
           meta: sourceMeta(code),
         };
         if (isLocked) {

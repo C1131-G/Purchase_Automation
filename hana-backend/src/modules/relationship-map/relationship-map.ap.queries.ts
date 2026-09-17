@@ -5,7 +5,7 @@ import { logger } from "@/core/logger/pino-logger";
 
 export const getAPRelationshipMap = async (
   dbName: string,
-  docType: "purchase-quotation" | "purchase-order" | "grpo" | "ap-invoice",
+  docType: "purchase-quotation" | "purchase-order" | "grpo",
   docEntry: number,
 ): Promise<RelationshipMapResult> => {
   try {
@@ -21,13 +21,11 @@ export const getAPRelationshipMap = async (
       purchaseQuotation: [],
       purchaseOrder: [],
       grpo: [],
-      apInvoice: [],
     };
 
     let currentPQs: number[] = [];
     let currentPOs: number[] = [];
     let currentGRPOs: number[] = [];
-    let currentInvs: number[] = [];
 
     const getDocNums = async (table: string, entries: number[]): Promise<NodeResult[]> => {
       const validEntries = [...new Set(entries)].filter((id) => id && !Number.isNaN(id) && id > 0);
@@ -53,25 +51,17 @@ export const getAPRelationshipMap = async (
       if (currentPOs.length > 0) {
         // Down to GRPO
         const qGRPO = `SELECT DISTINCT "DocEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${currentPOs.join(",")})`;
-        const qInv = `SELECT DISTINCT "DocEntry" FROM "PCH1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${currentPOs.join(",")})`;
-        const [grpos, invs] = await Promise.all([manager.query(qGRPO), manager.query(qInv)]);
+        const grpos = await manager.query(qGRPO);
         currentGRPOs = extractIds(grpos, "DocEntry");
-        currentInvs = extractIds(invs, "DocEntry");
       }
     } else if (docType === "purchase-order") {
       currentPOs = [docEntry];
       // Up to PQ
       const qUp = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${docEntry})`;
       const qGRPO = `SELECT DISTINCT "DocEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${docEntry})`;
-      const qInv = `SELECT DISTINCT "DocEntry" FROM "PCH1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${docEntry})`;
-      const [pqs, grpos, invs] = await Promise.all([
-        manager.query(qUp),
-        manager.query(qGRPO),
-        manager.query(qInv),
-      ]);
+      const [pqs, grpos] = await Promise.all([manager.query(qUp), manager.query(qGRPO)]);
       currentPQs = extractIds(pqs, "BaseEntry");
       currentGRPOs = extractIds(grpos, "DocEntry");
-      currentInvs = extractIds(invs, "DocEntry");
     } else if (docType === "grpo") {
       currentGRPOs = [docEntry];
       // Up to PO
@@ -84,53 +74,17 @@ export const getAPRelationshipMap = async (
         const pqs = await manager.query(qUp2);
         currentPQs = extractIds(pqs, "BaseEntry");
       }
-
-      // Down to Inv
-      const qDown = `SELECT DISTINCT "DocEntry" FROM "PCH1" WHERE "BaseType" = 20 AND "BaseEntry" IN (${docEntry})`;
-      const invs = await manager.query(qDown);
-      currentInvs = extractIds(invs, "DocEntry");
-    } else if (docType === "ap-invoice") {
-      currentInvs = [docEntry];
-      // Up to GRPO or PO
-      const qUp = `SELECT DISTINCT "BaseType", "BaseEntry" FROM "PCH1" WHERE "BaseType" IN (20, 22) AND "DocEntry" IN (${docEntry})`;
-      const bases = await manager.query(qUp);
-
-      const poBases = extractIds(
-        bases.filter((result: any) => result.BaseType === 22),
-        "BaseEntry",
-      );
-      const grpoBases = extractIds(
-        bases.filter((result: any) => result.BaseType === 20),
-        "BaseEntry",
-      );
-
-      currentPOs = poBases;
-      currentGRPOs = grpoBases;
-
-      if (currentGRPOs.length > 0) {
-        const qUpPO = `SELECT DISTINCT "BaseEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "DocEntry" IN (${currentGRPOs.join(",")})`;
-        const posFromGRPO = await manager.query(qUpPO);
-        currentPOs = [...new Set([...currentPOs, ...extractIds(posFromGRPO, "BaseEntry")])];
-      }
-
-      if (currentPOs.length > 0) {
-        const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
-        const pqs = await manager.query(qUpPQ);
-        currentPQs = extractIds(pqs, "BaseEntry");
-      }
     }
 
-    const [purchaseQuotation, purchaseOrder, grpo, apInvoice] = await Promise.all([
+    const [purchaseQuotation, purchaseOrder, grpo] = await Promise.all([
       getDocNums("OPQT", currentPQs),
       getDocNums("OPOR", currentPOs),
       getDocNums("OPDN", currentGRPOs),
-      getDocNums("OPCH", currentInvs),
     ]);
 
     result.purchaseQuotation = purchaseQuotation;
     result.purchaseOrder = purchaseOrder;
     result.grpo = grpo;
-    result.apInvoice = apInvoice;
 
     return result;
   } catch (error) {

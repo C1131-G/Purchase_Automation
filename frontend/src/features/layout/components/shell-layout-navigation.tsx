@@ -114,21 +114,6 @@ export function ShellLayoutNavigation({
                   GRPO
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/purchase/create-ap-invoice"
-                  onMouseEnter={() => onTableNavIntent("/purchase/ap-invoice")}
-                  onFocus={() => onTableNavIntent("/purchase/ap-invoice")}
-                  onTouchStart={() => onTableNavIntent("/purchase/ap-invoice")}
-                  isActive={
-                    pathname === "/purchase/create-ap-invoice" ||
-                    pathname === "/purchase/ap-invoice" ||
-                    pathname.startsWith("/purchase/ap-invoice/")
-                  }
-                >
-                  A/P Invoice
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
 
             <SidebarMenuCollapsible

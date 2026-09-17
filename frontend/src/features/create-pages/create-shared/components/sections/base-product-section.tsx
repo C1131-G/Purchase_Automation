@@ -31,8 +31,6 @@ const getTargetLabel = (target: string) => {
       return "Purchase Order";
     case "GRPO":
       return "Goods Receipt PO";
-    case "AP Invoice":
-      return "A/P Invoice";
     case "Sales Order":
       return "Sales Order";
     case "A/R Invoice":
@@ -50,8 +48,6 @@ const getTargetRoute = (target: string) => {
       return "/purchase/create-order";
     case "GRPO":
       return "/purchase/create-grpo";
-    case "AP Invoice":
-      return "/purchase/create-ap-invoice";
     default:
       return "/sales/create-quotation";
   }
@@ -65,7 +61,6 @@ const getTargetIcon = (target: string) => {
       return (
         <Truck className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
       );
-    case "AP Invoice":
     case "A/R Invoice":
       return (
         <StickyNote className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
