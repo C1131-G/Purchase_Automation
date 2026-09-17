@@ -18,7 +18,6 @@ export function RelationshipMapHover({
     | "purchase-order"
     | "grpo"
     | "ap-invoice"
-    | "ap-credit-memo"
     | "incoming-payment";
   docEntry: number;
 }) {

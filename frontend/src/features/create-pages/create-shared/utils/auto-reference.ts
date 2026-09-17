@@ -8,7 +8,6 @@ export const AUTO_GENERATED_PREFIX = "Auto Generated";
 
 /** Short type codes written into remarks. */
 const DOC_TYPE_SHORT: Record<string, string> = {
-  APCreditMemo: "CM",
   APInvoice: "AP",
   GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
@@ -16,14 +15,13 @@ const DOC_TYPE_SHORT: Record<string, string> = {
 };
 
 const DOC_TYPE_SHORT_PLURAL: Record<string, string> = {
-  APCreditMemo: "CM",
   APInvoice: "AP",
   GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "PQ",
 };
 
-const SHORT_CODES = "PQD|PQ|RFQ|SQ|PO|AR|GRPO|AP|CM";
+const SHORT_CODES = "PQD|PQ|RFQ|SQ|PO|AR|GRPO|AP";
 
 /** Short auto-ref: `Based on PQ 132424`, legacy `PQ 132424`, … */
 const SHORT_AUTO_REF_LINE_RE = new RegExp(`^(${SHORT_CODES})\\s*:?\\s+\\S+`, "i");

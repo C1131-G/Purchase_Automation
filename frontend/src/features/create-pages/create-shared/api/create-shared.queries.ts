@@ -47,7 +47,6 @@ export type ProductCatalogScope =
   | "purchase-order"
   | "grpo"
   | "ap-invoice"
-  | "ap-credit-memo"
   | "sales-quotation"
   | "hydrate";
 

@@ -14,10 +14,6 @@ import {
   UpdateSalesQuotationInputSchema,
 } from "@/modules/sales-quotation/sales-quotation.schema";
 import {
-  CreateCreditNoteInputSchema,
-  UpdateCreditNoteInputSchema,
-} from "@/validation/schemas/inputs/credit-note.input";
-import {
   CreateInvoiceInputSchema,
   UpdateInvoiceInputSchema,
 } from "@/validation/schemas/inputs/invoice.input";
@@ -61,16 +57,6 @@ export const registerAllDocumentModulePaths = () => {
     createSchema: CreateInvoiceInputSchema,
     updateSchema: UpdateInvoiceInputSchema,
     schemaNames: { create: "CreateApInvoiceInput", update: "UpdateApInvoiceInput" },
-  });
-  registerDocumentPaths({
-    entityPath: "ap-credit-memos",
-    entityLabel: "AP Credit memo",
-    createSchema: CreateCreditNoteInputSchema,
-    updateSchema: UpdateCreditNoteInputSchema,
-    schemaNames: {
-      create: "CreateApCreditMemoInput",
-      update: "UpdateApCreditMemoInput",
-    },
   });
   registerDocumentPaths({
     entityPath: "sales-quotations",

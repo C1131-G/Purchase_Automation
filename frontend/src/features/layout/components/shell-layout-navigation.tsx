@@ -129,21 +129,6 @@ export function ShellLayoutNavigation({
                   A/P Invoice
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/purchase/create-ap-credit-memo"
-                  onMouseEnter={() => onTableNavIntent("/purchase/ap-credit-memo")}
-                  onFocus={() => onTableNavIntent("/purchase/ap-credit-memo")}
-                  onTouchStart={() => onTableNavIntent("/purchase/ap-credit-memo")}
-                  isActive={
-                    pathname === "/purchase/create-ap-credit-memo" ||
-                    pathname === "/purchase/ap-credit-memo" ||
-                    pathname.startsWith("/purchase/ap-credit-memo/")
-                  }
-                >
-                  A/P Credit Memo
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
 
             <SidebarMenuCollapsible

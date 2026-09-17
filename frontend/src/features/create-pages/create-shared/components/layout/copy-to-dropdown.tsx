@@ -21,14 +21,7 @@ type SourceDocType =
   | "SalesQuotation"
   | "SalesOrder";
 
-type TargetType =
-  | "PO"
-  | "GRPO"
-  | "AP Invoice"
-  | "AP Credit Memo"
-  | "Sales Order"
-  | "A/R Invoice"
-  | "A/R Credit Note";
+type TargetType = "PO" | "GRPO" | "AP Invoice" | "Sales Order" | "A/R Invoice" | "A/R Credit Note";
 
 interface CopyToDropdownProps {
   docNum: string;
@@ -48,7 +41,6 @@ const targetIcon = (target: string) => {
     case "A/R Invoice": {
       return <StickyNote className="h-4 w-4" />;
     }
-    case "AP Credit Memo":
     case "A/R Credit Note": {
       return <FileText className="h-4 w-4" />;
     }
@@ -78,9 +70,6 @@ const targetMeta = (target: string, sourceDocType: string) => {
           : sourceDocType === "PurchaseQuotation"
             ? "Create A/P Invoice from this Quotation"
             : "Create A/P Invoice from this document";
-    }
-    case "AP Credit Memo": {
-      return "Create A/P Credit Memo from this invoice";
     }
     case "Sales Order": {
       return "Create Sales Order from this quotation";
@@ -260,9 +249,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
           ? "/purchase/create-grpo"
           : target === "AP Invoice"
             ? "/purchase/create-ap-invoice"
-            : target === "AP Credit Memo"
-              ? "/purchase/create-ap-credit-memo"
-              : "/sales/create-quotation",
+            : "/sales/create-quotation",
   }));
 
   return (

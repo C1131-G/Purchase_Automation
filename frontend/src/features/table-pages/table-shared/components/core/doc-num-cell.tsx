@@ -13,7 +13,6 @@ interface DocNumCellProps {
     | "purchase-order"
     | "grpo"
     | "ap-invoice"
-    | "ap-credit-memo"
     | "incoming-payment"
     | "goods-receipt"
     | "goods-issue"

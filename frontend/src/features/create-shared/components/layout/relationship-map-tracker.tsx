@@ -24,7 +24,6 @@ interface RelationshipMapTrackerProps {
     | "purchase-quotation"
     | "purchase-order"
     | "ap-invoice"
-    | "ap-credit-memo"
     | "grpo"
     | "incoming-payment";
   docEntry: number;
@@ -129,19 +128,13 @@ export function RelationshipMapTracker({
 }: RelationshipMapTrackerProps & { compact?: boolean }) {
   const { data, isLoading, isError } = useQuery(relationshipMapQueries.map(docType, docEntry));
 
-  const isAP = [
-    "purchase-quotation",
-    "purchase-order",
-    "ap-invoice",
-    "ap-credit-memo",
-    "grpo",
-  ].includes(docType);
+  const isAP = ["purchase-quotation", "purchase-order", "ap-invoice", "grpo"].includes(docType);
 
   const isIcSalesDoc =
     !isAP && (docType === "request-for-quotation" || docType === "sales-quotation");
 
   if (isLoading) {
-    const nodeCount = isAP ? 5 : isIcSalesDoc ? 2 : 5;
+    const nodeCount = isAP ? 4 : isIcSalesDoc ? 2 : 5;
     return (
       <div
         className={`bg-surface rounded-xl shadow-sm border border-linen-100 w-full ${
@@ -221,7 +214,7 @@ export function RelationshipMapTracker({
   const hasDoc2 = isAP ? !!data.purchaseOrder?.length : !!data.salesOrder?.length;
   const hasDocGRPO = isAP ? !!data.grpo?.length : false;
   const hasDoc3 = isAP ? !!data.apInvoice?.length : !!data.arInvoice?.length;
-  const hasDoc4 = isAP ? !!data.apCreditMemo?.length : !!data.arCreditMemo?.length;
+  const hasDoc4 = !isAP && !!data.arCreditMemo?.length;
   const hasDoc5 = !isAP && !!data.incomingPayment?.length;
 
   const icSalesNodes = [
@@ -309,13 +302,6 @@ export function RelationshipMapTracker({
           active: hasDoc3,
           items: data.apInvoice,
           linkPrefix: "/purchase/ap-invoice",
-        },
-        {
-          icon: Undo2,
-          label: "A/P Credit Memo",
-          active: hasDoc4,
-          items: data.apCreditMemo,
-          linkPrefix: "/purchase/ap-credit-memo",
         },
       ]
     : isIcSalesMap

@@ -9,7 +9,6 @@ export type SourceDocType =
   | "PurchaseOrder"
   | "GoodsReceiptPO"
   | "APInvoice"
-  | "APCreditMemo"
   | "PurchaseQuotation"
   | "SalesQuotation";
 type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | "SalesQuotation";
@@ -47,9 +46,6 @@ const sourceIcon = (code: string) => {
     case "APInvoice": {
       return <FileText className="h-4 w-4" />;
     }
-    case "APCreditMemo": {
-      return <FileText className="h-4 w-4" />;
-    }
     case "PurchaseQuotation": {
       return <FileText className="h-4 w-4" />;
     }
@@ -72,9 +68,6 @@ const sourceMeta = (code: string) => {
     }
     case "APInvoice": {
       return "Copy from A/P Invoice";
-    }
-    case "APCreditMemo": {
-      return "Copy from A/P Credit Memo";
     }
     case "PurchaseQuotation": {
       return "Copy from Purchase Quotation";
@@ -222,11 +215,9 @@ function CopyFromDropdownInner({
                 ? "GRPO"
                 : code === "APInvoice"
                   ? "A/P Invoice"
-                  : code === "APCreditMemo"
-                    ? "A/P Credit Memo"
-                    : code === "PurchaseQuotation"
-                      ? "Purchase Quotation"
-                      : "Sales Quotation",
+                  : code === "PurchaseQuotation"
+                    ? "Purchase Quotation"
+                    : "Sales Quotation",
           meta: sourceMeta(code),
         };
         if (isLocked) {

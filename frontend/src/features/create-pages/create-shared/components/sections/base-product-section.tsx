@@ -33,8 +33,6 @@ const getTargetLabel = (target: string) => {
       return "Goods Receipt PO";
     case "AP Invoice":
       return "A/P Invoice";
-    case "AP Credit Memo":
-      return "A/P Credit Memo";
     case "Sales Order":
       return "Sales Order";
     case "A/R Invoice":
@@ -54,8 +52,6 @@ const getTargetRoute = (target: string) => {
       return "/purchase/create-grpo";
     case "AP Invoice":
       return "/purchase/create-ap-invoice";
-    case "AP Credit Memo":
-      return "/purchase/create-ap-credit-memo";
     default:
       return "/sales/create-quotation";
   }

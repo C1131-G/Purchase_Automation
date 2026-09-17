@@ -5,13 +5,7 @@ import { logger } from "@/core/logger/pino-logger";
 
 export const getAPRelationshipMap = async (
   dbName: string,
-  docType:
-    | "purchase-quotation"
-    | "purchase-order"
-    | "grpo"
-    | "ap-invoice"
-    | "ap-credit-memo"
-    | "outgoing-payment",
+  docType: "purchase-quotation" | "purchase-order" | "grpo" | "ap-invoice",
   docEntry: number,
 ): Promise<RelationshipMapResult> => {
   try {
@@ -28,16 +22,12 @@ export const getAPRelationshipMap = async (
       purchaseOrder: [],
       grpo: [],
       apInvoice: [],
-      apCreditMemo: [],
-      outgoingPayment: [],
     };
 
     let currentPQs: number[] = [];
     let currentPOs: number[] = [];
     let currentGRPOs: number[] = [];
     let currentInvs: number[] = [];
-    let currentCMs: number[] = [];
-    let currentOPs: number[] = [];
 
     const getDocNums = async (table: string, entries: number[]): Promise<NodeResult[]> => {
       const validEntries = [...new Set(entries)].filter((id) => id && !Number.isNaN(id) && id > 0);
@@ -128,103 +118,19 @@ export const getAPRelationshipMap = async (
         const pqs = await manager.query(qUpPQ);
         currentPQs = extractIds(pqs, "BaseEntry");
       }
-    } else if (docType === "ap-credit-memo") {
-      currentCMs = [docEntry];
-      // Up to Inv
-      const qUp = `SELECT DISTINCT "BaseEntry" FROM "RPC1" WHERE "BaseType" = 18 AND "DocEntry" IN (${docEntry})`;
-      const invs = await manager.query(qUp);
-      currentInvs = extractIds(invs, "BaseEntry");
-
-      if (currentInvs.length > 0) {
-        const qUpBases = `SELECT DISTINCT "BaseType", "BaseEntry" FROM "PCH1" WHERE "BaseType" IN (20, 22) AND "DocEntry" IN (${currentInvs.join(",")})`;
-        const bases = await manager.query(qUpBases);
-
-        currentPOs = extractIds(
-          bases.filter((result: any) => result.BaseType === 22),
-          "BaseEntry",
-        );
-        currentGRPOs = extractIds(
-          bases.filter((result: any) => result.BaseType === 20),
-          "BaseEntry",
-        );
-
-        if (currentGRPOs.length > 0) {
-          const qUpPO = `SELECT DISTINCT "BaseEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "DocEntry" IN (${currentGRPOs.join(",")})`;
-          const posFromGRPO = await manager.query(qUpPO);
-          currentPOs = [...new Set([...currentPOs, ...extractIds(posFromGRPO, "BaseEntry")])];
-        }
-
-        if (currentPOs.length > 0) {
-          const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
-          const pqs = await manager.query(qUpPQ);
-          currentPQs = extractIds(pqs, "BaseEntry");
-        }
-      }
-    } else if (docType === "outgoing-payment") {
-      currentOPs = [docEntry];
-      // Up to Inv
-      const qUp = `SELECT DISTINCT "DocEntry" FROM "VPM2" WHERE "DocNum" IN (${docEntry})`;
-      const invs = await manager.query(qUp);
-      currentInvs = extractIds(invs, "DocEntry");
-
-      if (currentInvs.length > 0) {
-        const qUpBases = `SELECT DISTINCT "BaseType", "BaseEntry" FROM "PCH1" WHERE "BaseType" IN (20, 22) AND "DocEntry" IN (${currentInvs.join(",")})`;
-        const bases = await manager.query(qUpBases);
-
-        currentPOs = extractIds(
-          bases.filter((result: any) => result.BaseType === 22),
-          "BaseEntry",
-        );
-        currentGRPOs = extractIds(
-          bases.filter((result: any) => result.BaseType === 20),
-          "BaseEntry",
-        );
-
-        if (currentGRPOs.length > 0) {
-          const qUpPO = `SELECT DISTINCT "BaseEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "DocEntry" IN (${currentGRPOs.join(",")})`;
-          const posFromGRPO = await manager.query(qUpPO);
-          currentPOs = [...new Set([...currentPOs, ...extractIds(posFromGRPO, "BaseEntry")])];
-        }
-
-        if (currentPOs.length > 0) {
-          const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
-          const pqs = await manager.query(qUpPQ);
-          currentPQs = extractIds(pqs, "BaseEntry");
-        }
-      }
     }
 
-    if (currentInvs.length > 0 && docType !== "ap-credit-memo") {
-      const qCM = `SELECT DISTINCT "DocEntry" FROM "RPC1" WHERE "BaseType" = 18 AND "BaseEntry" IN (${currentInvs.join(",")})`;
-      const qOP = `SELECT DISTINCT "DocNum" FROM "VPM2" WHERE "InvType" = 18 AND "DocEntry" IN (${currentInvs.join(",")})`;
-      const [cms, ops] = await Promise.all([manager.query(qCM), manager.query(qOP)]);
-      currentCMs = extractIds(cms, "DocEntry");
-      currentOPs = extractIds(ops, "DocNum");
-    } else if (currentInvs.length > 0 && docType === "ap-credit-memo") {
-      const qCM = `SELECT DISTINCT "DocEntry" FROM "RPC1" WHERE "BaseType" = 18 AND "BaseEntry" IN (${currentInvs.join(",")})`;
-      const qOP = `SELECT DISTINCT "DocNum" FROM "VPM2" WHERE "InvType" = 18 AND "DocEntry" IN (${currentInvs.join(",")})`;
-      const [cms, ops] = await Promise.all([manager.query(qCM), manager.query(qOP)]);
-      const newCMs = extractIds(cms, "DocEntry");
-      currentCMs = [...new Set([...currentCMs, ...newCMs])];
-      currentOPs = extractIds(ops, "DocNum");
-    }
-
-    const [purchaseQuotation, purchaseOrder, grpo, apInvoice, creditMemo, outgoingPayment] =
-      await Promise.all([
-        getDocNums("OPQT", currentPQs),
-        getDocNums("OPOR", currentPOs),
-        getDocNums("OPDN", currentGRPOs),
-        getDocNums("OPCH", currentInvs),
-        getDocNums("ORPC", currentCMs),
-        getDocNums("OVPM", currentOPs),
-      ]);
+    const [purchaseQuotation, purchaseOrder, grpo, apInvoice] = await Promise.all([
+      getDocNums("OPQT", currentPQs),
+      getDocNums("OPOR", currentPOs),
+      getDocNums("OPDN", currentGRPOs),
+      getDocNums("OPCH", currentInvs),
+    ]);
 
     result.purchaseQuotation = purchaseQuotation;
     result.purchaseOrder = purchaseOrder;
     result.grpo = grpo;
     result.apInvoice = apInvoice;
-    result.apCreditMemo = creditMemo;
-    result.outgoingPayment = outgoingPayment;
 
     return result;
   } catch (error) {

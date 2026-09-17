@@ -1,7 +1,6 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
-import { APCreditMemoHeaderSchema } from "@/db/schemas/apcreditmemoheader.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
 import { resolveCurrencyCode } from "@/services/currency-format";
@@ -28,23 +27,8 @@ export const getInvoice = async (
       endpoint,
     )) as SAPDocumentResponse;
 
-    // Calculate remaining open quantity per line by querying consumed quantities from RPC1 (AP Credit Memo lines).
+    // Remaining open quantity per line (was consumed-by-AP-Credit-Memo; that document is removed).
     const consumedByLine = new Map<number, number>();
-    if (dbName) {
-      const rpc1Repo = await getTenantRepository(dbName, APCreditMemoHeaderSchema);
-      const consumedLines = await rpc1Repo
-        .createQueryBuilder("rpc1")
-        .select("rpc1.baseLine", "baseLine")
-        .addSelect("SUM(rpc1.quantity)", "consumedQty")
-        .where("rpc1.baseEntry = :baseEntry", { baseEntry: result.DocEntry })
-        .andWhere("rpc1.baseType = 18") // 18 = AP Invoice
-        .groupBy("rpc1.baseLine")
-        .getRawMany<{ baseLine: number; consumedQty: string }>();
-
-      for (const row of consumedLines) {
-        consumedByLine.set(Number(row.baseLine), Number(row.consumedQty ?? 0));
-      }
-    }
 
     // Enrich lines with calculated OpenQty.
     const enrichedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
