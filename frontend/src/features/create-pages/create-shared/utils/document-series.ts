@@ -1,5 +1,6 @@
 /**
  * Document numbering series (SAP NNM1) helpers for create/edit headers.
+ * Auto-suggest follows the POS rule: warehouse store location = NNM1.Remark.
  * Object codes: PQ=540000006, PO=22, SQ=23.
  */
 
@@ -14,6 +15,8 @@ export type SeriesLookupItem = {
   name: string;
   branchId?: number | null | undefined;
   nextNumber?: number | null | undefined;
+  /** NNM1.Remark — the POS store location this series belongs to. */
+  location?: string | null | undefined;
 };
 
 export const toPositiveSeries = (value: unknown): number | null => {
@@ -63,21 +66,36 @@ export const findSeriesSelection = <T extends SeriesLookupItem>(
   });
 };
 
+const normalizeLocation = (value: string | null | undefined): string =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+/**
+ * Same rule as the POS: the series whose Remarks equals the warehouse's store location.
+ * No match → no suggestion (SAP default series applies).
+ */
 export const suggestSeries = (
   items: SeriesLookupItem[],
-  branchId?: number | null,
+  location?: string | null,
 ): SeriesLookupItem | null => {
-  if (items.length === 0) {
+  const target = normalizeLocation(location);
+  if (!target) {
     return null;
   }
-  const branch = toPositiveSeries(branchId);
-  if (branch != null) {
-    const matched = items.find((item) => toPositiveSeries(item.branchId) === branch);
-    if (matched) {
-      return matched;
-    }
+  return items.find((item) => normalizeLocation(item.location) === target) ?? null;
+};
+
+/** POS store location of the selected warehouse (warehouse lookup `location`). */
+export const storeLocationForWarehouse = (
+  warehouses: ReadonlyArray<{ code: string; location?: string | null | undefined }>,
+  warehouseCode: string | null | undefined,
+): string | null => {
+  const code = String(warehouseCode ?? "").trim();
+  if (!code) {
+    return null;
   }
-  return items[0] ?? null;
+  return warehouses.find((w) => String(w.code).trim() === code)?.location ?? null;
 };
 
 /** Fields to merge into SAP create payload. */

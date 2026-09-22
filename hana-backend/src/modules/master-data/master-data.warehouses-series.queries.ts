@@ -12,6 +12,7 @@ const mapSeriesRows = (
     NextNumber: unknown;
     BPLId?: unknown;
     BPLid?: unknown;
+    Remark?: unknown;
   }>,
 ) =>
   rows
@@ -32,11 +33,13 @@ const mapSeriesRows = (
         id: String(row.Series ?? ""),
         name: toTrimmed(row.SeriesName),
         nextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
+        // NNM1.Remark = POS store location this series belongs to (location numbering).
+        location: toTrimmed(row.Remark) || null,
       };
     });
 
 export const getSeries = async (dbName: string, documentType: string) => {
-  const cacheKey = `master:${dbName}:Series:${documentType}:v2`;
+  const cacheKey = `master:${dbName}:Series:${documentType}:v3`;
   return getCachedData(
     cacheKey,
     async () => {
@@ -48,7 +51,7 @@ export const getSeries = async (dbName: string, documentType: string) => {
         // Prefer NextNumber so clients can show SAP's next DocNum for each series.
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber", "BPLId"
+          `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber", "BPLId", "Remark"
            FROM NNM1
            WHERE "ObjectCode" = ?
              AND "Locked" = 'N'
@@ -61,6 +64,7 @@ export const getSeries = async (dbName: string, documentType: string) => {
           Locked: unknown;
           NextNumber: unknown;
           BPLId: unknown;
+          Remark: unknown;
         }>;
         return mapSeriesRows(rows);
       } catch (err) {
@@ -68,7 +72,7 @@ export const getSeries = async (dbName: string, documentType: string) => {
         try {
           const rows = (await executeTenantQuery(
             dbName,
-            `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber"
+            `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber", "Remark"
              FROM NNM1
              WHERE "ObjectCode" = ?
                AND "Locked" = 'N'
@@ -80,6 +84,7 @@ export const getSeries = async (dbName: string, documentType: string) => {
             ObjectCode: unknown;
             Locked: unknown;
             NextNumber: unknown;
+            Remark: unknown;
           }>;
           return mapSeriesRows(rows);
         } catch (fallbackErr) {
@@ -401,17 +406,52 @@ const toPositiveBranchId = (value: unknown): number | null => {
   return Math.trunc(num);
 };
 
+/** Warehouse code → POS store location (StoreWarehouses → Stores.Location). */
+const getWarehouseStoreLocations = async (dbName: string) =>
+  getCachedData(
+    `master:${dbName}:WarehouseStoreLocations:v1`,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT sw."WarehouseCode", s."Location"
+             FROM "StoreWarehouses" sw
+             JOIN "Stores" s ON s."StoreId" = sw."StoreId"`,
+        )) as Array<{ WarehouseCode: unknown; Location: unknown }>;
+        const locations: Record<string, string> = {};
+        for (const row of rows) {
+          const code = toTrimmed(row.WarehouseCode);
+          const location = toTrimmed(row.Location);
+          if (code && location && !(code in locations)) {
+            locations[code] = location;
+          }
+        }
+        return locations;
+      } catch (err) {
+        // Company DBs without the POS store tables (e.g. Ajax) have no store locations.
+        logger.warn({ db: dbName, err, msg: "Failed to fetch POS store locations" });
+        return {};
+      }
+    },
+    1000 * 60 * 10,
+  );
+
 export const getWarehouses = async (dbName: string) => {
   // v2: include OWHS.BPLid so create UI can auto-select document branch from warehouse.
-  const results = await fetchLookup(dbName, WarehouseSchema, "Warehouses:v2", {
-    order: { WhsCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["WhsCode", "WhsName", "BinActivat", "BPLid"] as const,
-    where: { Inactive: "N" } as Record<string, unknown>,
-  });
+  const [results, storeLocations] = await Promise.all([
+    fetchLookup(dbName, WarehouseSchema, "Warehouses:v2", {
+      order: { WhsCode: "ASC" } as Record<string, "ASC" | "DESC">,
+      select: ["WhsCode", "WhsName", "BinActivat", "BPLid"] as const,
+      where: { Inactive: "N" } as Record<string, unknown>,
+    }),
+    getWarehouseStoreLocations(dbName),
+  ]);
 
   return results.map((item) => {
     const branchId = toPositiveBranchId(item.BPLid);
     return {
+      // POS store location — drives the numbering series suggestion (NNM1.Remark).
+      location: storeLocations[toTrimmed(item.WhsCode)] ?? null,
       Code: item.WhsCode,
       Name: item.WhsName,
       code: item.WhsCode,

@@ -166,16 +166,18 @@ export const createPurchaseOrder = async (
       sapPayload.DocObjectCode = "22";
     }
 
+    const firstWarehouseCode = String(lines[0]?.WarehouseCode ?? "").trim() || null;
     // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL; omit when none (Ajax).
-    const branchResolve = await assignDocumentBranch({
+    await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
-      warehouseCode: String(lines[0]?.WarehouseCode ?? "").trim() || null,
+      warehouseCode: firstWarehouseCode,
       logLabel: "PO branch assignment",
     });
+    // Numbering series from the warehouse's POS store location (NNM1.Remark), as in the POS.
     await assignDocumentSeries({
-      branchId: branchResolve.branchId,
+      warehouseCode: firstWarehouseCode,
       clientPayload: payload,
       dbName: resolvedDbName,
       logLabel: "PO series assignment",

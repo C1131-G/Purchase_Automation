@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createParkedTransactionRepository } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/03-park-transaction/parked-transaction.repository";
-import { buildPosParkedInvoiceData } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/03-park-transaction/parked-invoice.payload";
+import {
+  buildIcParkComments,
+  buildPosParkedInvoiceData,
+  IC_PARK_COMMENTS_MAX_LEN,
+} from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/03-park-transaction/parked-invoice.payload";
 import { createParkTransactionService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/03-park-transaction/park-transaction.service";
 import { icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
@@ -161,9 +165,12 @@ describe("ParkedTransactionRepository", () => {
       customer: { CardCode: "C-10", CardName: "Buyer Ltd" },
       parkedTransaction: {
         TotalAmount: 590,
-        parkReason: "IC PO 100050 awaiting cashier processing",
+        parkReason: "[IC AUTO] PO No. 100050 / SQ No. 200810 - awaiting cashier",
       },
-      salesHeader: { SalesPersonCode: 15 },
+      salesHeader: {
+        Comments: "[IC AUTO] Intercompany invoice\nPO No. 100050\nSQ No. 200810",
+        SalesPersonCode: 15,
+      },
       salesItems: [
         {
           BaseEntry: 810,
@@ -178,6 +185,52 @@ describe("ParkedTransactionRepository", () => {
       transactionID: "IC-PO-1-500",
     });
   });
+  // Verifies park Comments: IC tag first, user text + vendor ref kept, full chain in order.
+  it("builds IC park comments with tag, user remarks and PQ/RFQ/PO/SQ chain", () => {
+    const comments = buildIcParkComments({
+      poDocEntry: 4521,
+      poDocNum: 4521,
+      snapshot: {
+        comments:
+          "Please deliver before Friday\nVendor Ref No: VR-1001\nPQ No. 8000586\nRFQ No. 8000586\nSQ No. 810",
+        docEntry: 900,
+        docNum: 810,
+      },
+    });
+
+    expect(comments).toBe(
+      [
+        "[IC AUTO] Intercompany invoice",
+        "Please deliver before Friday",
+        "Vendor Ref No: VR-1001",
+        "PQ No. 8000586",
+        "RFQ No. 8000586",
+        "PO No. 4521",
+        "SQ No. 810",
+      ].join("\n"),
+    );
+  });
+
+  // Verifies 75% budget: long user text is trimmed, tag and chain survive.
+  it("keeps IC park comments within 75% of SAP Comments length", () => {
+    const comments = buildIcParkComments({
+      poDocEntry: 1234567,
+      poDocNum: 1234567,
+      snapshot: {
+        comments: `${"x".repeat(400)}\nPQ No. 8000586\nRFQ No. 8000586`,
+        docEntry: 7654321,
+        docNum: 7654321,
+      },
+    });
+
+    expect(IC_PARK_COMMENTS_MAX_LEN).toBe(190);
+    expect(comments.length).toBeLessThanOrEqual(IC_PARK_COMMENTS_MAX_LEN);
+    expect(comments.startsWith("[IC AUTO] Intercompany invoice\n")).toBe(true);
+    expect(
+      comments.endsWith("PQ No. 8000586\nRFQ No. 8000586\nPO No. 1234567\nSQ No. 7654321"),
+    ).toBe(true);
+  });
+
   // Verifies single covering store picks lowest counter.
   it("resolves the only store covering every warehouse and selects its lowest counter", async () => {
     const repository = createParkedTransactionRepository({

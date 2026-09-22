@@ -1,6 +1,7 @@
 /**
- * Header numbering series: suggest SAP next series for this document type,
- * user can switch via lookup. Edit mode shows the assigned series (locked).
+ * Header numbering series: suggest the series whose Remarks equals the warehouse's
+ * POS store location (same rule as the POS); user can switch via lookup.
+ * No match → empty (SAP default series). Edit mode shows the assigned series (locked).
  */
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +17,8 @@ import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared
 
 type UseDocumentSeriesFieldArgs = {
   objectCode: string;
-  branchId?: number | null | undefined;
+  /** POS store location of the document warehouse (Stores.Location). */
+  location?: string | null | undefined;
   series: number | null | undefined;
   setSeries: (series: number | null) => void;
   enabled?: boolean;
@@ -29,7 +31,7 @@ type UseDocumentSeriesFieldArgs = {
 
 export function useDocumentSeriesField({
   objectCode,
-  branchId,
+  location,
   series,
   setSeries,
   enabled = true,
@@ -49,7 +51,7 @@ export function useDocumentSeriesField({
 
   const [seriesInput, setSeriesInput] = useState("");
   const [seriesFocused, setSeriesFocused] = useState(false);
-  const lastBranchRef = useRef<number | null>(null);
+  const lastLocationRef = useRef<string | null>(null);
   const userOverrideRef = useRef(false);
 
   const displayForSeries = useCallback(
@@ -102,11 +104,11 @@ export function useDocumentSeriesField({
     [selectSeries, seriesList, setSeries],
   );
 
-  // Auto-suggest default series for this document + branch. User can switch afterward.
+  // Auto-suggest the store-location series. User can switch afterward.
   useEffect(() => {
-    const branch = toPositiveSeries(branchId);
-    if (lastBranchRef.current !== branch) {
-      lastBranchRef.current = branch;
+    const storeLocation = String(location ?? "").trim() || null;
+    if (lastLocationRef.current !== storeLocation) {
+      lastLocationRef.current = storeLocation;
       if (!lockSuggestion) {
         userOverrideRef.current = false;
       }
@@ -120,11 +122,15 @@ export function useDocumentSeriesField({
       return;
     }
 
-    const suggested = suggestSeries(seriesList, branch);
+    const suggested = suggestSeries(seriesList, storeLocation);
     const suggestedId = suggested ? toPositiveSeries(suggested.code) : null;
     const current = toPositiveSeries(series);
 
+    // No series for this location → leave empty so SAP applies its default series.
     if (suggestedId == null) {
+      if (current != null) {
+        applySeries(null);
+      }
       return;
     }
     if (suggestedId === current) {
@@ -139,8 +145,8 @@ export function useDocumentSeriesField({
     applySeries(suggestedId);
   }, [
     applySeries,
-    branchId,
     disabled,
+    location,
     displayForSeries,
     lockSuggestion,
     series,

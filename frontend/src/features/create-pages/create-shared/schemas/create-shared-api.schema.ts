@@ -22,6 +22,8 @@ export const lookupItemSchema = z.object({
   uomEntry: z.number().optional(),
   /** SAP business place (OWHS.BPLid / OBPL.BPLId) when present. */
   branchId: z.number().nullable().optional(),
+  /** POS store location: Stores.Location on warehouses, NNM1.Remark on document series. */
+  location: z.string().nullable().optional(),
   /** NNM1.NextNumber when this lookup is a document series. */
   nextNumber: z.number().nullable().optional(),
   enableBinLocations: z.boolean().optional(),

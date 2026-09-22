@@ -25,14 +25,23 @@ describe("document-series helpers", () => {
     expect(toPositiveSeries("18")).toBe(18);
   });
 
-  it("suggests branch series when present, otherwise first", () => {
+  it("suggests the series whose Remarks equals the warehouse's store location", () => {
     const items = [
-      { code: "10", name: "Main", branchId: 1, nextNumber: 100 },
-      { code: "20", name: "RCM", branchId: 7, nextNumber: 200 },
+      { code: "12", name: "PO-SUV", location: "Suva", nextNumber: 100 },
+      { code: "11", name: "PO-LAB", location: "  LABASA ", nextNumber: 200 },
     ];
-    expect(suggestSeries(items, 7)?.code).toBe("20");
-    expect(suggestSeries(items, 9)?.code).toBe("10");
-    expect(suggestSeries([], 1)).toBeNull();
+    expect(suggestSeries(items, "Labasa")?.code).toBe("11");
+    expect(suggestSeries(items, "suva")?.code).toBe("12");
+  });
+
+  it("suggests nothing when no series Remarks matches the store location", () => {
+    const items = [
+      { code: "12", name: "PO-SUV", location: "Suva", nextNumber: 100 },
+      { code: "13", name: "Primary", location: null, nextNumber: 300 },
+    ];
+    expect(suggestSeries(items, "Nadi")).toBeNull();
+    expect(suggestSeries(items, null)).toBeNull();
+    expect(suggestSeries([], "Suva")).toBeNull();
   });
 
   it("auto-selects only exact codes and complete formatted displays", () => {

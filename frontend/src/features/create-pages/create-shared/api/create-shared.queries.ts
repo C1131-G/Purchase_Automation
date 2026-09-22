@@ -64,7 +64,7 @@ export const createSharedKeys = {
   vendors: () => [...createSharedKeys.all, "vendors-ic-v1"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
   series: (documentType: string) =>
-    [...createSharedKeys.all, "series", documentType, "v2"] as const,
+    [...createSharedKeys.all, "series", documentType, "v3"] as const,
   warehouseBins: (warehouseCode: string) =>
     [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
   branches: () => [...createSharedKeys.all, "branches"] as const,
@@ -345,11 +345,12 @@ export const createSharedQueries = {
             return {
               ...mapLookup(w),
               enableBinLocations: Boolean(record.enableBinLocations),
+              location: String(record.location ?? "").trim() || null,
             };
           }),
         ),
-      // v2: warehouses include branchId (OWHS.BPLid)
-      queryKey: [...createSharedKeys.warehouses(), "v2"] as const,
+      // v3: warehouses include branchId (OWHS.BPLid) and POS store location
+      queryKey: [...createSharedKeys.warehouses(), "v3"] as const,
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
   series: (documentType: string) =>

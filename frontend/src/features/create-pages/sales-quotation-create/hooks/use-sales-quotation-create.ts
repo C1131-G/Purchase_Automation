@@ -43,6 +43,7 @@ import { documentBranchPayload } from "@/features/create-pages/create-shared/uti
 import {
   documentSeriesPayload,
   SAP_SERIES_OBJECT,
+  storeLocationForWarehouse,
   toPositiveSeries,
 } from "@/features/create-pages/create-shared/utils/document-series";
 import {
@@ -187,7 +188,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
   const seriesField = useDocumentSeriesField({
     objectCode: SAP_SERIES_OBJECT.salesQuotation,
-    branchId: header.branchId ?? branchField.effectiveBranchId,
+    location: storeLocationForWarehouse(
+      lookups.warehouses,
+      header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    ),
     series: header.series,
     setSeries,
     disabled: isEditMode,

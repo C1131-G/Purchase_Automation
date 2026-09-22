@@ -59,6 +59,7 @@ export const mapSeriesLookup = (item: unknown): LookupItem => {
   const nextNumber = Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null;
   return {
     ...mapped,
+    location: String(record.location ?? record.Remark ?? "").trim() || null,
     nextNumber,
   };
 };

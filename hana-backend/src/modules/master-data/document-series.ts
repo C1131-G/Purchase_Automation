@@ -1,9 +1,13 @@
 /**
- * Document numbering series (NNM1.Series) for marketing documents and payments.
- * Payload Series wins; otherwise pick unlocked non-manual series for the branch, then company default.
+ * Document numbering series (NNM1.Series) for marketing documents.
+ * Same rule as the POS: payload Series wins; otherwise the series whose Remarks equals the
+ * POS store location of the first line's warehouse. No match → no Series (SAP default).
  */
 import { logger } from "@/core/logger/pino-logger";
-import { resolveDocumentSeries } from "@/modules/master-data/master-data.service";
+import {
+  getWarehouseStoreLocation,
+  resolveLocationSeries,
+} from "@/modules/master-data/master-data.store-location-series.queries";
 
 export const SAP_SERIES_OBJECT = {
   purchaseOrder: "22",
@@ -29,24 +33,41 @@ export const assignDocumentSeries = async (params: {
   objectCode: string;
   sapPayload: Record<string, unknown>;
   clientPayload: Record<string, unknown>;
-  branchId?: number | null;
+  warehouseCode?: string | null;
   logLabel?: string;
 }) => {
-  const seriesResolve = await resolveDocumentSeries(params.dbName, params.objectCode, {
-    branchId: params.branchId ?? null,
-    payloadSeries: params.clientPayload.Series ?? params.clientPayload.series,
+  const payloadSeries = pickSapSeries({
+    Series: params.clientPayload.Series ?? params.clientPayload.series,
   });
-  if (seriesResolve) {
-    params.sapPayload.Series = seriesResolve.series;
+  let series = payloadSeries ?? null;
+  let location: string | null = null;
+
+  const warehouseCode = String(params.warehouseCode ?? "").trim();
+  if (series == null && warehouseCode) {
+    location = await getWarehouseStoreLocation(params.dbName, warehouseCode);
+    if (location) {
+      series = await resolveLocationSeries(params.dbName, params.objectCode, location);
+    }
+  }
+
+  let seriesSource: "payload" | "location" | null = null;
+  if (payloadSeries != null) {
+    seriesSource = "payload";
+  } else if (series != null) {
+    seriesSource = "location";
+  }
+
+  if (series != null) {
+    params.sapPayload.Series = series;
   }
   logger.info({
-    branchId: params.branchId ?? null,
     companyDB: params.dbName,
+    location,
     msg: params.logLabel ?? "Document series assignment",
     objectCode: params.objectCode,
-    series: seriesResolve?.series ?? null,
-    seriesNextNumber: seriesResolve?.nextNumber ?? null,
-    seriesSource: seriesResolve?.source ?? null,
+    series,
+    seriesSource,
+    warehouseCode: warehouseCode || null,
   });
-  return seriesResolve;
+  return series;
 };

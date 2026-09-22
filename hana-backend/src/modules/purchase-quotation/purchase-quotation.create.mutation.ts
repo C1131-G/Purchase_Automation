@@ -141,14 +141,15 @@ export const createPurchaseQuotation = async (
     }
 
     // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
-    const branchResolve = await assignDocumentBranch({
+    await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
       logLabel: "PQ branch assignment",
     });
+    // Numbering series from the warehouse's POS store location (NNM1.Remark), as in the POS.
     await assignDocumentSeries({
-      branchId: branchResolve.branchId,
+      warehouseCode: String(lines[0]?.WarehouseCode ?? "").trim() || null,
       clientPayload: payload,
       dbName: resolvedDbName,
       logLabel: "PQ series assignment",

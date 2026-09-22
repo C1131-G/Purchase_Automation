@@ -39,12 +39,14 @@ vi.mock("@/modules/master-data/document-series", () => ({
   assignDocumentSeries: vi.fn(),
 }));
 
+import { assignDocumentSeries } from "@/modules/master-data/document-series";
 import { createPurchaseOrder } from "@/modules/purchase-order/purchase-order.create.mutation";
 
 describe("createPurchaseOrder", () => {
   beforeEach(() => {
     serviceLayerGetSession.mockReset();
     serviceLayerRequest.mockReset();
+    vi.mocked(assignDocumentSeries).mockClear();
     serviceLayerGetSession.mockReturnValue({ companyDB: "AJAX_POS_DB" });
     serviceLayerRequest.mockResolvedValue({ DocEntry: 0, DocNum: 0 });
   });
@@ -81,6 +83,40 @@ describe("createPurchaseOrder", () => {
       expect.objectContaining({
         DocumentLines: [{ BaseEntry: 2172, BaseLine: 0, BaseType: 540000006, Quantity: 1 }],
       }),
+    );
+  });
+
+  it("picks the numbering series from the first line's warehouse (store location)", async () => {
+    await createPurchaseOrder(
+      "session-1",
+      {
+        CardCode: "V0134",
+        DocDate: "2026-08-22",
+        DocumentLines: [
+          {
+            ItemCode: "A",
+            Quantity: 1,
+            UoMEntry: 1,
+            UnitPrice: 10,
+            VatGroup: "IN-12.5",
+            WarehouseCode: "WH-LAB",
+          },
+          {
+            ItemCode: "B",
+            Quantity: 1,
+            UoMEntry: 1,
+            UnitPrice: 10,
+            VatGroup: "IN-12.5",
+            WarehouseCode: "WH-SUV",
+          },
+        ],
+      },
+      "AJAX_POS_DB",
+      "Portal_Vedha1",
+    );
+
+    expect(assignDocumentSeries).toHaveBeenCalledWith(
+      expect.objectContaining({ objectCode: "22", warehouseCode: "WH-LAB" }),
     );
   });
 });
