@@ -19,7 +19,7 @@ vi.mock("@/modules/attachments/attachments.service", () => ({
 vi.mock("@/modules/intercompany", () => ({ assertIcPartnerForCreate: vi.fn() }));
 vi.mock("@/modules/master-data/master-data.service", () => ({ resolveItemSalesUom: vi.fn() }));
 vi.mock("@/modules/master-data/document-branch", () => ({
-  assignDocumentBranch: vi.fn().mockResolvedValue({ branchId: null }),
+  assignDocumentBranch: vi.fn().mockResolvedValue({ branchId: 2 }),
 }));
 vi.mock("@/modules/master-data/document-series", () => ({
   SAP_SERIES_OBJECT: { salesQuotation: "23" },
@@ -37,7 +37,7 @@ describe("createSalesQuotation", () => {
     vi.mocked(assignDocumentSeries).mockClear();
   });
 
-  it("picks the numbering series from the first line's warehouse (store location)", async () => {
+  it("picks the numbering series from the first line's warehouse and the document branch", async () => {
     await createSalesQuotation(
       "session-1",
       {
@@ -52,7 +52,7 @@ describe("createSalesQuotation", () => {
     );
 
     expect(assignDocumentSeries).toHaveBeenCalledWith(
-      expect.objectContaining({ objectCode: "23", warehouseCode: "WH-LAB" }),
+      expect.objectContaining({ branchId: 2, objectCode: "23", warehouseCode: "WH-LAB" }),
     );
   });
 });

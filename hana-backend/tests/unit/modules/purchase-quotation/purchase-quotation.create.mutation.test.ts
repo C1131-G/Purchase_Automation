@@ -25,7 +25,7 @@ vi.mock("@/modules/intercompany", () => ({
   assertIcPartnerForCreate: vi.fn(),
 }));
 vi.mock("@/modules/master-data/document-branch", () => ({
-  assignDocumentBranch: vi.fn().mockResolvedValue({ branchId: null }),
+  assignDocumentBranch: vi.fn().mockResolvedValue({ branchId: 2 }),
 }));
 vi.mock("@/modules/master-data/document-series", () => ({
   SAP_SERIES_OBJECT: { purchaseQuotation: "540000006" },
@@ -43,7 +43,7 @@ describe("createPurchaseQuotation", () => {
     vi.mocked(assignDocumentSeries).mockClear();
   });
 
-  it("picks the numbering series from the first line's warehouse (store location)", async () => {
+  it("picks the numbering series from the first line's warehouse and the document branch", async () => {
     await createPurchaseQuotation(
       "session-1",
       {
@@ -60,7 +60,7 @@ describe("createPurchaseQuotation", () => {
     );
 
     expect(assignDocumentSeries).toHaveBeenCalledWith(
-      expect.objectContaining({ objectCode: "540000006", warehouseCode: "WH-LAB" }),
+      expect.objectContaining({ branchId: 2, objectCode: "540000006", warehouseCode: "WH-LAB" }),
     );
   });
 });

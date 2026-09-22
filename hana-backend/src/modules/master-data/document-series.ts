@@ -1,13 +1,14 @@
 /**
  * Document numbering series (NNM1.Series) for marketing documents.
- * Same rule as the POS: payload Series wins; otherwise the series whose Remarks equals the
- * POS store location of the first line's warehouse. No match → no Series (SAP default).
+ * Payload Series wins; otherwise the series whose Remarks equals the SAP location (OWHS.Location → OLCT) of the
+ * first line's warehouse AND whose branch (NNM1.BPLId) equals the document branch.
+ * No series matching both → no Series (SAP default).
  */
 import { logger } from "@/core/logger/pino-logger";
 import {
-  getWarehouseStoreLocation,
+  getWarehouseLocation,
   resolveLocationSeries,
-} from "@/modules/master-data/master-data.store-location-series.queries";
+} from "@/modules/master-data/master-data.warehouse-location-series.queries";
 
 export const SAP_SERIES_OBJECT = {
   purchaseOrder: "22",
@@ -34,6 +35,8 @@ export const assignDocumentSeries = async (params: {
   sapPayload: Record<string, unknown>;
   clientPayload: Record<string, unknown>;
   warehouseCode?: string | null;
+  /** Document branch (BPL_IDAssignedToInvoice) the series must belong to. */
+  branchId?: number | null;
   logLabel?: string;
 }) => {
   const payloadSeries = pickSapSeries({
@@ -43,10 +46,11 @@ export const assignDocumentSeries = async (params: {
   let location: string | null = null;
 
   const warehouseCode = String(params.warehouseCode ?? "").trim();
-  if (series == null && warehouseCode) {
-    location = await getWarehouseStoreLocation(params.dbName, warehouseCode);
+  const branchId = params.branchId ?? null;
+  if (series == null && warehouseCode && branchId != null) {
+    location = await getWarehouseLocation(params.dbName, warehouseCode);
     if (location) {
-      series = await resolveLocationSeries(params.dbName, params.objectCode, location);
+      series = await resolveLocationSeries(params.dbName, params.objectCode, location, branchId);
     }
   }
 
@@ -61,6 +65,7 @@ export const assignDocumentSeries = async (params: {
     params.sapPayload.Series = series;
   }
   logger.info({
+    branchId,
     companyDB: params.dbName,
     location,
     msg: params.logLabel ?? "Document series assignment",

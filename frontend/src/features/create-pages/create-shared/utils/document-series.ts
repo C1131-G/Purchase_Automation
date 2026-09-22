@@ -1,6 +1,6 @@
 /**
  * Document numbering series (SAP NNM1) helpers for create/edit headers.
- * Auto-suggest follows the POS rule: warehouse store location = NNM1.Remark.
+ * Auto-suggest: warehouse SAP location = NNM1.Remark AND document branch = NNM1.BPLId.
  * Object codes: PQ=540000006, PO=22, SQ=23.
  */
 
@@ -15,7 +15,7 @@ export type SeriesLookupItem = {
   name: string;
   branchId?: number | null | undefined;
   nextNumber?: number | null | undefined;
-  /** NNM1.Remark — the POS store location this series belongs to. */
+  /** NNM1.Remark — the warehouse location this series belongs to. */
   location?: string | null | undefined;
 };
 
@@ -72,22 +72,29 @@ const normalizeLocation = (value: string | null | undefined): string =>
     .toLowerCase();
 
 /**
- * Same rule as the POS: the series whose Remarks equals the warehouse's store location.
- * No match → no suggestion (SAP default series applies).
+ * The series whose Remarks equals the warehouse's SAP location AND whose branch equals
+ * the document branch. No series matching both → no suggestion (SAP default series applies).
  */
 export const suggestSeries = (
   items: SeriesLookupItem[],
   location?: string | null,
+  branchId?: number | null,
 ): SeriesLookupItem | null => {
   const target = normalizeLocation(location);
-  if (!target) {
+  const branch = toPositiveSeries(branchId);
+  if (!target || branch == null) {
     return null;
   }
-  return items.find((item) => normalizeLocation(item.location) === target) ?? null;
+  return (
+    items.find(
+      (item) =>
+        normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) === branch,
+    ) ?? null
+  );
 };
 
-/** POS store location of the selected warehouse (warehouse lookup `location`). */
-export const storeLocationForWarehouse = (
+/** SAP location of the selected warehouse (warehouse lookup `location`). */
+export const locationForWarehouse = (
   warehouses: ReadonlyArray<{ code: string; location?: string | null | undefined }>,
   warehouseCode: string | null | undefined,
 ): string | null => {

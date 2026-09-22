@@ -349,7 +349,7 @@ export const createSharedQueries = {
             };
           }),
         ),
-      // v3: warehouses include branchId (OWHS.BPLid) and POS store location
+      // v3: warehouses include branchId (OWHS.BPLid) and SAP warehouse location (OWHS.Location → OLCT)
       queryKey: [...createSharedKeys.warehouses(), "v3"] as const,
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),

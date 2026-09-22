@@ -33,7 +33,7 @@ const mapSeriesRows = (
         id: String(row.Series ?? ""),
         name: toTrimmed(row.SeriesName),
         nextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
-        // NNM1.Remark = POS store location this series belongs to (location numbering).
+        // NNM1.Remark = warehouse location this series belongs to (location numbering).
         location: toTrimmed(row.Remark) || null,
       };
     });
@@ -406,30 +406,29 @@ const toPositiveBranchId = (value: unknown): number | null => {
   return Math.trunc(num);
 };
 
-/** Warehouse code → POS store location (StoreWarehouses → Stores.Location). */
-const getWarehouseStoreLocations = async (dbName: string) =>
+/** Warehouse code → SAP location name (OWHS.Location → OLCT.Location). */
+const getWarehouseLocations = async (dbName: string) =>
   getCachedData(
-    `master:${dbName}:WarehouseStoreLocations:v1`,
+    `master:${dbName}:WarehouseLocations:v1`,
     async () => {
       try {
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT sw."WarehouseCode", s."Location"
-             FROM "StoreWarehouses" sw
-             JOIN "Stores" s ON s."StoreId" = sw."StoreId"`,
-        )) as Array<{ WarehouseCode: unknown; Location: unknown }>;
+          `SELECT w."WhsCode", l."Location"
+             FROM OWHS w
+             JOIN OLCT l ON l."Code" = w."Location"`,
+        )) as Array<{ WhsCode: unknown; Location: unknown }>;
         const locations: Record<string, string> = {};
         for (const row of rows) {
-          const code = toTrimmed(row.WarehouseCode);
+          const code = toTrimmed(row.WhsCode);
           const location = toTrimmed(row.Location);
-          if (code && location && !(code in locations)) {
+          if (code && location) {
             locations[code] = location;
           }
         }
         return locations;
       } catch (err) {
-        // Company DBs without the POS store tables (e.g. Ajax) have no store locations.
-        logger.warn({ db: dbName, err, msg: "Failed to fetch POS store locations" });
+        logger.warn({ db: dbName, err, msg: "Failed to fetch warehouse locations" });
         return {};
       }
     },
@@ -438,20 +437,20 @@ const getWarehouseStoreLocations = async (dbName: string) =>
 
 export const getWarehouses = async (dbName: string) => {
   // v2: include OWHS.BPLid so create UI can auto-select document branch from warehouse.
-  const [results, storeLocations] = await Promise.all([
+  const [results, warehouseLocations] = await Promise.all([
     fetchLookup(dbName, WarehouseSchema, "Warehouses:v2", {
       order: { WhsCode: "ASC" } as Record<string, "ASC" | "DESC">,
       select: ["WhsCode", "WhsName", "BinActivat", "BPLid"] as const,
       where: { Inactive: "N" } as Record<string, unknown>,
     }),
-    getWarehouseStoreLocations(dbName),
+    getWarehouseLocations(dbName),
   ]);
 
   return results.map((item) => {
     const branchId = toPositiveBranchId(item.BPLid);
     return {
-      // POS store location — drives the numbering series suggestion (NNM1.Remark).
-      location: storeLocations[toTrimmed(item.WhsCode)] ?? null,
+      // SAP warehouse location — drives the numbering series suggestion (NNM1.Remark).
+      location: warehouseLocations[toTrimmed(item.WhsCode)] ?? null,
       Code: item.WhsCode,
       Name: item.WhsName,
       code: item.WhsCode,

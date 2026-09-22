@@ -32,7 +32,7 @@ vi.mock("@/modules/intercompany/infrastructure/service-layer/sync-buyer-remarks"
   syncBuyerRemarksAfterCreate: vi.fn(),
 }));
 vi.mock("@/modules/master-data/document-branch", () => ({
-  assignDocumentBranch: vi.fn().mockResolvedValue({ branchId: null }),
+  assignDocumentBranch: vi.fn().mockResolvedValue({ branchId: 2 }),
 }));
 vi.mock("@/modules/master-data/document-series", () => ({
   SAP_SERIES_OBJECT: { purchaseOrder: "22" },
@@ -86,7 +86,7 @@ describe("createPurchaseOrder", () => {
     );
   });
 
-  it("picks the numbering series from the first line's warehouse (store location)", async () => {
+  it("picks the numbering series from the first line's warehouse and the document branch", async () => {
     await createPurchaseOrder(
       "session-1",
       {
@@ -116,7 +116,7 @@ describe("createPurchaseOrder", () => {
     );
 
     expect(assignDocumentSeries).toHaveBeenCalledWith(
-      expect.objectContaining({ objectCode: "22", warehouseCode: "WH-LAB" }),
+      expect.objectContaining({ branchId: 2, objectCode: "22", warehouseCode: "WH-LAB" }),
     );
   });
 });

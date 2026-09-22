@@ -50,7 +50,7 @@ import { documentBranchPayload } from "@/features/create-pages/create-shared/uti
 import {
   documentSeriesPayload,
   SAP_SERIES_OBJECT,
-  storeLocationForWarehouse,
+  locationForWarehouse,
   toPositiveSeries,
 } from "@/features/create-pages/create-shared/utils/document-series";
 import {
@@ -210,10 +210,11 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
   const seriesField = useDocumentSeriesField({
     objectCode: SAP_SERIES_OBJECT.purchaseOrder,
-    location: storeLocationForWarehouse(
+    location: locationForWarehouse(
       lookups.warehouses,
       header.warehouseCode ?? lookups.effectiveWarehouseCode,
     ),
+    branchId: header.branchId ?? branchField.effectiveBranchId,
     series: header.series,
     setSeries,
     disabled: isEditMode,

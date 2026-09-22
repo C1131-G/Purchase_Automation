@@ -140,16 +140,19 @@ export const createPurchaseQuotation = async (
       sapPayload.DocObjectCode = "540000006";
     }
 
+    const firstWarehouseCode = String(lines[0]?.WarehouseCode ?? "").trim() || null;
     // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
-    await assignDocumentBranch({
+    const branchResolve = await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
+      warehouseCode: firstWarehouseCode,
       logLabel: "PQ branch assignment",
     });
-    // Numbering series from the warehouse's POS store location (NNM1.Remark), as in the POS.
+    // Numbering series: warehouse's SAP location (NNM1.Remark) within the document branch.
     await assignDocumentSeries({
-      warehouseCode: String(lines[0]?.WarehouseCode ?? "").trim() || null,
+      branchId: branchResolve.branchId,
+      warehouseCode: firstWarehouseCode,
       clientPayload: payload,
       dbName: resolvedDbName,
       logLabel: "PQ series assignment",

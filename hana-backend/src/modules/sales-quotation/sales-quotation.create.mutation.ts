@@ -128,7 +128,7 @@ export const createSalesQuotation = async (
     // Multi-branch: payload → warehouse BPLid → default OBPL.
     const documentLines = sapPayload.DocumentLines as Record<string, unknown>[];
     const firstWh = String(documentLines[0]?.WarehouseCode ?? "").trim() || null;
-    await assignDocumentBranch({
+    const branchResolve = await assignDocumentBranch({
       dbName: resolvedDbName,
       sapPayload,
       clientPayload: payload,
@@ -136,8 +136,9 @@ export const createSalesQuotation = async (
       logLabel: "Sales quotation branch assignment",
     });
 
-    // Numbering series from the warehouse's POS store location (NNM1.Remark), as in the POS.
+    // Numbering series: warehouse's SAP location (NNM1.Remark) within the document branch.
     await assignDocumentSeries({
+      branchId: branchResolve.branchId,
       warehouseCode: firstWh,
       clientPayload: payload,
       dbName: resolvedDbName,
