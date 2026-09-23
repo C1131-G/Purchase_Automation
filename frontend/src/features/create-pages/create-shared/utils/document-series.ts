@@ -74,9 +74,9 @@ const normalizeLocation = (value: string | null | undefined): string =>
 
 /**
  * Select the best series for the current warehouse location and branch.
- * Prefer an exact location and branch match. If that is unavailable, allow a
- * series assigned to the selected branch; when no branch exists, use the
- * warehouse location alone. Never fall back to a different branch.
+ * Prefer an exact location and branch match. A location-only series is a safe
+ * fallback for that same warehouse. When no branch exists, use the warehouse
+ * location alone; never fall back to a different location or branch.
  */
 export const suggestSeries = (
   items: SeriesLookupItem[],
@@ -117,13 +117,7 @@ export const suggestSeries = (
       return locationOnlyMatch;
     }
 
-    return (
-      items.find(
-        (item) => toPositiveSeries(item.branchId) === branch && !normalizeLocation(item.location),
-      ) ??
-      items.find((item) => toPositiveSeries(item.branchId) === branch) ??
-      null
-    );
+    return null;
   }
 
   if (targets.length > 0) {
