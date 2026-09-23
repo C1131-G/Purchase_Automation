@@ -38,10 +38,11 @@ export const formatSeriesDisplay = (
   const id = String(seriesId).trim();
   const label = String(name ?? "").trim() || (id ? `Series ${id}` : "");
   const next = toPositiveSeries(nextNumber);
-  if (next != null && !label.includes(String(next))) {
-    return `${label} · ${next}`;
+  const seriesLabel = id && !label.includes(`Series ${id}`) ? `${label} · Series ${id}` : label;
+  if (next != null && !seriesLabel.includes(String(next))) {
+    return `${seriesLabel} · Next ${next}`;
   }
-  return label;
+  return seriesLabel;
 };
 
 /**

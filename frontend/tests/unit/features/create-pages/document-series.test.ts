@@ -19,8 +19,8 @@ describe("document-series helpers", () => {
   });
 
   it("formats series name with next number", () => {
-    expect(formatSeriesDisplay("Primary", 240001, 72)).toBe("Primary · 240001");
-    expect(formatSeriesDisplay("Primary", 240010, 72)).toBe("Primary · 240010");
+    expect(formatSeriesDisplay("Primary", 240001, 72)).toBe("Primary · Series 72 · Next 240001");
+    expect(formatSeriesDisplay("Primary", 240010, 72)).toBe("Primary · Series 72 · Next 240010");
     expect(formatSeriesDisplay("", null, 72)).toBe("Series 72");
     expect(toPositiveSeries("18")).toBe(18);
   });
@@ -55,9 +55,9 @@ describe("document-series helpers", () => {
     ];
 
     expect(findSeriesSelection(items, "10")).toEqual(items[0]);
-    expect(findSeriesSelection(items, "Main · 100")).toEqual(items[0]);
+    expect(findSeriesSelection(items, "Main · Series 10 · Next 100")).toEqual(items[0]);
     expect(findSeriesSelection(items, "main")).toBeUndefined();
     expect(findSeriesSelection(items, "100")).toBeUndefined();
-    expect(findSeriesSelection(items, "main · 100")).toEqual(items[0]);
+    expect(findSeriesSelection(items, "main · Series 10 · Next 100")).toEqual(items[0]);
   });
 });
