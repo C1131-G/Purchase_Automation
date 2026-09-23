@@ -73,10 +73,8 @@ const normalizeLocation = (value: string | null | undefined): string =>
     .toLowerCase();
 
 /**
- * Select the best series for the current warehouse location and branch.
- * Prefer an exact location and branch match. A location-only series is a safe
- * fallback for that same warehouse. When no branch exists, use the warehouse
- * location alone; never fall back to a different location or branch.
+ * A selected branch determines the series, preferring a location match when
+ * available. Without a branch, use the selected warehouse location.
  */
 export const suggestSeries = (
   items: SeriesLookupItem[],
@@ -91,33 +89,35 @@ export const suggestSeries = (
     return null;
   }
 
-  if (targets.length > 0 && branch != null) {
-    const exactMatch = targets
-      .map((target) =>
-        items.find(
-          (item) =>
-            normalizeLocation(item.location) === target &&
-            toPositiveSeries(item.branchId) === branch,
-        ),
-      )
+  if (branch != null) {
+    const branchItems = items.filter((item) => toPositiveSeries(item.branchId) === branch);
+    const locationMatch = targets
+      .map((target) => branchItems.find((item) => normalizeLocation(item.location) === target))
       .find(Boolean);
-    if (exactMatch) {
-      return exactMatch;
+    if (locationMatch) {
+      return locationMatch;
     }
 
-    const locationOnlyMatch = targets
-      .map((target) =>
-        items.find(
-          (item) =>
-            normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) == null,
-        ),
-      )
-      .find(Boolean);
-    if (locationOnlyMatch) {
-      return locationOnlyMatch;
+    const branchDefault = branchItems.find((item) => !normalizeLocation(item.location));
+    if (branchDefault) {
+      return branchDefault;
     }
 
-    return null;
+    if (branchItems.length > 0) {
+      return branchItems[0] ?? null;
+    }
+
+    return (
+      targets
+        .map((target) =>
+          items.find(
+            (item) =>
+              normalizeLocation(item.location) === target &&
+              toPositiveSeries(item.branchId) == null,
+          ),
+        )
+        .find(Boolean) ?? null
+    );
   }
 
   if (targets.length > 0) {
@@ -128,13 +128,7 @@ export const suggestSeries = (
     );
   }
 
-  return (
-    items.find(
-      (item) => toPositiveSeries(item.branchId) === branch && !normalizeLocation(item.location),
-    ) ??
-    items.find((item) => toPositiveSeries(item.branchId) === branch) ??
-    null
-  );
+  return null;
 };
 
 /** SAP location of the selected warehouse (warehouse lookup `location`). */

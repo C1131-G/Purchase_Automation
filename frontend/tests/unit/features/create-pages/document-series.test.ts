@@ -36,15 +36,14 @@ describe("document-series helpers", () => {
     expect(suggestSeries(items, "suva", 1)?.code).toBe("12");
   });
 
-  it("does not select a different branch when the location does not match", () => {
+  it("uses the selected branch when no branch series matches the warehouse location", () => {
     const items = [
       { code: "12", name: "PO-SUV", location: "Suva", branchId: 1, nextNumber: 100 },
       { code: "13", name: "Primary", location: null, branchId: 2, nextNumber: 300 },
     ];
-    expect(suggestSeries(items, "Suva", 2)).toBeNull();
+    expect(suggestSeries(items, "Suva", 2)?.code).toBe("13");
     expect(suggestSeries(items, "Suva", null)?.code).toBe("12");
-    expect(suggestSeries(items, "Nadi", 1)).toBeNull();
-    expect(suggestSeries(items, "Suva", 2)).toBeNull();
+    expect(suggestSeries(items, "Nadi", 1)?.code).toBe("12");
     expect(suggestSeries([], "Suva", 1)).toBeNull();
   });
 
