@@ -51,6 +51,7 @@ import {
   documentSeriesPayload,
   SAP_SERIES_OBJECT,
   locationForWarehouse,
+  nameForWarehouse,
   toPositiveSeries,
 } from "@/features/create-pages/create-shared/utils/document-series";
 import {
@@ -211,6 +212,11 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const seriesField = useDocumentSeriesField({
     objectCode: SAP_SERIES_OBJECT.purchaseOrder,
     location: locationForWarehouse(
+      lookups.warehouses,
+      header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    ),
+    warehouseCode: header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    warehouseName: nameForWarehouse(
       lookups.warehouses,
       header.warehouseCode ?? lookups.effectiveWarehouseCode,
     ),

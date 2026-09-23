@@ -47,6 +47,7 @@ import {
   documentSeriesPayload,
   SAP_SERIES_OBJECT,
   locationForWarehouse,
+  nameForWarehouse,
   toPositiveSeries,
 } from "@/features/create-pages/create-shared/utils/document-series";
 import {
@@ -323,6 +324,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const seriesField = useDocumentSeriesField({
     objectCode: SAP_SERIES_OBJECT.purchaseQuotation,
     location: locationForWarehouse(
+      lookups.warehouses,
+      header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    ),
+    warehouseCode: header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    warehouseName: nameForWarehouse(
       lookups.warehouses,
       header.warehouseCode ?? lookups.effectiveWarehouseCode,
     ),

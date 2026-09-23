@@ -19,6 +19,8 @@ type UseDocumentSeriesFieldArgs = {
   objectCode: string;
   /** SAP location of the document warehouse (OWHS.Location → OLCT.Location). */
   location?: string | null | undefined;
+  warehouseCode?: string | null | undefined;
+  warehouseName?: string | null | undefined;
   /** Document branch (header branch field → warehouse BPLid). */
   branchId?: number | null | undefined;
   series: number | null | undefined;
@@ -34,6 +36,8 @@ type UseDocumentSeriesFieldArgs = {
 export function useDocumentSeriesField({
   objectCode,
   location,
+  warehouseCode,
+  warehouseName,
   branchId,
   series,
   setSeries,
@@ -111,7 +115,7 @@ export function useDocumentSeriesField({
   useEffect(() => {
     const warehouseLocation = String(location ?? "").trim() || null;
     const branch = toPositiveSeries(branchId);
-    const context = `${warehouseLocation ?? ""}|${branch ?? ""}`;
+    const context = `${warehouseLocation ?? ""}|${warehouseCode ?? ""}|${warehouseName ?? ""}|${branch ?? ""}`;
     if (lastContextRef.current !== context) {
       lastContextRef.current = context;
       if (!lockSuggestion) {
@@ -127,7 +131,13 @@ export function useDocumentSeriesField({
       return;
     }
 
-    const suggested = suggestSeries(seriesList, warehouseLocation, branch);
+    const suggested = suggestSeries(
+      seriesList,
+      warehouseLocation,
+      branch,
+      warehouseCode,
+      warehouseName,
+    );
     const suggestedId = suggested ? toPositiveSeries(suggested.code) : null;
     const current = toPositiveSeries(series);
 
@@ -153,6 +163,8 @@ export function useDocumentSeriesField({
     branchId,
     disabled,
     location,
+    warehouseCode,
+    warehouseName,
     displayForSeries,
     lockSuggestion,
     series,

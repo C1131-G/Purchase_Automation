@@ -74,40 +74,64 @@ const normalizeLocation = (value: string | null | undefined): string =>
 
 /**
  * Select the best series for the current warehouse location and branch.
- * Prefer an exact location and branch match. Some SAP databases keep a
- * location series without BPLId, so use that as the safe fallback for the
- * same location. Never fall back to a different branch.
+ * Prefer an exact location and branch match. If that is unavailable, allow a
+ * series assigned to the selected branch; when no branch exists, use the
+ * warehouse location alone. Never fall back to a different branch.
  */
 export const suggestSeries = (
   items: SeriesLookupItem[],
   location?: string | null,
   branchId?: number | null,
+  warehouseCode?: string | null,
+  warehouseName?: string | null,
 ): SeriesLookupItem | null => {
-  const target = normalizeLocation(location);
+  const targets = [location, warehouseCode, warehouseName].map(normalizeLocation).filter(Boolean);
   const branch = toPositiveSeries(branchId);
-  if (!target && branch == null) {
+  if (targets.length === 0 && branch == null) {
     return null;
   }
 
-  if (target && branch != null) {
-    const exactMatch = items.find(
-      (item) =>
-        normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) === branch,
-    );
+  if (targets.length > 0 && branch != null) {
+    const exactMatch = targets
+      .map((target) =>
+        items.find(
+          (item) =>
+            normalizeLocation(item.location) === target &&
+            toPositiveSeries(item.branchId) === branch,
+        ),
+      )
+      .find(Boolean);
     if (exactMatch) {
       return exactMatch;
     }
 
+    const locationOnlyMatch = targets
+      .map((target) =>
+        items.find(
+          (item) =>
+            normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) == null,
+        ),
+      )
+      .find(Boolean);
+    if (locationOnlyMatch) {
+      return locationOnlyMatch;
+    }
+
     return (
       items.find(
-        (item) =>
-          normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) == null,
-      ) ?? null
+        (item) => toPositiveSeries(item.branchId) === branch && !normalizeLocation(item.location),
+      ) ??
+      items.find((item) => toPositiveSeries(item.branchId) === branch) ??
+      null
     );
   }
 
-  if (target) {
-    return items.find((item) => normalizeLocation(item.location) === target) ?? null;
+  if (targets.length > 0) {
+    return (
+      targets
+        .map((target) => items.find((item) => normalizeLocation(item.location) === target))
+        .find(Boolean) ?? null
+    );
   }
 
   return (
@@ -129,6 +153,18 @@ export const locationForWarehouse = (
     return null;
   }
   return warehouses.find((w) => String(w.code).trim() === code)?.location ?? null;
+};
+
+/** Name of the selected warehouse, used when a series is tagged by warehouse identity. */
+export const nameForWarehouse = (
+  warehouses: ReadonlyArray<{ code: string; name?: string | null | undefined }>,
+  warehouseCode: string | null | undefined,
+): string | null => {
+  const code = String(warehouseCode ?? "").trim();
+  if (!code) {
+    return null;
+  }
+  return warehouses.find((warehouse) => String(warehouse.code).trim() === code)?.name ?? null;
 };
 
 /** Fields to merge into SAP create payload. */
