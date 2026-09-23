@@ -36,16 +36,30 @@ describe("document-series helpers", () => {
     expect(suggestSeries(items, "suva", 1)?.code).toBe("12");
   });
 
-  it("suggests nothing unless both warehouse location and branch match", () => {
+  it("does not select a different branch when the location does not match", () => {
     const items = [
       { code: "12", name: "PO-SUV", location: "Suva", branchId: 1, nextNumber: 100 },
       { code: "13", name: "Primary", location: null, branchId: 2, nextNumber: 300 },
     ];
     expect(suggestSeries(items, "Suva", 2)).toBeNull();
-    expect(suggestSeries(items, "Suva", null)).toBeNull();
+    expect(suggestSeries(items, "Suva", null)?.code).toBe("12");
     expect(suggestSeries(items, "Nadi", 1)).toBeNull();
-    expect(suggestSeries(items, null, 2)).toBeNull();
+    expect(suggestSeries(items, "Suva", 2)).toBeNull();
     expect(suggestSeries([], "Suva", 1)).toBeNull();
+  });
+
+  it("falls back to an unassigned series for the matching warehouse location", () => {
+    const items = [
+      { code: "12", name: "PO-SUV", location: "Suva", branchId: null, nextNumber: 100 },
+    ];
+
+    expect(suggestSeries(items, "Suva", 9)?.code).toBe("12");
+  });
+
+  it("can suggest a branch series when no warehouse location is selected", () => {
+    const items = [{ code: "12", name: "PO-SUV", location: null, branchId: 9, nextNumber: 100 }];
+
+    expect(suggestSeries(items, null, 9)?.code).toBe("12");
   });
 
   it("auto-selects only exact codes and complete formatted displays", () => {

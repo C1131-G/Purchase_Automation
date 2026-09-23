@@ -73,8 +73,10 @@ const normalizeLocation = (value: string | null | undefined): string =>
     .toLowerCase();
 
 /**
- * The series whose Remarks equals the warehouse's SAP location AND whose branch equals
- * the document branch. No series matching both → no suggestion (SAP default series applies).
+ * Select the best series for the current warehouse location and branch.
+ * Prefer an exact location and branch match. Some SAP databases keep a
+ * location series without BPLId, so use that as the safe fallback for the
+ * same location. Never fall back to a different branch.
  */
 export const suggestSeries = (
   items: SeriesLookupItem[],
@@ -83,14 +85,37 @@ export const suggestSeries = (
 ): SeriesLookupItem | null => {
   const target = normalizeLocation(location);
   const branch = toPositiveSeries(branchId);
-  if (!target || branch == null) {
+  if (!target && branch == null) {
     return null;
   }
-  return (
-    items.find(
+
+  if (target && branch != null) {
+    const exactMatch = items.find(
       (item) =>
         normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) === branch,
-    ) ?? null
+    );
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    return (
+      items.find(
+        (item) =>
+          normalizeLocation(item.location) === target && toPositiveSeries(item.branchId) == null,
+      ) ?? null
+    );
+  }
+
+  if (target) {
+    return items.find((item) => normalizeLocation(item.location) === target) ?? null;
+  }
+
+  return (
+    items.find(
+      (item) => toPositiveSeries(item.branchId) === branch && !normalizeLocation(item.location),
+    ) ??
+    items.find((item) => toPositiveSeries(item.branchId) === branch) ??
+    null
   );
 };
 
